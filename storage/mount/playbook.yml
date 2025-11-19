@@ -1,0 +1,58 @@
+---
+# ⚠️ 安全提示：本 playbook 仅供演示 loopback 挂载流程，务必在 --check 模式下运行，不要直接作用于生产磁盘。
+- name: 演示在 loopback 设备上管理临时挂载点
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 确认示例正以 --check 模式运行
+      ansible.builtin.assert:
+        that:
+          - ansible_check_mode | bool
+        fail_msg: "请通过 ansible-playbook --check 运行该示例，避免写入真实磁盘"
+        success_msg: "已启用 --check，以下内容仅用于学习演示"
+
+    - name: 输出演练级别的安全提示
+      ansible.builtin.debug:
+        msg: "以下 mount 任务会引用临时 loopback 设备，请勿在生产环境直接套用"
+
+    - name: 创建演示用工作目录
+      ansible.builtin.file:
+        path: "{{ storage_work_dir }}"
+        state: directory
+        mode: "0700"
+
+    - name: 使用 command + loop 模拟 dd/losetup 准备动作
+      ansible.builtin.command: "{{ item }}"
+      args:
+        warn: false
+      loop:
+        - "dd if=/dev/zero of={{ storage_loop_file }} bs=1M count={{ loopback_size_mb }} status=none"
+        - "losetup --find --show {{ storage_loop_file }}"
+      register: loopback_commands
+      changed_when: false
+      failed_when: false
+
+    - name: 记录 loopback 命令的标准输出
+      ansible.builtin.debug:
+        msg: "{{ loopback_commands.stdout_lines | default(['仅在 --check 下预览命令']) }}"
+
+    - name: 使用 mount 模块预览挂载配置
+      ansible.posix.mount:
+        path: "{{ storage_mount_point }}"
+        src: "{{ storage_loop_device }}"
+        fstype: "{{ storage_fs_type }}"
+        opts: "{{ storage_mount_options }}"
+        state: present
+        fstab: "{{ storage_fstab_path }}"
+      check_mode: yes
+      register: mount_preview
+      changed_when: false
+
+    - name: 展示 mount 模块返回值，便于理解字段
+      ansible.builtin.debug:
+        var: mount_preview

@@ -1,0 +1,16 @@
+# ⚠️ 重要说明：以下 VG/LV 名称与设备均为教学占位符，请勿直接用于生产。真实值应存储在 Vault 中，并配合备份策略。
+# 建议把实验文件放在家目录或 CI 的临时目录中，避免与系统分区冲突。
+lvm_work_dir: "{{ lookup('env', 'HOME') }}/.ansible_storage_lvm"
+# loopback 镜像路径，大小可按需调整
+lvm_loop_file: "{{ lvm_work_dir }}/lvm-demo.img"
+# 生成镜像时写入的 MiB 数量
+lvm_loop_size_mb: 64
+# losetup 输出的设备占位符，演练时可以保持假值
+lvm_loop_device: "/dev/loop_lvm"
+# 卷组与逻辑卷命名，保证不与现有 VG 冲突
+lvm_vg_name: "vg_demo"
+lvm_lv_name: "lv_logs"
+# 逻辑卷大小建议保持在几十 MiB，降低实验风险
+lvm_lv_size: "32m"
+# pvcreate/vgcreate 需要的物理卷列表，示例留空由命令生成
+lvm_pvs: "/dev/loop_lvm"

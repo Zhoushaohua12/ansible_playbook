@@ -1,0 +1,14 @@
+# ⚠️ 风险提示：以下变量仅为演示用，请勿直接指向生产磁盘。若需真实测试，请复制文件并使用 Vault/环境变量覆盖。
+fs_work_dir: "{{ lookup('env', 'HOME') }}/.ansible_storage_fs"
+# 临时镜像文件路径，可依据磁盘空间调整
+fs_loop_file: "{{ fs_work_dir }}/fs-demo.img"
+# 镜像大小（MiB），保持在较小值便于快速删除
+fs_loop_size_mb: 16
+# losetup 生成的设备占位符，真实环境请改为 /dev/loopX
+fs_loop_device: "/dev/loop_fs"
+# 目标文件系统类型，可切换为 ext4/xfs/btrfs 等
+fs_fstype: "xfs"
+# 如果需要覆盖已有文件系统可设置为 true，但强烈建议先备份
+fs_force_format: false
+# 附加 mkfs 选项，受限环境下保持空字符串即可
+fs_mkfs_options: ""
