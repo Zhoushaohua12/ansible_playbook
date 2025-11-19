@@ -1,0 +1,15 @@
+/* 示例样式表 - 用于演示 synchronize 同步 */
+body {
+  font-family: "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+  margin: 2rem;
+  background: #f5f5f5;
+}
+
+h1 {
+  color: #333;
+}
+
+p {
+  font-size: 1rem;
+  color: #666;
+}

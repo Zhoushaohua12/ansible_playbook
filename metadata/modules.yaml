@@ -106,6 +106,63 @@ storage:
         - "mkfs.xfs 或 mkfs.ext4 命令"
         - "ansible.builtin.filesystem 模块"
 
+files:
+  title: 文件操作模块
+  description: "涵盖文件复制、模板渲染、配置修改、状态检查、文件系统操作、文件查找和目录同步的完整文件管理解决方案"
+  external_dependencies:
+    - "ansible.posix collection (synchronize 模块)"
+    - "rsync 工具（synchronize 模块依赖）"
+  topics:
+    - id: copy
+      name: Copy 文件复制
+      doc: files/copy/README.md
+      example: files/copy/playbook.yml
+      summary: "静态文件从控制节点复制到远程主机，支持权限设置、备份和内容验证"
+      files:
+        - "files/copy/files/web_app.conf"
+        - "files/copy/files/motd_banner.txt"
+    - id: template
+      name: Template 模板渲染
+      doc: files/template/README.md
+      example: files/template/playbook.yml
+      summary: "使用 Jinja2 模板动态生成配置文件，支持变量替换、条件判断和循环"
+      templates:
+        - "files/template/templates/web_app.conf.j2"
+        - "files/template/templates/nginx_site.conf.j2"
+        - "files/template/templates/app.service.j2"
+        - "files/template/templates/env_config.j2"
+    - id: lineinfile
+      name: Lineinfile 行级配置修改
+      doc: files/lineinfile/README.md
+      example: files/lineinfile/playbook.yml
+      summary: "精确修改配置文件中的单行内容，支持正则匹配、备份和幂等性控制"
+    - id: stat
+      name: Stat 文件状态检查
+      doc: files/stat/README.md
+      example: files/stat/playbook.yml
+      summary: "获取文件或目录的元数据（权限、大小、时间戳、校验和），用于条件判断"
+    - id: file
+      name: File 文件系统操作
+      doc: files/file/README.md
+      example: files/file/playbook.yml
+      summary: "管理文件、目录、符号链接和硬链接，支持创建、删除、权限设置和递归操作"
+    - id: find
+      name: Find 文件查找
+      doc: files/find/README.md
+      example: files/find/playbook.yml
+      summary: "按名称、大小、时间、内容等条件查找文件，支持批量清理和归档"
+    - id: synchronize
+      name: Synchronize 目录同步
+      doc: files/synchronize/README.md
+      example: files/synchronize/playbook.yml
+      summary: "基于 rsync 实现高效增量同步，适用于代码部署、备份和大规模文件分发"
+      files:
+        - "files/synchronize/source_dir/index.html"
+        - "files/synchronize/source_dir/assets/style.css"
+      external_deps:
+        - "ansible.posix collection"
+        - "rsync 工具（控制节点和目标主机）"
+
 commands:
   title: 命令执行模块
   description: "演示 shell、command、raw、script 四个核心命令执行模块的使用差异、安全风险与最佳实践，包含中文文档和幂等性控制示例"

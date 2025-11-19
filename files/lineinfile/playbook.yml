@@ -1,0 +1,65 @@
+---
+- name: lineinfile 模块配置修改演练
+  hosts: all
+  become: false
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 创建配置文件目录
+      ansible.builtin.file:
+        path: "{{ lineinfile_config_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: 初始化配置文件（便于演示）
+      ansible.builtin.copy:
+        dest: "{{ lineinfile_config_file }}"
+        content: |
+          # 示例服务配置，包含中文说明
+          service_name=demo
+          enable_feature=true
+          listen_port=8080
+          # END OF FILE
+        mode: '0644'
+        force: false
+
+    - name: 修改监听端口保持幂等
+      ansible.builtin.lineinfile:
+        path: "{{ lineinfile_config_file }}"
+        regexp: '^listen_port='
+        line: "listen_port={{ lineinfile_listen_port }}"
+        backup: true
+        # 中文注释：使用 backup 保留原配置，防止误操作
+
+    - name: 添加自定义环境变量
+      ansible.builtin.lineinfile:
+        path: "{{ lineinfile_config_file }}"
+        regexp: '^custom_env='
+        line: "custom_env={{ lineinfile_custom_env }}"
+        insertafter: '^enable_feature='
+        create: true
+
+    - name: 删除弃用的配置项
+      ansible.builtin.lineinfile:
+        path: "{{ lineinfile_config_file }}"
+        regexp: '^deprecated_feature='
+        state: absent
+
+    - name: 确保配置末尾包含中文注释
+      ansible.builtin.lineinfile:
+        path: "{{ lineinfile_config_file }}"
+        line: "# 中文提示：以上配置由 lineinfile 自动维护"
+        insertafter: EOF
+        create: true
+
+    - name: 验证监听端口是否匹配
+      ansible.builtin.shell: "grep '^listen_port=' {{ lineinfile_config_file }}"
+      register: lineinfile_port_check
+      changed_when: false
+
+    - name: 输出校验结果
+      ansible.builtin.debug:
+        msg:
+          - "当前配置文件: {{ lineinfile_config_file }}"
+          - "监听端口: {{ lineinfile_port_check.stdout }}"

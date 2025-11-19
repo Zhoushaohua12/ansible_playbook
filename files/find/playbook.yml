@@ -1,0 +1,75 @@
+---
+- name: find 模块文件查找演练
+  hosts: all
+  become: false
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 准备演练目录
+      ansible.builtin.file:
+        path: "{{ find_demo_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: 创建测试文件（包含中文内容）
+      ansible.builtin.copy:
+        content: |
+          # 测试日志 {{ item.name }}
+          测试内容：用于演示 find 模块
+          时间戳：{{ ansible_date_time.iso8601 }}
+        dest: "{{ find_demo_dir }}/{{ item.name }}"
+        mode: '0644'
+      loop:
+        - { name: "app.log" }
+        - { name: "error.log" }
+        - { name: "debug.txt" }
+        - { name: "backup.tar.gz" }
+
+    - name: 查找所有 .log 文件
+      ansible.builtin.find:
+        paths: "{{ find_demo_dir }}"
+        patterns: "*.log"
+        file_type: file
+      register: find_logs
+
+    - name: 显示找到的日志文件
+      ansible.builtin.debug:
+        msg:
+          - "找到 {{ find_logs.matched }} 个日志文件"
+          - "文件列表: {{ find_logs.files | map(attribute='path') | list }}"
+
+    - name: 查找超过 0 字节的文件（用于演示大小过滤）
+      ansible.builtin.find:
+        paths: "{{ find_demo_dir }}"
+        size: 0
+        file_type: file
+      register: find_sized
+
+    - name: 显示非空文件
+      ansible.builtin.debug:
+        msg: "非空文件数量: {{ find_sized.matched }}"
+
+    - name: 查找包含中文的文件
+      ansible.builtin.find:
+        paths: "{{ find_demo_dir }}"
+        patterns: "*.log"
+        contains: "测试内容"
+      register: find_chinese
+
+    - name: 显示包含特定内容的文件
+      ansible.builtin.debug:
+        msg: "包含'测试内容'的文件: {{ find_chinese.matched }} 个"
+
+    - name: 模拟清理 - 仅显示待清理文件（不实际删除）
+      ansible.builtin.debug:
+        msg: "待清理文件: {{ item.path }}"
+      loop: "{{ find_logs.files }}"
+      when: find_enable_cleanup
+
+    - name: 实际清理示例（谨慎开启）
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ find_logs.files }}"
+      when: find_enable_cleanup and find_confirm_deletion

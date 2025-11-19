@@ -1,0 +1,27 @@
+---
+# ⚠️ synchronize 模块示例变量
+# 说明：演示 rsync 高效目录同步，请确保源目录和目标目录路径正确
+
+# 源目录（控制节点本地路径，注意末尾 / 表示同步目录内容）
+synchronize_source_dir: "{{ playbook_dir }}/source_dir/"
+
+# 目标目录（远程主机路径）
+synchronize_dest_dir: "/tmp/ansible_synchronize_demo"
+
+# 本地日志备份目录（用于 pull 模式示例）
+synchronize_local_log_backup: "/tmp/ansible_pulled_logs"
+
+# 是否删除目标目录中多余的文件（谨慎开启）
+synchronize_delete_extra: false
+
+# 是否收集远程日志回控制节点
+synchronize_collect_logs: false
+
+# 是否通过 Ansible 管理 rsync 安装
+synchronize_manage_rsync: false
+
+# rsync 额外选项（排除特定文件）
+synchronize_rsync_opts:
+  - "--exclude=.git"
+  - "--exclude=*.tmp"
+  - "--exclude=*.log"

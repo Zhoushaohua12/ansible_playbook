@@ -1,0 +1,28 @@
+# {{ template_app_name }} 配置文件（{{ template_app_version }}）
+# 生成时间：{{ ansible_date_time.iso8601 }}
+# 运行环境：{{ template_runtime_env }}
+
+[application]
+# 应用基础信息
+name = {{ template_app_name }}
+version = {{ template_app_version }}
+listen_port = {{ template_listen_port }}
+
+[logging]
+# 日志级别：DEBUG/INFO/WARNING/ERROR
+level = {{ template_log_level }}
+path = /var/log/{{ template_app_name | replace(' ', '_') | lower }}/app.log
+
+[feature_flags]
+# 功能开关（中文注释示例）
+multi_region = {{ template_feature_flags.multi_region | lower }}
+enable_cn_doc = {{ template_feature_flags.enable_cn_doc | lower }}
+
+[backend]
+# 后端服务列表
+{% for backend in template_backend_hosts %}
+backend_{{ loop.index }} = {{ backend.host }}:{{ backend.port }}
+{% endfor %}
+
+# 提示：本文件由 Ansible template 模块自动生成，请勿手动编辑
+# 如需调整配置，请修改对应的 vars 文件并重新运行 Ansible playbook

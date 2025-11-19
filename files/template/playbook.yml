@@ -1,0 +1,65 @@
+---
+- name: template 模块动态配置渲染演示
+  hosts: all
+  become: false
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 创建模板渲染目标目录
+      ansible.builtin.file:
+        path: "{{ template_dest_dir }}"
+        state: directory
+        owner: "{{ template_owner }}"
+        group: "{{ template_group }}"
+        mode: '0755'
+
+    - name: 渲染 Web 应用配置模板（包含中文注释与环境变量）
+      ansible.builtin.template:
+        src: templates/web_app.conf.j2
+        dest: "{{ template_dest_dir }}/app.conf"
+        owner: "{{ template_owner }}"
+        group: "{{ template_group }}"
+        mode: '0640'
+        backup: true
+        # 中文提示：渲染后包含中文配置说明，适配多环境
+
+    - name: 渲染 Nginx 配置文件示例（中文服务名）
+      ansible.builtin.template:
+        src: templates/nginx_site.conf.j2
+        dest: "{{ template_dest_dir }}/nginx_site.conf"
+        owner: "{{ template_owner }}"
+        group: "{{ template_group }}"
+        mode: '0644'
+        backup: false
+
+    - name: 渲染 systemd 服务单元（用于后台服务）
+      ansible.builtin.template:
+        src: templates/app.service.j2
+        dest: "{{ template_dest_dir }}/app.service"
+        owner: root
+        group: root
+        mode: '0644'
+      when: template_enable_systemd
+      # 中文提示：仅在 template_enable_systemd 为 true 时渲染 systemd 配置
+
+    - name: 渲染环境变量配置（支持多环境差异）
+      ansible.builtin.template:
+        src: templates/env_config.j2
+        dest: "{{ template_dest_dir }}/.env"
+        owner: "{{ template_owner }}"
+        group: "{{ template_group }}"
+        mode: '0600'
+        # 中文提示：敏感信息需严格权限控制，仅所有者可读写
+
+    - name: 读取渲染后的配置片段（可选验证）
+      ansible.builtin.stat:
+        path: "{{ template_dest_dir }}/app.conf"
+      register: template_stat_result
+
+    - name: 显示渲染文件信息
+      ansible.builtin.debug:
+        msg:
+          - "app.conf 路径: {{ template_dest_dir }}/app.conf"
+          - "文件大小: {{ template_stat_result.stat.size }} 字节"
+          - "最后修改: {{ template_stat_result.stat.mtime | int | to_datetime }}"

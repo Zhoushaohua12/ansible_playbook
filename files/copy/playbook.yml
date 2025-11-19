@@ -1,0 +1,66 @@
+---
+- name: copy 模块综合演练
+  hosts: all
+  become: false
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 创建演练目录
+      ansible.builtin.file:
+        path: "{{ copy_dest_dir }}"
+        state: directory
+        owner: "{{ copy_owner }}"
+        group: "{{ copy_group }}"
+        mode: '0755'
+
+    - name: 部署示例服务配置
+      ansible.builtin.copy:
+        src: files/web_app.conf
+        dest: "{{ copy_dest_dir }}/{{ copy_service_filename }}"
+        owner: "{{ copy_owner }}"
+        group: "{{ copy_group }}"
+        mode: '0644'
+        backup: true
+        # 中文提示：开启 backup 可保留旧版本，便于回滚
+
+    - name: 复制 MOTD 横幅并展示中文欢迎语
+      ansible.builtin.copy:
+        src: files/motd_banner.txt
+        dest: "{{ copy_dest_dir }}/{{ copy_banner_filename }}"
+        owner: root
+        group: root
+        mode: '0644'
+        force: true
+
+    - name: 写入临时调试文件（content 示例）
+      ansible.builtin.copy:
+        content: |
+          # 调试信息：{{ copy_debug_message }}
+          当前环境={{ copy_runtime_env }}
+          生成时间={{ ansible_date_time.iso8601 }}
+        dest: "{{ copy_dest_dir }}/runtime_info.txt"
+        mode: '0640'
+
+    - name: 创建备份目录
+      ansible.builtin.file:
+        path: "{{ copy_backup_dir }}"
+        state: directory
+        owner: "{{ copy_owner }}"
+        group: "{{ copy_group }}"
+        mode: '0750'
+
+    - name: 可选 - 复制远程配置作为备份
+      ansible.builtin.copy:
+        src: "{{ copy_dest_dir }}/{{ copy_service_filename }}"
+        dest: "{{ copy_backup_dir }}/{{ copy_service_filename }}.bak"
+        remote_src: true
+        when: copy_enable_remote_backup
+        # 中文提示：使用 remote_src 在远程主机内部复制文件
+
+    - name: 显示复制结果摘要
+      ansible.builtin.debug:
+        msg:
+          - "配置文件路径: {{ copy_dest_dir }}/{{ copy_service_filename }}"
+          - "横幅路径: {{ copy_dest_dir }}/{{ copy_banner_filename }}"
+          - "备份启用: {{ copy_enable_remote_backup }}"

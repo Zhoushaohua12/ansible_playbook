@@ -1,0 +1,47 @@
+---
+- name: synchronize 模块目录同步演练
+  hosts: all
+  become: false
+  vars_files:
+    - vars/example_vars.yml
+
+  pre_tasks:
+    - name: 确保远程主机安装 rsync
+      ansible.builtin.package:
+        name: rsync
+        state: present
+      become: true
+      when: synchronize_manage_rsync
+      # 中文注释：synchronize 依赖 rsync，请先安装
+
+  tasks:
+    - name: 显示源目录内容（控制节点）
+      ansible.builtin.debug:
+        msg: "同步源目录：{{ synchronize_source_dir }}"
+
+    - name: 同步静态资源到目标目录
+        # 中文注释：使用 synchronize 进行增量同步
+      ansible.posix.synchronize:
+        src: "{{ synchronize_source_dir }}"
+        dest: "{{ synchronize_dest_dir }}"
+        delete: "{{ synchronize_delete_extra }}"
+        archive: true
+        compress: true
+        checksum: false
+        rsync_opts: "{{ synchronize_rsync_opts }}"
+
+    - name: 同步日志目录回控制节点（pull 模式示例）
+      ansible.posix.synchronize:
+        mode: pull
+        src: "{{ synchronize_dest_dir }}/logs/"
+        dest: "{{ synchronize_local_log_backup }}"
+        archive: true
+        compress: true
+      when: synchronize_collect_logs
+
+    - name: 显示同步结果
+      ansible.builtin.debug:
+        msg:
+          - "同步完成，目标目录：{{ synchronize_dest_dir }}"
+          - "删除多余文件：{{ synchronize_delete_extra }}"
+          - "收集日志：{{ synchronize_collect_logs }}"

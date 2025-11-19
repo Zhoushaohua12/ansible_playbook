@@ -1,0 +1,24 @@
+---
+# ⚠️ copy 模块示例变量配置
+# 说明：所有变量为教学示例，实际使用时请根据环境调整路径和权限
+
+# 目标目录（演练用，真实场景替换为 /etc/app 等）
+copy_dest_dir: "/tmp/ansible_copy_demo"
+
+# 备份目录
+copy_backup_dir: "/tmp/ansible_copy_demo/backups"
+
+# 文件名配置
+copy_service_filename: "web_app.conf"
+copy_banner_filename: "motd_banner.txt"
+
+# 文件所有者和所属组（非 root 用户运行时使用当前用户）
+copy_owner: "{{ ansible_user_id }}"
+copy_group: "{{ ansible_user_id }}"
+
+# 运行时环境信息
+copy_runtime_env: "staging"
+copy_debug_message: "这是一条中文调试消息，用于演示 copy 模块"
+
+# 远程备份开关（控制是否在远程主机内部复制文件作为备份）
+copy_enable_remote_backup: true

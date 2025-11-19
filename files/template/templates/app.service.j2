@@ -1,0 +1,27 @@
+# {{ template_app_name }} Systemd 服务单元
+# 生成时间：{{ ansible_date_time.iso8601 }}
+
+[Unit]
+Description={{ template_app_name }} v{{ template_app_version }}
+After=network.target
+
+[Service]
+Type=simple
+User={{ systemd_user }}
+Group={{ systemd_group }}
+WorkingDirectory=/opt/{{ template_app_name | lower | replace(' ', '_') }}
+ExecStart=/usr/bin/python3 /opt/{{ template_app_name | lower | replace(' ', '_') }}/app.py
+Restart=on-failure
+RestartSec=10s
+
+# 环境变量
+Environment="APP_ENV={{ template_runtime_env }}"
+Environment="APP_PORT={{ template_listen_port }}"
+Environment="TZ=Asia/Shanghai"
+
+# 安全限制（中文注释：限制服务运行权限）
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

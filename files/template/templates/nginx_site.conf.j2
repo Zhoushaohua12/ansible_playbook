@@ -1,0 +1,24 @@
+# Nginx 虚拟主机模板
+server {
+    listen {{ template_listen_port }};
+    server_name {{ template_app_name | lower | replace(' ', '-') }}.example.com;
+
+    root /var/www/{{ template_app_name | lower | replace(' ', '_') }}/current;
+    index index.html index.htm;
+
+    access_log /var/log/nginx/{{ template_app_name | lower | replace(' ', '_') }}.access.log;
+    error_log /var/log/nginx/{{ template_app_name | lower | replace(' ', '_') }}.error.log;
+
+    location / {
+        proxy_pass http://127.0.0.1:{{ template_listen_port }};
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Host $host;
+        # 中文注释：为接口添加健康检查头部
+        add_header X-App-Region "{{ env_settings.APP_REGION }}";
+    }
+
+    location /healthz {
+        return 200 'ok';
+    }
+}
