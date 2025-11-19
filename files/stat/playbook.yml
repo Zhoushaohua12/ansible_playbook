@@ -1,0 +1,62 @@
+---
+- name: stat 模块文件状态检查演示
+  hosts: all
+  become: false
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 创建测试目录结构
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ stat_demo_dir }}"
+        - "{{ stat_demo_dir }}/subdir"
+
+    - name: 创建测试文件（包含中文内容）
+      ansible.builtin.copy:
+        content: |
+          # 测试配置文件
+          中文描述=用于演示 stat 模块的示例文件
+          timestamp={{ ansible_date_time.epoch }}
+        dest: "{{ stat_test_file }}"
+        mode: '0644'
+
+    - name: 获取测试文件状态
+      ansible.builtin.stat:
+        path: "{{ stat_test_file }}"
+        get_checksum: true
+        get_mime: true
+      register: stat_file_info
+
+    - name: 显示文件状态（中文标签）
+      ansible.builtin.debug:
+        msg:
+          - "文件是否存在: {{ stat_file_info.stat.exists }}"
+          - "文件大小: {{ stat_file_info.stat.size }} 字节"
+          - "文件权限: {{ stat_file_info.stat.mode }}"
+          - "所有者: {{ stat_file_info.stat.pw_name }}"
+          - "最后修改时间: {{ stat_file_info.stat.mtime | int | to_datetime }}"
+          - "SHA1 校验和: {{ stat_file_info.stat.checksum }}"
+      when: stat_file_info.stat.exists
+
+    - name: 检查目录是否存在
+      ansible.builtin.stat:
+        path: "{{ stat_demo_dir }}/subdir"
+      register: stat_dir_info
+
+    - name: 输出目录检查结果
+      ansible.builtin.debug:
+        msg: "子目录存在: {{ stat_dir_info.stat.exists and stat_dir_info.stat.isdir }}"
+
+    - name: 检查不存在的文件
+      ansible.builtin.stat:
+        path: "{{ stat_demo_dir }}/nonexist.txt"
+      register: stat_nonexist
+
+    - name: 根据文件存在性执行任务
+      ansible.builtin.debug:
+        msg: "文件不存在，跳过处理"
+      when: not stat_nonexist.stat.exists

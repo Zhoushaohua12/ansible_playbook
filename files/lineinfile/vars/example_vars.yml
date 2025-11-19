@@ -1,0 +1,10 @@
+---
+# ⚠️ lineinfile 模块示例变量
+# 说明：演示配置文件行级修改，实际使用时请根据需要调整路径
+
+lineinfile_config_dir: "/tmp/ansible_lineinfile_demo"
+lineinfile_config_file: "{{ lineinfile_config_dir }}/app.conf"
+
+# 配置参数（中文注释：将被写入配置文件）
+lineinfile_listen_port: 9090
+lineinfile_custom_env: "production"

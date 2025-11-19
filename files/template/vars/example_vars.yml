@@ -1,0 +1,35 @@
+---
+# ⚠️ template 模块示例变量
+# 说明：请根据实际环境调整路径、服务名和端口，示例值仅用于教学
+
+template_dest_dir: "/tmp/ansible_template_demo"
+template_owner: "{{ ansible_user_id }}"
+template_group: "{{ ansible_user_id }}"
+template_enable_systemd: true
+
+template_app_name: "智慧通知服务"
+template_app_version: "2.5.1"
+template_runtime_env: "staging"
+template_log_level: "INFO"
+template_listen_port: 8088
+template_backend_hosts:
+  - host: "10.0.0.11"
+    port: 9001
+  - host: "10.0.0.12"
+    port: 9001
+
+template_feature_flags:
+  multi_region: true
+  enable_cn_doc: true
+
+# systemd 相关变量
+systemd_user: "deploy"
+systemd_group: "deploy"
+
+# 环境变量文件示例
+env_settings:
+  APP_ENV: "staging"
+  APP_REGION: "cn-east-1"
+  TZ: "Asia/Shanghai"
+  WELCOME_MESSAGE: "欢迎访问中文配置示例"
+  SECRET_PLACEHOLDER: "请使用 Vault 加密真实密码"

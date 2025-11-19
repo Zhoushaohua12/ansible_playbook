@@ -1,0 +1,16 @@
+---
+# ⚠️ file 模块示例变量
+# 说明：演示目录创建、权限管理和符号链接
+
+file_base_dir: "/tmp/ansible_file_demo"
+file_owner: "{{ ansible_user_id }}"
+file_group: "{{ ansible_user_id }}"
+
+# 当前版本（用于符号链接）
+file_current_release: "v2.0.0"
+
+# 清理控制
+file_cleanup_enabled: false
+file_old_releases:
+  - "v1.0.0"
+  - "v1.5.0"

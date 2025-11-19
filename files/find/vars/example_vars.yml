@@ -1,0 +1,7 @@
+---
+# ⚠️ find 模块示例变量
+# 说明：用于演示文件查找和可选清理流程
+
+find_demo_dir: "/tmp/ansible_find_demo"
+find_enable_cleanup: false
+find_confirm_deletion: false

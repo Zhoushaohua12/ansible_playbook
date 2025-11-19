@@ -45,7 +45,7 @@
       ansible.builtin.filesystem:
         fstype: "{{ fs_fstype }}"
         dev: "{{ fs_loop_device }}"
-        force: {{ fs_force_format }}
+        force: "{{ fs_force_format }}"
         opts: "{{ fs_mkfs_options }}"
       check_mode: yes
       register: filesystem_preview

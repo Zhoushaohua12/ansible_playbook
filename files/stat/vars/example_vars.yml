@@ -1,0 +1,6 @@
+---
+# ⚠️ stat 模块示例变量
+# 说明：用于演示如何读取文件状态并结合条件控制
+
+stat_demo_dir: "/tmp/ansible_stat_demo"
+stat_test_file: "{{ stat_demo_dir }}/config.ini"

@@ -6,6 +6,7 @@
 - `advanced/`：高级特性讲解与示例 Playbook。
 - `applications/`：应用管理模块（软件包/容器/源码部署）的实践指南。
 - `commands/`：命令执行模块（shell、command、raw、script）的使用指南与安全实践。
+- `files/`：文件操作模块（copy、template、lineinfile、stat、file、find、synchronize）的中文文档与示例。
 - `database/`：数据库管理模块（MySQL、PostgreSQL、MongoDB）的自动化运维示例。
 - `monitoring/`：主流监控系统的 Ansible 集成示例。
 - `network/`：网络配置与防火墙管理（firewalld、ufw、iptables、wait_for）的完整指南。
@@ -18,6 +19,7 @@
 - [高级特性总览](advanced/README.md)
 - [应用管理指南](applications/README.md)
 - [命令执行模块指南](commands/README.md)
+- [文件操作模块实践指南](files/README.md)
 - [数据库管理实践指南](database/README.md)
 - [监控模块总览](monitoring/README.md)
 - [网络模块实践指南](network/README.md)
@@ -26,6 +28,16 @@
 
 ## 如何学习
 按照"阅读文档 → 运行示例 → 修改变量 → 扩展任务"的顺序进行练习。建议先通读对应 README，结合注释理解变量含义，再亲自运行 Playbook 并在失败时参考"如何调试/常见错误"章节。完成基础练习后，可以尝试把同一台主机的需求拆分进多个特性目录中的示例，或根据业务自定义更多 handler、loop 与 include 组合，以加深理解。
+
+## 如何运行示例
+1. 进入目标模块目录（如 `cd files/copy`），阅读 `README.md` 了解操作背景与安全提示。
+2. 打开 `vars/example_vars.yml`，根据环境调整占位变量，必要时使用 Ansible Vault 保护敏感信息。
+3. 使用 `ansible-playbook playbook.yml --syntax-check` 进行语法检查；再使用 `--check` 模式预览变更；确认无误后再执行正式命令。
+4. 需要辅助文件的模块请保持目录结构不变：
+   - `files/copy` 和 `files/template` 依赖同级的 `files/`、`templates/` 子目录存放示例配置与 Jinja2 模板。
+   - `files/synchronize` 使用 `source_dir/` 作为示例站点，请在控制节点保留该目录并安装 `rsync`。
+   - 运行这些示例时务必在模块目录下执行，以便 `playbook_dir` 能正确解析相对路径。
+5. 结合 `--diff` 选项查看文件内容差异，确保中文注释、编码和权限符合预期。
 
 ## 注意事项
 - **存储示例严禁直接在生产环境运行**：`storage/` 下的 playbook 默认通过 loopback 设备和 `--check` 模式演练，请先阅读 [storage/README.md](storage/README.md) 并在沙箱环境验证。
@@ -45,6 +57,42 @@
 - **安全规范验证**：shell 模块应包含 `warn: false` 或 `set -e`，command 模块不应启用 shell
 - **raw 模块提醒**：raw 示例需包含中文安全提醒，说明会绕过 Python 依赖
 - **脚本引用检查**：script 模块示例应引用现有 `.sh` 脚本文件并有中文注释
+
+## 文件操作章节
+`files/` 目录收录了 copy、template、lineinfile、stat、file、find、synchronize 七大文件模块，覆盖文件创建、传输、配置差异化生成、元数据查询与目录同步的全流程；文档包含中文注释、编码提示与备份策略。
+
+### 模块概览
+| 模块 | 场景 | 关键提示 |
+|------|------|----------|
+| copy | 分发静态配置、证书、脚本 | 启用 `backup`/`remote_src`，确保 UTF-8 编码 |
+| template | Jinja2 动态渲染配置 | 使用 `--diff` 检查差异，模板中加入中文注释 |
+| lineinfile | 行级配置修改 | 配合 `regexp`、`backup: true`，防止重复行 |
+| stat | 文件状态检查 | 结合 `when` 条件，只在文件存在时执行高风险操作 |
+| file | 目录/权限/链接管理 | 权限字符串需加引号，必要时 `recurse: true` |
+| find | 条件查找文件 | `age`/`size` 过滤大目录，结果可交给 file 模块清理 |
+| synchronize | 目录增量同步 | 控制节点与远程均需安装 `rsync`，慎用 `delete: yes` |
+
+### 学习路线
+1. `file` → 了解目录/权限管理；
+2. `copy` + `stat` → 学习文件分发与状态判断；
+3. `lineinfile` → 精确调整配置；
+4. `template` → 渲染多环境配置并配合 handler；
+5. `find` → 查询并批量处理日志或缓存；
+6. `synchronize` → 使用 rsync 进行代码部署与备份。
+
+### 常见陷阱
+- **编码问题**：所有示例默认 UTF-8，Windows 编辑器需关闭 BOM；
+- **幂等性与备份**：copy/template/lineinfile 均演示 `backup: yes`，运行前可先 `--check --diff`；
+- **依赖提醒**：synchronize 需要 ansible.posix collection 与 `rsync`，执行前确保已安装。
+
+### 相关链接
+- [copy 模块示例](files/copy/README.md)
+- [template 模块示例](files/template/README.md)
+- [lineinfile 模块示例](files/lineinfile/README.md)
+- [stat 模块示例](files/stat/README.md)
+- [file 模块示例](files/file/README.md)
+- [find 模块示例](files/find/README.md)
+- [synchronize 模块示例](files/synchronize/README.md)
 
 ## 监控模块使用提示
 

@@ -1,0 +1,70 @@
+---
+- name: file 模块基础操作演练
+  hosts: all
+  become: false
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 创建应用目录结构
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ file_owner }}"
+        group: "{{ file_group }}"
+        mode: '0755'
+      loop:
+        - "{{ file_base_dir }}"
+        - "{{ file_base_dir }}/config"
+        - "{{ file_base_dir }}/logs"
+        - "{{ file_base_dir }}/releases"
+        - "{{ file_base_dir }}/shared"
+
+    - name: 创建日志文件并设置权限
+      ansible.builtin.file:
+        path: "{{ file_base_dir }}/logs/app.log"
+        state: touch
+        owner: "{{ file_owner }}"
+        group: "{{ file_group }}"
+        mode: '0644'
+        # 中文注释：touch 操作为幂等写法，仅更新时间戳
+
+    - name: 创建到当前版本的符号链接
+      ansible.builtin.file:
+        src: "{{ file_base_dir }}/releases/{{ file_current_release }}"
+        dest: "{{ file_base_dir }}/current"
+        state: link
+        force: true
+
+    - name: 创建共享目录并递归设置权限
+      ansible.builtin.file:
+        path: "{{ file_base_dir }}/shared"
+        state: directory
+        owner: "{{ file_owner }}"
+        group: "{{ file_group }}"
+        mode: '0770'
+        recurse: true
+
+    - name: 清理旧版本目录
+      ansible.builtin.file:
+        path: "{{ file_base_dir }}/releases/{{ item }}"
+        state: absent
+      loop: "{{ file_old_releases }}"
+      when: file_cleanup_enabled
+
+    - name: 创建部署标记文件
+      ansible.builtin.file:
+        path: "{{ file_base_dir }}/DEPLOY_SUCCESS"
+        state: touch
+        owner: "{{ file_owner }}"
+        group: "{{ file_group }}"
+        mode: '0644'
+
+    - name: 输出目录结构
+      ansible.builtin.shell: "ls -la {{ file_base_dir }}"
+      changed_when: false
+      register: file_list
+
+    - name: 打印目录内容
+      ansible.builtin.debug:
+        msg: "目录清单:\n{{ file_list.stdout }}"
