@@ -1,0 +1,116 @@
+# Apache 反向代理配置: {{ proxy_domain }}
+# 由 Ansible 自动生成
+
+{% if ssl_enabled | default(false) %}
+# HTTP 虚拟主机（重定向到 HTTPS）
+<VirtualHost *:80>
+    ServerName {{ proxy_domain }}
+    Redirect permanent / https://{{ proxy_domain }}/
+    
+    ErrorLog ${APACHE_LOG_DIR}/{{ proxy_domain }}_error.log
+    CustomLog ${APACHE_LOG_DIR}/{{ proxy_domain }}_access.log combined
+</VirtualHost>
+
+# HTTPS 反向代理虚拟主机
+<VirtualHost *:443>
+    ServerName {{ proxy_domain }}
+    ServerAdmin webmaster@{{ proxy_domain }}
+    
+    # SSL 配置
+    SSLEngine on
+    SSLCertificateFile {{ ssl_certificate_path }}
+    SSLCertificateKeyFile {{ ssl_certificate_key_path }}
+    SSLProtocol -all +TLSv1.2 +TLSv1.3
+    SSLCipherSuite HIGH:!aNULL:!MD5
+    SSLHonorCipherOrder on
+    
+    # HSTS 安全头
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+{% else %}
+# HTTP 反向代理虚拟主机
+<VirtualHost *:80>
+    ServerName {{ proxy_domain }}
+    ServerAdmin webmaster@{{ proxy_domain }}
+{% endif %}
+    
+    # 日志配置
+    ErrorLog ${APACHE_LOG_DIR}/{{ proxy_domain }}_error.log
+    CustomLog ${APACHE_LOG_DIR}/{{ proxy_domain }}_access.log combined
+    LogLevel {{ log_level | default('warn') }}
+    
+    # 反向代理配置
+    ProxyPreserveHost On
+    ProxyTimeout {{ proxy_timeout | default('300') }}
+    
+    # 代理规则
+    ProxyPass / {{ proxy_protocol | default('http') }}://{{ proxy_backend_host }}:{{ proxy_backend_port }}/
+    ProxyPassReverse / {{ proxy_protocol | default('http') }}://{{ proxy_backend_host }}:{{ proxy_backend_port }}/
+    
+    # 代理权限控制
+    <Proxy *>
+        Require all granted
+    </Proxy>
+    
+    # 传递客户端真实信息
+    RequestHeader set X-Forwarded-Proto "{{ 'https' if ssl_enabled | default(false) else 'http' }}"
+    RequestHeader set X-Forwarded-Port "{{ '443' if ssl_enabled | default(false) else '80' }}"
+    RequestHeader set X-Real-IP %{REMOTE_ADDR}s
+    
+    {% if proxy_websocket_enabled | default(false) %}
+    # WebSocket 支持
+    RewriteEngine On
+    RewriteCond %{HTTP:Upgrade} websocket [NC]
+    RewriteCond %{HTTP:Connection} upgrade [NC]
+    RewriteRule ^/?(.*) "ws://{{ proxy_backend_host }}:{{ proxy_backend_port }}/$1" [P,L]
+    {% endif %}
+    
+    # 静态资源直接由 Apache 处理
+    ProxyPass /static !
+    ProxyPass /media !
+    
+    Alias /static {{ web_root }}/static
+    Alias /media {{ web_root }}/media
+    
+    <Directory {{ web_root }}/static>
+        Options -Indexes
+        Require all granted
+        
+        # 静态资源缓存
+        <IfModule mod_expires.c>
+            ExpiresActive On
+            ExpiresDefault "access plus 30 days"
+        </IfModule>
+    </Directory>
+    
+    <Directory {{ web_root }}/media>
+        Options -Indexes
+        Require all granted
+        
+        <IfModule mod_expires.c>
+            ExpiresActive On
+            ExpiresDefault "access plus 7 days"
+        </IfModule>
+    </Directory>
+    
+    # 健康检查端点
+    <Location /health>
+        ProxyPass !
+        SetHandler server-status
+        Require local
+    </Location>
+    
+    # 安全响应头
+    <IfModule mod_headers.c>
+        Header always set X-Frame-Options "SAMEORIGIN"
+        Header always set X-Content-Type-Options "nosniff"
+        Header always set X-XSS-Protection "1; mode=block"
+        Header always set Referrer-Policy "no-referrer-when-downgrade"
+    </IfModule>
+    
+    # 禁止访问隐藏文件
+    <FilesMatch "^\.">
+        Require all denied
+    </FilesMatch>
+</VirtualHost>
+
+# vim: syntax=apache ts=4 sw=4 sts=4 sr noet

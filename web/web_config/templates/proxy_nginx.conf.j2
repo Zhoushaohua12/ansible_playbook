@@ -1,0 +1,107 @@
+# Nginx 反向代理配置: {{ proxy_domain }}
+# 由 Ansible 自动生成
+
+{% if ssl_enabled | default(false) %}
+# HTTP 服务器（重定向到 HTTPS）
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{ proxy_domain }};
+    
+    # 强制跳转到 HTTPS
+    return 301 https://$server_name$request_uri;
+}
+
+# HTTPS 反向代理服务器
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name {{ proxy_domain }};
+    
+    # SSL 证书配置
+    ssl_certificate {{ ssl_certificate_path }};
+    ssl_certificate_key {{ ssl_certificate_key_path }};
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+    
+    # HSTS 安全头
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+{% else %}
+# HTTP 反向代理服务器
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{ proxy_domain }};
+{% endif %}
+    
+    # 访问日志和错误日志
+    access_log /var/log/nginx/{{ proxy_domain }}_access.log;
+    error_log /var/log/nginx/{{ proxy_domain }}_error.log warn;
+    
+    # 客户端请求体大小限制
+    client_max_body_size {{ client_max_body_size | default('20M') }};
+    
+    # 反向代理配置
+    location / {
+        # 代理到后端应用服务器
+        proxy_pass {{ proxy_protocol | default('http') }}://{{ proxy_backend_host }}:{{ proxy_backend_port }};
+        
+        # 传递原始请求信息
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # 代理超时配置
+        proxy_connect_timeout {{ proxy_timeout | default('60') }}s;
+        proxy_send_timeout {{ proxy_timeout | default('60') }}s;
+        proxy_read_timeout {{ proxy_timeout | default('60') }}s;
+        
+        # 代理缓冲配置
+        proxy_buffering on;
+        proxy_buffer_size 4k;
+        proxy_buffers 8 4k;
+        proxy_busy_buffers_size 8k;
+        
+        {% if proxy_websocket_enabled | default(false) %}
+        # WebSocket 支持
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        {% endif %}
+    }
+    
+    # 静态资源直接由 Nginx 处理（性能优化）
+    location /static/ {
+        alias {{ web_root }}/static/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+    
+    location /media/ {
+        alias {{ web_root }}/media/;
+        expires 7d;
+        add_header Cache-Control "public";
+    }
+    
+    # 健康检查端点（可选）
+    location /health {
+        access_log off;
+        return 200 "healthy\n";
+        add_header Content-Type text/plain;
+    }
+    
+    # 禁止访问隐藏文件
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+    
+    # 安全响应头
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+}

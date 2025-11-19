@@ -105,3 +105,47 @@ storage:
       external_deps:
         - "mkfs.xfs 或 mkfs.ext4 命令"
         - "ansible.builtin.filesystem 模块"
+
+web:
+  title: Web 服务管理
+  description: "提供 Nginx、Apache 以及通用 Web 配置的自动化示例，涵盖反向代理、静态站点发布、SSL 证书管理等常见场景"
+  external_dependencies:
+    - "community.general collection (ufw 模块)"
+    - "nginx 或 apache2 软件包"
+    - "SSL 证书（Let's Encrypt 或商业证书）"
+  topics:
+    - id: nginx
+      name: Nginx Web 服务器
+      doc: web/nginx/README.md
+      example: web/nginx/playbook.yml
+      summary: "高性能 HTTP 服务器和反向代理，支持负载均衡、静态内容服务、API 网关等场景"
+      templates:
+        - "web/nginx/templates/nginx.conf.j2"
+        - "web/nginx/templates/vhost.conf.j2"
+      external_deps:
+        - "nginx 软件包"
+        - "community.general collection"
+    - id: apache2
+      name: Apache2 Web 服务器
+      doc: web/apache2/README.md
+      example: web/apache2/playbook.yml
+      summary: "久经考验的开源 Web 服务器，支持丰富的模块生态、虚拟主机和 PHP/Python 集成"
+      templates:
+        - "web/apache2/templates/apache.conf.j2"
+        - "web/apache2/templates/security.conf.j2"
+      external_deps:
+        - "apache2 软件包"
+        - "apache2 模块（rewrite、ssl、proxy 等）"
+    - id: web_config
+      name: 通用 Web 配置
+      doc: web/web_config/README.md
+      example: web/web_config/playbook.yml
+      summary: "跨 Web 服务器的通用配置场景，包含反向代理、静态站点发布、SSL 证书管理和安全加固"
+      templates:
+        - "web/web_config/templates/proxy_nginx.conf.j2"
+        - "web/web_config/templates/proxy_apache.conf.j2"
+        - "web/web_config/templates/static_nginx.conf.j2"
+        - "web/web_config/templates/static_apache.conf.j2"
+      external_deps:
+        - "nginx 或 apache2（根据配置选择）"
+        - "SSL 证书文件"

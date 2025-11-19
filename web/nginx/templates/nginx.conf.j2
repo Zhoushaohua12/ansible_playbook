@@ -1,0 +1,119 @@
+# Nginx 主配置文件
+# 由 Ansible 自动生成，请勿手动修改
+
+# 运行用户和组
+user www-data;
+
+# 工作进程数（设为 auto 自动匹配 CPU 核心数）
+worker_processes {{ nginx_worker_processes | default('auto') }};
+
+# 主进程 PID 文件路径
+pid /run/nginx.pid;
+
+# 错误日志配置
+error_log /var/log/nginx/error.log {{ nginx_error_log_level | default('warn') }};
+
+# 事件模块配置
+events {
+    # 每个工作进程的最大连接数
+    worker_connections {{ nginx_worker_connections | default('1024') }};
+    
+    # 使用 epoll 事件模型（Linux 推荐）
+    use epoll;
+    
+    # 允许一个工作进程同时接受多个新连接
+    multi_accept on;
+}
+
+# HTTP 模块配置
+http {
+    ##
+    # 基础设置
+    ##
+    
+    # 引入 MIME 类型定义
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+    
+    # 访问日志格式定义
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+    
+    # 访问日志配置
+    access_log /var/log/nginx/access.log main;
+    
+    # 隐藏 Nginx 版本号（安全加固）
+    server_tokens off;
+    
+    ##
+    # 性能优化
+    ##
+    
+    # 启用高效文件传输模式
+    sendfile on;
+    
+    # 优化 sendfile 数据包传输
+    tcp_nopush on;
+    tcp_nodelay on;
+    
+    # 长连接超时时间（秒）
+    keepalive_timeout {{ nginx_keepalive_timeout | default('65') }};
+    
+    # 客户端请求体最大大小
+    client_max_body_size {{ nginx_client_max_body_size | default('20M') }};
+    
+    # 客户端请求头缓冲区大小
+    client_header_buffer_size 2k;
+    large_client_header_buffers 4 8k;
+    
+    ##
+    # Gzip 压缩配置
+    ##
+    
+    # 启用 Gzip 压缩
+    gzip {{ nginx_gzip_enabled | default('on') }};
+    
+    # 压缩级别（1-9，级别越高压缩率越高但 CPU 消耗越大）
+    gzip_comp_level {{ nginx_gzip_comp_level | default('6') }};
+    
+    # 最小压缩文件大小（字节）
+    gzip_min_length 1000;
+    
+    # 需要压缩的 MIME 类型
+    gzip_types text/plain text/css text/xml text/javascript
+               application/json application/javascript application/xml+rss
+               application/x-javascript application/atom+xml image/svg+xml;
+    
+    # 为代理请求启用压缩
+    gzip_proxied any;
+    
+    # 禁用对 IE6 的 Gzip 压缩（兼容性问题）
+    gzip_disable "msie6";
+    
+    # 在响应头中添加 Vary: Accept-Encoding
+    gzip_vary on;
+    
+    ##
+    # 虚拟主机配置
+    ##
+    
+    # 引入所有启用的虚拟主机配置
+    include /etc/nginx/sites-enabled/*.conf;
+    
+    ##
+    # 安全头配置（全局应用）
+    ##
+    
+    # 防止点击劫持攻击
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    
+    # 防止 MIME 类型嗅探
+    add_header X-Content-Type-Options "nosniff" always;
+    
+    # 启用 XSS 防护
+    add_header X-XSS-Protection "1; mode=block" always;
+    
+    # Referrer 策略
+    add_header Referrer-Policy "no-referrer-when-downgrade" always;
+}
