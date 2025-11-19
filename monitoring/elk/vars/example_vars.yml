@@ -1,0 +1,312 @@
+---
+# ELK Stack 日志聚合配置变量示例文件
+# 
+# 重要提示：
+# 1. 这是示例文件，包含占位符值
+# 2. 生产使用时请复制并填写真实值
+# 3. 不要将包含真实凭证的文件提交到版本控制系统
+# 4. 建议使用 Ansible Vault 加密敏感信息（用户名、密码、API Key）
+
+# =============================================================================
+# Elasticsearch 连接配置
+# =============================================================================
+
+# Elasticsearch 集群节点列表
+elasticsearch_hosts:
+  - "https://es-node1.example.com:9200"
+  - "https://es-node2.example.com:9200"
+  - "https://es-node3.example.com:9200"
+
+elasticsearch_url: "https://es-node1.example.com:9200"
+elasticsearch_port: 9200
+
+# Elasticsearch 认证凭证（必须加密）
+elasticsearch_username: "{{ vault_elasticsearch_username }}"
+elasticsearch_password: "{{ vault_elasticsearch_password }}"
+elasticsearch_api_key: "{{ vault_elasticsearch_api_key | default('') }}"
+
+# SSL/TLS 配置
+elasticsearch_ssl_enabled: true
+elasticsearch_verify_ssl: false  # 生产环境应设置为 true
+elasticsearch_ca_cert: "/etc/elasticsearch/certs/ca.crt"
+
+# =============================================================================
+# Filebeat 配置
+# =============================================================================
+
+# Filebeat 配置文件路径
+filebeat_config_file: "/etc/filebeat/filebeat.yml"
+filebeat_config_dir: "/etc/filebeat"
+filebeat_home: "/usr/share/filebeat"
+
+# Filebeat 输出类型
+filebeat_output_type: "logstash"  # elasticsearch 或 logstash
+
+# Filebeat 索引名称
+filebeat_index_name: "filebeat"
+
+# Filebeat 日志输入配置
+filebeat_inputs:
+  # Nginx 访问日志
+  - type: "log"
+    enabled: true
+    paths:
+      - "/var/log/nginx/access.log"
+    fields:
+      log_type: "nginx_access"
+      log_format: "combined"
+      environment: "production"
+    
+  # Nginx 错误日志
+  - type: "log"
+    enabled: true
+    paths:
+      - "/var/log/nginx/error.log"
+    fields:
+      log_type: "nginx_error"
+      environment: "production"
+    multiline:
+      pattern: '^\d{4}/\d{2}/\d{2}'
+      negate: true
+      match: after
+  
+  # 应用日志（JSON 格式）
+  - type: "log"
+    enabled: true
+    paths:
+      - "/var/log/app/*.log"
+    fields:
+      log_type: "application"
+      log_format: "json"
+      environment: "production"
+  
+  # 系统日志
+  - type: "syslog"
+    enabled: true
+    fields:
+      log_type: "syslog"
+      environment: "production"
+
+# Filebeat 模块
+filebeat_modules:
+  - "system"
+  - "nginx"
+  - "mysql"
+
+# =============================================================================
+# Logstash 配置
+# =============================================================================
+
+# Logstash 主机列表
+logstash_hosts:
+  - "logstash1.example.com:5044"
+  - "logstash2.example.com:5044"
+
+# Logstash Pipeline 配置
+logstash_pipeline_dir: "/etc/logstash/conf.d"
+logstash_config_file: "/etc/logstash/logstash.yml"
+
+# Logstash 输入配置
+logstash_input_beats_port: 5044
+
+# Logstash SSL 配置
+logstash_ssl_enabled: false
+logstash_ssl_cert: "/etc/logstash/certs/logstash.crt"
+logstash_ssl_key: "/etc/logstash/certs/logstash.key"
+logstash_ssl_verify_mode: "none"
+
+# Logstash 调试输出
+logstash_debug_output: false
+
+# =============================================================================
+# Elasticsearch 索引配置
+# =============================================================================
+
+# 索引前缀
+elasticsearch_index_prefix: "logs"
+
+# 索引模板配置
+elasticsearch_template_name: "logs-template"
+
+# 索引设置
+elasticsearch_shards: 3
+elasticsearch_replicas: 1
+elasticsearch_refresh_interval: "5s"
+
+# =============================================================================
+# 索引生命周期管理 (ILM)
+# =============================================================================
+
+# ILM 开关
+elasticsearch_ilm_enabled: true
+
+# ILM 策略名称
+elasticsearch_ilm_policy_name: "logs-ilm-policy"
+
+# ILM 策略配置
+elasticsearch_ilm_max_size: "50GB"
+elasticsearch_ilm_max_age: "7d"
+elasticsearch_ilm_warm_age: "7d"
+elasticsearch_ilm_delete_age: "30d"
+
+# =============================================================================
+# Kibana 配置
+# =============================================================================
+
+# Kibana 访问地址
+kibana_url: "https://kibana.example.com:5601"
+kibana_port: 5601
+
+# Kibana 认证
+kibana_username: "{{ vault_kibana_username }}"
+kibana_password: "{{ vault_kibana_password }}"
+
+# Kibana Elasticsearch 连接
+kibana_elasticsearch_hosts: "{{ elasticsearch_hosts }}"
+
+# =============================================================================
+# 性能优化配置
+# =============================================================================
+
+# Filebeat 性能配置
+filebeat_queue_size: 4096
+filebeat_bulk_max_size: 2048
+filebeat_worker_count: 1
+
+# Logstash 性能配置
+logstash_pipeline_workers: 4
+logstash_pipeline_batch_size: 125
+logstash_pipeline_batch_delay: 50
+
+# Elasticsearch 性能配置
+elasticsearch_bulk_size: "5m"
+elasticsearch_bulk_timeout: "60s"
+
+# =============================================================================
+# 监控和告警配置
+# =============================================================================
+
+# Elasticsearch 集群监控
+elasticsearch_monitoring:
+  enabled: true
+  collection_interval: "10s"
+
+# 告警配置
+elasticsearch_alerts:
+  - name: "Cluster Health Red"
+    condition: "cluster.health == 'red'"
+    severity: "critical"
+  - name: "High Indexing Rate"
+    condition: "indices.indexing.rate > 10000"
+    severity: "warning"
+
+# =============================================================================
+# 安全配置
+# =============================================================================
+
+# 网络访问控制
+elasticsearch_allowed_ips:
+  - "10.0.0.0/8"
+  - "172.16.0.0/12"
+  - "192.168.0.0/16"
+
+# Elasticsearch 用户角色
+elasticsearch_roles:
+  - name: "logs_reader"
+    indices:
+      - names: ["logs-*"]
+        privileges: ["read", "view_index_metadata"]
+  - name: "logs_writer"
+    indices:
+      - names: ["logs-*"]
+        privileges: ["write", "create_index", "manage"]
+
+# Elasticsearch 用户
+elasticsearch_users:
+  - username: "app_writer"
+    password: "{{ vault_elasticsearch_app_writer_password }}"
+    roles: ["logs_writer"]
+  - username: "ops_reader"
+    password: "{{ vault_elasticsearch_ops_reader_password }}"
+    roles: ["logs_reader"]
+
+# =============================================================================
+# 备份配置
+# =============================================================================
+
+# 快照仓库配置
+elasticsearch_snapshot_repository:
+  name: "logs_backup"
+  type: "fs"
+  settings:
+    location: "/mnt/elasticsearch/backups"
+    compress: true
+
+# 快照策略
+elasticsearch_snapshot_policy:
+  name: "daily_snapshot"
+  schedule: "0 2 * * *"  # 每天凌晨 2 点
+  retention:
+    expire_after: "30d"
+    min_count: 5
+    max_count: 50
+
+# =============================================================================
+# 数据脱敏规则
+# =============================================================================
+
+# Logstash 脱敏规则（在 playbook 中使用）
+logstash_masking_rules:
+  - field: "message"
+    patterns:
+      - "(password|passwd|pwd)=[^\\s&]+"
+      - "(token|api_key):\\s*\"[^\"]+\""
+      - "\\b\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}\\b"
+
+# =============================================================================
+# 使用说明
+# =============================================================================
+
+# 1. 安装依赖：
+#    ansible-galaxy collection install community.elastic  # 如可用
+#    pip install elasticsearch requests
+#
+# 2. 安装 ELK Stack：
+#    # Elasticsearch
+#    apt-get install elasticsearch  # Ubuntu/Debian
+#    yum install elasticsearch      # RHEL/CentOS
+#    
+#    # Logstash
+#    apt-get install logstash
+#    
+#    # Filebeat
+#    apt-get install filebeat
+#    
+#    # Kibana
+#    apt-get install kibana
+#
+# 3. 加密敏感变量：
+#    ansible-vault encrypt_string 'elastic' --name 'vault_elasticsearch_username'
+#    ansible-vault encrypt_string 'changeme' --name 'vault_elasticsearch_password'
+#    ansible-vault encrypt_string 'api-key-here' --name 'vault_elasticsearch_api_key'
+#    ansible-vault encrypt_string 'kibana_user' --name 'vault_kibana_username'
+#    ansible-vault encrypt_string 'kibana_pass' --name 'vault_kibana_password'
+#
+# 4. 运行 playbook：
+#    ansible-playbook -i inventory playbook.yml --ask-vault-pass
+#
+# 5. 检查模式运行：
+#    ansible-playbook -i inventory playbook.yml --check --ask-vault-pass
+#
+# 6. 验证配置：
+#    filebeat test config -c /etc/filebeat/filebeat.yml
+#    filebeat test output -c /etc/filebeat/filebeat.yml
+#    /usr/share/logstash/bin/logstash --config.test_and_exit -f /etc/logstash/conf.d/
+#
+# 7. 查看服务状态：
+#    systemctl status elasticsearch filebeat logstash kibana
+#    curl http://localhost:9200/_cluster/health?pretty
+#    curl http://localhost:9200/_cat/indices?v
+#
+# 8. 访问 Kibana：
+#    浏览器访问 https://kibana.example.com:5601

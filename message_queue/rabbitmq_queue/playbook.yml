@@ -1,0 +1,56 @@
+---
+# RabbitMQ 队列管理示例 Playbook
+# 用于演示如何创建和管理 RabbitMQ 队列、交换机和绑定
+
+- name: 管理 RabbitMQ 队列和交换机
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # 创建队列
+    - name: 创建应用队列
+      community.rabbitmq.rabbitmq_queue:
+        name: "{{ item.name }}"
+        vhost: "{{ item.vhost | default('/') }}"
+        durable: "{{ item.durable | default(true) }}"
+        auto_delete: "{{ item.auto_delete | default(false) }}"
+        arguments: "{{ item.arguments | default({}) }}"
+        state: "{{ item.state | default('present') }}"
+      loop: "{{ rabbitmq_queues }}"
+      register: queue_result
+
+    # 创建交换机
+    - name: 创建交换机
+      community.rabbitmq.rabbitmq_exchange:
+        name: "{{ item.name }}"
+        type: "{{ item.type }}"
+        vhost: "{{ item.vhost | default('/') }}"
+        durable: "{{ item.durable | default(true) }}"
+        auto_delete: "{{ item.auto_delete | default(false) }}"
+        state: "{{ item.state | default('present') }}"
+      loop: "{{ rabbitmq_exchanges }}"
+      register: exchange_result
+
+    # 绑定队列到交换机
+    - name: 绑定队列到交换机
+      community.rabbitmq.rabbitmq_binding:
+        name: "{{ item.exchange }}"
+        destination: "{{ item.queue }}"
+        destination_type: queue
+        routing_key: "{{ item.routing_key }}"
+        vhost: "{{ item.vhost | default('/') }}"
+        arguments: "{{ item.arguments | default({}) }}"
+        state: "{{ item.state | default('present') }}"
+      loop: "{{ rabbitmq_bindings }}"
+      register: binding_result
+
+    # 输出配置摘要
+    - name: 显示配置变更摘要
+      ansible.builtin.debug:
+        msg: |
+          RabbitMQ 队列管理完成摘要:
+          - 队列: {{ '创建/更新' if queue_result.changed else '无变更' }}
+          - 交换机: {{ '创建/更新' if exchange_result.changed else '无变更' }}
+          - 绑定: {{ '创建/更新' if binding_result.changed else '无变更' }}

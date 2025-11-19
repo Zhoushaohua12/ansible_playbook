@@ -1,0 +1,273 @@
+---
+# Splunk 日志转发配置变量示例文件
+# 
+# 重要提示：
+# 1. 这是示例文件，包含占位符值
+# 2. 生产使用时请复制并填写真实值
+# 3. 不要将包含真实凭证的文件提交到版本控制系统
+# 4. 建议使用 Ansible Vault 加密敏感信息（用户名、密码、HEC Token）
+
+# =============================================================================
+# Splunk API 连接配置
+# =============================================================================
+
+# Splunk 管理端点
+splunk_url: "https://splunk.example.com:8089"
+splunk_verify_ssl: false  # 生产环境应设置为 true
+
+# Splunk 管理员凭证（必须加密）
+splunk_username: "{{ vault_splunk_username }}"
+splunk_password: "{{ vault_splunk_password }}"
+
+# =============================================================================
+# Splunk Forwarder 配置
+# =============================================================================
+
+# Forwarder 安装路径
+splunk_forwarder_home: "/opt/splunkforwarder"
+
+# 转发服务器列表
+splunk_default_group: "production_indexers"
+splunk_forward_servers:
+  - "indexer1.example.com:9997"
+  - "indexer2.example.com:9997"
+  - "indexer3.example.com:9997"
+
+# SSL 配置
+splunk_ssl_enabled: true
+splunk_ssl_common_name: "splunk-indexer"
+splunk_ssl_cert_path: "$SPLUNK_HOME/etc/auth/server.pem"
+splunk_ssl_password: "{{ vault_splunk_ssl_password }}"
+splunk_ssl_verify_server: true
+
+# =============================================================================
+# 日志监控输入配置
+# =============================================================================
+
+# 监控的日志文件列表
+splunk_monitor_inputs:
+  # Nginx 访问日志
+  - path: "/var/log/nginx/access.log"
+    index: "web_logs"
+    sourcetype: "nginx_access"
+    host: "{{ ansible_hostname }}"
+    
+  # Nginx 错误日志
+  - path: "/var/log/nginx/error.log"
+    index: "web_logs"
+    sourcetype: "nginx_error"
+    host: "{{ ansible_hostname }}"
+    
+  # 应用日志
+  - path: "/var/log/app/*.log"
+    index: "application_logs"
+    sourcetype: "app:log"
+    host: "{{ ansible_hostname }}"
+    whitelist: "app-.*\\.log$"
+    
+  # 系统日志
+  - path: "/var/log/syslog"
+    index: "os_logs"
+    sourcetype: "syslog"
+    host: "{{ ansible_hostname }}"
+
+# =============================================================================
+# HEC (HTTP Event Collector) 配置
+# =============================================================================
+
+# HEC 功能开关
+splunk_hec_enabled: true
+
+# HEC 端点配置
+splunk_hec_url: "https://splunk.example.com:8088"
+splunk_hec_port: 8088
+splunk_hec_ssl: true
+
+# HEC Token 配置
+splunk_hec_token_name: "app_hec_token"
+splunk_hec_token: "{{ vault_splunk_hec_token }}"
+
+# HEC 索引配置
+splunk_hec_default_index: "application_logs"
+splunk_hec_allowed_indexes:
+  - "application_logs"
+  - "app_errors"
+  - "app_metrics"
+
+# HEC 数据类型
+splunk_hec_default_sourcetype: "json"
+
+# =============================================================================
+# 搜索和告警配置
+# =============================================================================
+
+# 保存的搜索（告警规则）
+splunk_saved_searches:
+  # 高错误率告警
+  - name: "High Error Rate Alert"
+    search: 'index=application_logs level=ERROR | stats count by host | where count > 100'
+    schedule: "*/5 * * * *"  # 每 5 分钟
+    actions: "email"
+    email_to: "ops-team@example.com"
+    severity: "3"
+    
+  # 服务不可用告警
+  - name: "Service Unavailable Alert"
+    search: 'index=web_logs status=503 | stats count by host | where count > 10'
+    schedule: "*/10 * * * *"
+    actions: "email,slack"
+    email_to: "ops-team@example.com"
+    severity: "4"
+    
+  # 磁盘空间告警
+  - name: "Disk Space Warning"
+    search: 'index=os_logs sourcetype=df | where PercentUsed > 85'
+    schedule: "0 * * * *"  # 每小时
+    actions: "email"
+    email_to: "infra-team@example.com"
+    severity: "2"
+
+# =============================================================================
+# 数据脱敏规则
+# =============================================================================
+
+# 日志脱敏配置
+splunk_data_masking_rules:
+  # 访问日志脱敏
+  access_logs:
+    - name: "mask_passwords"
+      pattern: "s/(password|passwd|pwd)=\\S+/\\1=***MASKED***/g"
+    - name: "mask_tokens"
+      pattern: "s/(token|api_key):\\s*\"[^\"]+\"/\\1: \"***MASKED***/g"
+    - name: "mask_credit_cards"
+      pattern: "s/\\b\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}\\b/****-****-****-****/g"
+    - name: "mask_emails"
+      pattern: "s/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/***@***.***com/g"
+  
+  # 应用日志脱敏
+  app_logs:
+    - name: "mask_secrets"
+      pattern: "s/(secret|private_key)\":\\s*\"[^\"]+\"/\\1\": \"***MASKED***/g"
+    - name: "mask_auth_headers"
+      pattern: "s/Authorization:\\s*Bearer\\s+\\S+/Authorization: Bearer ***MASKED***/g"
+
+# =============================================================================
+# 索引配置
+# =============================================================================
+
+# 索引列表
+splunk_indexes:
+  - name: "web_logs"
+    max_size_mb: 50000
+    frozen_time_period_days: 90
+  - name: "application_logs"
+    max_size_mb: 100000
+    frozen_time_period_days: 30
+  - name: "os_logs"
+    max_size_mb: 30000
+    frozen_time_period_days: 60
+  - name: "app_metrics"
+    max_size_mb: 20000
+    frozen_time_period_days: 180
+
+# =============================================================================
+# 部署服务器配置
+# =============================================================================
+
+# Deployment Server 配置
+splunk_deployment_server_enabled: false
+splunk_deployment_server: "deployment.example.com:8089"
+splunk_deployment_client_name: "{{ ansible_hostname }}"
+
+# Server Class 配置
+splunk_server_class: "production_forwarders"
+
+# =============================================================================
+# 性能优化配置
+# =============================================================================
+
+# 队列大小配置
+splunk_queue_size: "10MB"
+splunk_max_queue_size: "100MB"
+
+# 连接配置
+splunk_connection_timeout: 20
+splunk_read_timeout: 300
+splunk_write_timeout: 300
+
+# 批量配置
+splunk_auto_lb_frequency: 30
+splunk_max_connections_per_indexer: 2
+
+# =============================================================================
+# 监控和调试配置
+# =============================================================================
+
+# 内部日志级别
+splunk_log_level: "INFO"  # DEBUG, INFO, WARN, ERROR
+
+# 监控指标
+splunk_monitor_metrics:
+  - "queue_size"
+  - "connection_status"
+  - "events_sent"
+  - "bytes_sent"
+
+# =============================================================================
+# 安全配置
+# =============================================================================
+
+# 网络安全
+splunk_allowed_ips:
+  - "10.0.0.0/8"
+  - "172.16.0.0/12"
+  - "192.168.0.0/16"
+
+# 数据保留策略
+splunk_data_retention:
+  hot_bucket_time: "7d"
+  warm_bucket_time: "30d"
+  cold_bucket_time: "90d"
+
+# 访问控制
+splunk_rbac_enabled: true
+splunk_user_roles:
+  - name: "ops_readonly"
+    capabilities: ["search"]
+    indexes: ["web_logs", "os_logs"]
+  - name: "dev_user"
+    capabilities: ["search", "schedule_search"]
+    indexes: ["application_logs"]
+
+# =============================================================================
+# 使用说明
+# =============================================================================
+
+# 1. 安装依赖：
+#    ansible-galaxy collection install community.general
+#    pip install requests splunk-sdk
+#
+# 2. 安装 Splunk Universal Forwarder：
+#    wget -O splunkforwarder.tgz "https://download.splunk.com/products/..."
+#    tar xvzf splunkforwarder.tgz -C /opt
+#    
+# 3. 加密敏感变量：
+#    ansible-vault encrypt_string 'admin' --name 'vault_splunk_username'
+#    ansible-vault encrypt_string 'changeme' --name 'vault_splunk_password'
+#    ansible-vault encrypt_string 'hec-token-here' --name 'vault_splunk_hec_token'
+#    ansible-vault encrypt_string 'ssl-password' --name 'vault_splunk_ssl_password'
+#
+# 4. 运行 playbook：
+#    ansible-playbook -i inventory playbook.yml --ask-vault-pass
+#
+# 5. 检查模式运行：
+#    ansible-playbook -i inventory playbook.yml --check --ask-vault-pass
+#
+# 6. 验证 Forwarder：
+#    /opt/splunkforwarder/bin/splunk list forward-server
+#    /opt/splunkforwarder/bin/splunk status
+#
+# 7. 测试 HEC：
+#    curl -k https://splunk.example.com:8088/services/collector \
+#      -H "Authorization: Splunk YOUR_HEC_TOKEN" \
+#      -d '{"event": "test", "sourcetype": "manual"}'

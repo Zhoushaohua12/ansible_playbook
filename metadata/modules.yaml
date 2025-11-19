@@ -35,12 +35,14 @@ advanced:
 
 monitoring:
   title: 监控模块
-  description: "主流监控系统的 Ansible 集成示例，包含 Nagios、Datadog、Zabbix 等监控平台的自动化配置"
+  description: "主流监控系统的 Ansible 集成示例，包含 Nagios、Datadog、Zabbix、Prometheus、Splunk、ELK 等监控平台的自动化配置"
   external_dependencies:
     - "community.general collection (Nagios)"
     - "community.datadog collection (Datadog)"
     - "community.zabbix collection (Zabbix)"
-    - "Python libraries: python-nagios, datadog, zabbix-api, requests"
+    - "community.prometheus collection (Prometheus, 可选)"
+    - "community.elastic collection (ELK, 可选)"
+    - "Python libraries: python-nagios, datadog, zabbix-api, requests, splunk-sdk, elasticsearch, kafka-python"
     - "监控服务器访问权限和 API 凭证"
   topics:
     - id: nagios_monitoring
@@ -72,6 +74,36 @@ monitoring:
         - "zabbix-api Python library"
         - "Zabbix Server API 访问权限"
         - "Zabbix Agent 安装配置"
+    - id: prometheus_monitoring
+      name: Prometheus 指标监控
+      doc: monitoring/prometheus/README.md
+      example: monitoring/prometheus/playbook.yml
+      summary: "开源时序数据库和监控系统，支持指标抓取、告警规则、远程存储和服务发现"
+      external_deps:
+        - "community.prometheus collection (可选)"
+        - "requests, pyyaml Python libraries"
+        - "Prometheus Server 和 Exporters"
+        - "Alertmanager (可选)"
+    - id: splunk_logging
+      name: Splunk 日志管理
+      doc: monitoring/splunk/README.md
+      example: monitoring/splunk/playbook.yml
+      summary: "企业级日志聚合平台，支持日志转发、HEC Token、索引管理和数据脱敏"
+      external_deps:
+        - "community.general collection"
+        - "requests, splunk-sdk Python libraries"
+        - "Splunk Universal Forwarder"
+        - "Splunk Management API 访问权限"
+    - id: elk_stack
+      name: ELK Stack 日志聚合
+      doc: monitoring/elk/README.md
+      example: monitoring/elk/playbook.yml
+      summary: "Elasticsearch、Logstash、Kibana 日志聚合方案，支持 Filebeat、ILM 策略和日志解析"
+      external_deps:
+        - "community.elastic collection (可选)"
+        - "elasticsearch, requests Python libraries"
+        - "Filebeat, Logstash, Elasticsearch, Kibana"
+        - "Elasticsearch 认证凭证"
 
 storage:
   title: 存储与文件系统
@@ -411,6 +443,46 @@ system:
        summary: "设置主机名和域名配置，自动更新 /etc/hostname 和 /etc/hosts，支持标准化命名规范"
        external_deps:
          - "ansible.builtin collection"
+
+message_queue:
+  title: 消息队列管理
+  description: "主流消息队列系统（RabbitMQ、Kafka）的 Ansible 自动化管理示例，涵盖用户管理、队列配置、Topic 管理等核心运维场景"
+  external_dependencies:
+    - "community.rabbitmq collection (RabbitMQ 模块)"
+    - "community.general collection (Kafka 模块)"
+    - "Python libraries: requests, kafka-python"
+    - "RabbitMQ Server 和 Management Plugin"
+    - "Kafka Broker 和 Zookeeper"
+    - "消息队列管理员凭证和 API 访问权限"
+  topics:
+    - id: rabbitmq_user
+      name: RabbitMQ 用户管理
+      doc: message_queue/rabbitmq_user/README.md
+      example: message_queue/rabbitmq_user/playbook.yml
+      summary: "RabbitMQ 用户、虚拟主机和权限管理，支持创建用户、配置权限、管理虚拟主机和标签"
+      external_deps:
+        - "community.rabbitmq collection"
+        - "requests Python library"
+        - "RabbitMQ Server 和 Management Plugin"
+        - "RabbitMQ 管理员凭证"
+    - id: rabbitmq_queue
+      name: RabbitMQ 队列管理
+      doc: message_queue/rabbitmq_queue/README.md
+      example: message_queue/rabbitmq_queue/playbook.yml
+      summary: "RabbitMQ 队列和交换机管理，支持创建队列、配置参数、绑定交换机和设置路由规则"
+      external_deps:
+        - "community.rabbitmq collection"
+        - "requests Python library"
+        - "RabbitMQ Server"
+    - id: kafka_topic
+      name: Kafka Topic 管理
+      doc: message_queue/kafka_topic/README.md
+      example: message_queue/kafka_topic/playbook.yml
+      summary: "Kafka Topic 管理，支持创建 Topic、配置分区、副本和保留策略"
+      external_deps:
+        - "community.general collection"
+        - "kafka-python library"
+        - "Kafka Broker 和 Zookeeper"
 
 network:
    title: 网络与防火墙管理

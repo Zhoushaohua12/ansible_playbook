@@ -9,7 +9,8 @@
 - `commands/`：命令执行模块（shell、command、raw、script）的使用指南与安全实践。
 - `files/`：文件操作模块（copy、template、lineinfile、stat、file、find、synchronize）的中文文档与示例。
 - `database/`：数据库管理模块（MySQL、PostgreSQL、MongoDB）的自动化运维示例。
-- `monitoring/`：主流监控系统的 Ansible 集成示例。
+- `message_queue/`：消息队列管理（RabbitMQ、Kafka）的自动化配置与管理示例。
+- `monitoring/`：主流监控系统的 Ansible 集成示例（Nagios、Datadog、Zabbix、Prometheus、Splunk、ELK）。
 - `network/`：网络配置与防火墙管理（firewalld、ufw、iptables、wait_for）的完整指南。
 - `storage/`：磁盘、LVM 与文件系统管理的演练场景。
 - `system/`：系统管理模块（user、group、service、systemd、firewalld、iptables、hostname）的完整指南。
@@ -25,6 +26,7 @@
 - [命令执行模块指南](commands/README.md)
 - [文件操作模块实践指南](files/README.md)
 - [数据库管理实践指南](database/README.md)
+- [消息队列管理指南](message_queue/README.md)
 - [监控模块总览](monitoring/README.md)
 - [网络模块实践指南](network/README.md)
 - [存储模块实践指南](storage/README.md)

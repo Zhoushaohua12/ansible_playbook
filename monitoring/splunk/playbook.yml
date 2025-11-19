@@ -1,0 +1,227 @@
+---
+# Splunk 日志转发配置示例 Playbook
+# 用于演示如何安全地配置 Splunk Universal Forwarder 和日志输入
+
+- name: 配置 Splunk 日志转发
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # 预检查：验证 Splunk API 连接
+    - name: 验证 Splunk API 连通性
+      ansible.builtin.uri:
+        url: "{{ splunk_url }}/services/server/info"
+        method: GET
+        user: "{{ splunk_username }}"
+        password: "{{ splunk_password }}"
+        force_basic_auth: yes
+        validate_certs: "{{ splunk_verify_ssl }}"
+        status_code: [200]
+      register: splunk_api_check
+      no_log: true  # 保护凭证信息
+      failed_when: false
+      check_mode: yes
+
+    - name: 显示 Splunk 连接状态
+      ansible.builtin.debug:
+        msg: "Splunk API 连接状态: {{ '正常' if splunk_api_check.status == 200 else '异常' }}"
+      when: splunk_api_check is defined
+
+    # 配置 Splunk Forwarder 输出
+    - name: 配置 Forwarder 输出目标
+      ansible.builtin.copy:
+        content: |
+          # Splunk Forwarder 输出配置
+          [tcpout]
+          defaultGroup = {{ splunk_default_group }}
+          forwardedindex.filter.disable = true
+          indexAndForward = false
+          
+          [tcpout:{{ splunk_default_group }}]
+          {% for server in splunk_forward_servers %}
+          server = {{ server }}
+          {% endfor %}
+          {% if splunk_ssl_enabled %}
+          sslCommonNameToCheck = {{ splunk_ssl_common_name }}
+          sslCertPath = {{ splunk_ssl_cert_path }}
+          sslPassword = $7${{ splunk_ssl_password | default('') }}
+          sslVerifyServerCert = {{ splunk_ssl_verify_server }}
+          {% endif %}
+          compressed = true
+          connectionTimeout = 20
+          readTimeout = 300
+          writeTimeout = 300
+        dest: "{{ splunk_forwarder_home }}/etc/system/local/outputs.conf"
+        owner: splunk
+        group: splunk
+        mode: '0600'
+        backup: yes
+      no_log: true  # 保护 SSL 密码
+      register: outputs_config_result
+
+    # 配置日志监控输入
+    - name: 配置应用日志监控
+      ansible.builtin.copy:
+        content: |
+          # 应用日志监控配置
+          {% for monitor in splunk_monitor_inputs %}
+          [monitor://{{ monitor.path }}]
+          disabled = false
+          index = {{ monitor.index }}
+          sourcetype = {{ monitor.sourcetype }}
+          host = {{ monitor.host | default(ansible_hostname) }}
+          {% if monitor.whitelist is defined %}
+          whitelist = {{ monitor.whitelist }}
+          {% endif %}
+          {% if monitor.blacklist is defined %}
+          blacklist = {{ monitor.blacklist }}
+          {% endif %}
+          {% if monitor.crc_salt is defined %}
+          crcSalt = <SOURCE>
+          {% endif %}
+          
+          {% endfor %}
+        dest: "{{ splunk_forwarder_home }}/etc/system/local/inputs.conf"
+        owner: splunk
+        group: splunk
+        mode: '0644'
+        backup: yes
+      register: inputs_config_result
+
+    # 配置 HEC (HTTP Event Collector)
+    - name: 创建 HEC Token
+      ansible.builtin.uri:
+        url: "{{ splunk_url }}/services/data/inputs/http"
+        method: POST
+        user: "{{ splunk_username }}"
+        password: "{{ splunk_password }}"
+        force_basic_auth: yes
+        validate_certs: "{{ splunk_verify_ssl }}"
+        body_format: form-urlencoded
+        body:
+          name: "{{ splunk_hec_token_name }}"
+          index: "{{ splunk_hec_default_index }}"
+          indexes: "{{ splunk_hec_allowed_indexes | join(',') }}"
+          sourcetype: "{{ splunk_hec_default_sourcetype }}"
+          disabled: "0"
+        status_code: [201, 409]
+      register: hec_create_result
+      no_log: true  # 保护凭证
+      when: 
+        - splunk_hec_enabled | default(false)
+        - splunk_api_check.status == 200
+
+    # 获取 HEC Token 值
+    - name: 获取 HEC Token 信息
+      ansible.builtin.uri:
+        url: "{{ splunk_url }}/services/data/inputs/http/{{ splunk_hec_token_name }}"
+        method: GET
+        user: "{{ splunk_username }}"
+        password: "{{ splunk_password }}"
+        force_basic_auth: yes
+        validate_certs: "{{ splunk_verify_ssl }}"
+        return_content: yes
+      register: hec_info_result
+      no_log: true  # 保护 Token
+      when: 
+        - splunk_hec_enabled | default(false)
+        - hec_create_result is succeeded
+
+    # 配置搜索和告警
+    - name: 创建错误日志告警
+      ansible.builtin.uri:
+        url: "{{ splunk_url }}/services/saved/searches"
+        method: POST
+        user: "{{ splunk_username }}"
+        password: "{{ splunk_password }}"
+        force_basic_auth: yes
+        validate_certs: "{{ splunk_verify_ssl }}"
+        body_format: form-urlencoded
+        body:
+          name: "{{ item.name }}"
+          search: "{{ item.search }}"
+          is_scheduled: "1"
+          cron_schedule: "{{ item.schedule }}"
+          actions: "{{ item.actions }}"
+          action.email.to: "{{ item.email_to }}"
+          alert.severity: "{{ item.severity }}"
+          alert.track: "1"
+        status_code: [201, 409]
+      no_log: true  # 保护凭证
+      loop: "{{ splunk_saved_searches }}"
+      register: saved_searches_result
+      when: 
+        - splunk_api_check.status == 200
+        - splunk_saved_searches is defined
+
+    # 配置数据脱敏规则
+    - name: 配置日志脱敏规则
+      ansible.builtin.copy:
+        content: |
+          # 日志脱敏配置
+          {% for sourcetype, rules in splunk_data_masking_rules.items() %}
+          [{{ sourcetype }}]
+          {% for rule in rules %}
+          SEDCMD-{{ rule.name }} = {{ rule.pattern }}
+          {% endfor %}
+          
+          {% endfor %}
+        dest: "{{ splunk_forwarder_home }}/etc/system/local/props.conf"
+        owner: splunk
+        group: splunk
+        mode: '0644'
+        backup: yes
+      register: props_config_result
+      when: splunk_data_masking_rules is defined
+
+    # 验证 Forwarder 连接
+    - name: 检查 Forwarder 连接状态
+      ansible.builtin.command:
+        cmd: "{{ splunk_forwarder_home }}/bin/splunk list forward-server -auth {{ splunk_username }}:{{ splunk_password }}"
+      register: forwarder_status_result
+      no_log: true  # 保护凭证
+      changed_when: false
+      failed_when: false
+      check_mode: yes
+
+    - name: 显示 Forwarder 状态
+      ansible.builtin.debug:
+        msg: "Forwarder 连接状态: {{ '已连接' if forwarder_status_result.rc == 0 else '未连接' }}"
+      when: forwarder_status_result is defined
+
+    # 重启 Forwarder 服务
+    - name: 重启 Splunk Forwarder
+      ansible.builtin.systemd:
+        name: SplunkForwarder
+        state: restarted
+      when: 
+        - outputs_config_result.changed or inputs_config_result.changed or props_config_result.changed
+        - not ansible_check_mode
+      register: forwarder_restart_result
+
+    # 输出配置摘要
+    - name: 显示配置变更摘要
+      ansible.builtin.debug:
+        msg: |
+          Splunk 配置完成摘要:
+          - API 连接: {{ '正常' if splunk_api_check.status == 200 else '异常' }}
+          - 输出配置: {{ '更新' if outputs_config_result.changed else '无变更' }}
+          - 输入配置: {{ '更新' if inputs_config_result.changed else '无变更' }}
+          - HEC Token: {{ '创建成功' if hec_create_result.changed else '已存在' }}
+          - 告警配置: {{ '更新' if saved_searches_result.changed else '无变更' }}
+          - 脱敏规则: {{ '更新' if props_config_result.changed else '未配置' }}
+          - Forwarder 状态: {{ '已重启' if forwarder_restart_result.changed else '运行中' }}
+
+  handlers:
+    - name: 重启 Splunk Forwarder
+      ansible.builtin.systemd:
+        name: SplunkForwarder
+        state: restarted
+      listen: "restart splunk forwarder"
+
+    - name: 重载 Splunk 配置
+      ansible.builtin.command:
+        cmd: "{{ splunk_forwarder_home }}/bin/splunk reload"
+      listen: "reload splunk config"
