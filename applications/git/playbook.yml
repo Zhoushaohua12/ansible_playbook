@@ -1,0 +1,191 @@
+---
+- name: Git 仓库管理和源码部署示例
+  hosts: all
+  become: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    - name: 创建应用部署目录
+      ansible.builtin.file:
+        path: "{{ app_base_path }}"
+        state: directory
+        mode: '0755'
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+
+    - name: 克隆主应用仓库（开发环境）
+      ansible.builtin.git:
+        repo: "{{ main_app_repo }}"
+        dest: "{{ main_app_path }}"
+        version: "{{ main_app_branch }}"
+        force: true
+        accept_hostkey: true
+        key_file: "{{ git_ssh_key_path }}"
+      register: main_app_clone
+      when: deploy_main_app | bool
+      notify: 
+        - handle main app update
+
+    - name: 克隆配置仓库（环境配置）
+      ansible.builtin.git:
+        repo: "{{ config_repo }}"
+        dest: "{{ config_path }}"
+        version: "{{ config_branch }}"
+        force: true
+        accept_hostkey: true
+        key_file: "{{ git_ssh_key_path }}"
+      register: config_clone
+      when: deploy_config | bool
+
+    - name: 克隆静态资源仓库
+      ansible.builtin.git:
+        repo: "{{ assets_repo }}"
+        dest: "{{ assets_path }}"
+        version: "{{ assets_version }}"
+        depth: 1  # 浅克隆，仅获取最新版本
+        force: true
+        accept_hostkey: true
+        key_file: "{{ git_ssh_key_path }}"
+      register: assets_clone
+      when: deploy_assets | bool
+
+    - name: 部署指定版本的应用（生产环境示例）
+      ansible.builtin.git:
+        repo: "{{ production_app_repo }}"
+        dest: "{{ production_app_path }}"
+        version: "{{ production_app_tag }}"  # 使用标签版本
+        force: true
+        accept_hostkey: true
+        key_file: "{{ git_ssh_key_path }}"
+      register: production_deploy
+      when: 
+        - deploy_environment == "production"
+        - deploy_production_app | bool
+
+    - name: 克隆包含子模块的复杂应用
+      ansible.builtin.git:
+        repo: "{{ complex_app_repo }}"
+        dest: "{{ complex_app_path }}"
+        version: "{{ complex_app_version }}"
+        track_submodules: true
+        recursive: true
+        force: true
+        accept_hostkey: true
+        key_file: "{{ git_ssh_key_path }}"
+      register: complex_app_clone
+      when: deploy_complex_app | bool
+
+    - name: 安装应用依赖（仅在代码更新时）
+      ansible.builtin.command: "{{ install_command }}"
+      args:
+        chdir: "{{ item.item }}"
+      loop: "{{ git_update_results.results }}"
+      when: 
+        - item.changed
+        - install_dependencies | bool
+      vars:
+        git_update_results:
+          results:
+            - item: "{{ main_app_path }}"
+              changed: "{{ main_app_clone.changed | default(false) }}"
+            - item: "{{ complex_app_path }}"
+              changed: "{{ complex_app_clone.changed | default(false) }}"
+
+    - name: 构建应用（仅在代码更新时）
+      ansible.builtin.command: "{{ build_command }}"
+      args:
+        chdir: "{{ main_app_path }}"
+      when: 
+        - main_app_clone.changed | default(false)
+        - build_application | bool
+      notify: 
+        - restart app service
+
+    - name: 复制配置文件到应用目录
+      ansible.builtin.copy:
+        src: "{{ config_path }}/{{ item }}"
+        dest: "{{ main_app_path }}/config/{{ item }}"
+        remote_src: true
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0644'
+      loop: "{{ config_files }}"
+      when: 
+        - deploy_config | bool
+        - config_clone.changed | default(false)
+
+    - name: 设置应用目录权限
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0755'
+        recurse: true
+      loop:
+        - "{{ main_app_path }}"
+        - "{{ production_app_path }}"
+        - "{{ complex_app_path }}"
+      when: 
+        - item != "/opt/app"
+        - (deploy_main_app | bool and item == main_app_path) or
+          (deploy_production_app | bool and item == production_app_path) or
+          (deploy_complex_app | bool and item == complex_app_path)
+
+    - name: 创建部署信息文件
+      ansible.builtin.copy:
+        dest: "{{ item.dest }}/deployment_info.txt"
+        content: |
+          部署时间: {{ ansible_date_time.iso8601 }}
+          部署用户: {{ ansible_user_id }}
+          Git 仓库: {{ item.repo }}
+          Git 版本: {{ item.version }}
+          Commit Hash: {{ item.commit_hash | default('unknown') }}
+          部署环境: {{ deploy_environment }}
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0644'
+      loop:
+        - dest: "{{ main_app_path }}"
+          repo: "{{ main_app_repo }}"
+          version: "{{ main_app_branch }}"
+          commit_hash: "{{ main_app_clone.after | default('') }}"
+        - dest: "{{ production_app_path }}"
+          repo: "{{ production_app_repo }}"
+          version: "{{ production_app_tag }}"
+          commit_hash: "{{ production_deploy.after | default('') }}"
+      when: 
+        - (deploy_main_app | bool and item.dest == main_app_path) or
+          (deploy_production_app | bool and item.dest == production_app_path)
+
+    - name: 显示部署结果信息
+      ansible.builtin.debug:
+        msg: |
+          Git 部署操作完成：
+          - 主应用仓库: {{ main_app_clone.changed | default(false) }} ({{ main_app_clone.after | default('N/A') }})
+          - 配置仓库: {{ config_clone.changed | default(false) }} ({{ config_clone.after | default('N/A') }})
+          - 静态资源: {{ assets_clone.changed | default(false) }} ({{ assets_clone.after | default('N/A') }})
+          - 生产应用: {{ production_deploy.changed | default(false) }} ({{ production_deploy.after | default('N/A') }})
+          - 复杂应用: {{ complex_app_clone.changed | default(false) }} ({{ complex_app_clone.after | default('N/A') }})
+
+  handlers:
+    - name: handle main app update
+      ansible.builtin.debug:
+        msg: "主应用代码已更新，触发后续处理流程"
+      listen: handle main app update
+
+    - name: restart app service
+      ansible.builtin.service:
+        name: "{{ app_service_name }}"
+        state: restarted
+        enabled: true
+      listen: restart app service
+      when: manage_app_service | bool
+
+    - name: reload web server
+      ansible.builtin.service:
+        name: "{{ web_server_name }}"
+        state: reloaded
+      listen: reload web server
+      when: manage_web_server | bool

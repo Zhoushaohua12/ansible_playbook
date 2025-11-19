@@ -1,0 +1,74 @@
+# Git 仓库管理示例变量配置
+
+# 部署环境配置
+deploy_environment: "development"  # development, staging, production
+app_user: "deploy"
+app_group: "deploy"
+app_base_path: "/opt"
+
+# Git SSH 认证配置
+git_ssh_key_path: "/home/deploy/.ssh/deploy_key"  # 部署密钥路径
+
+# 主应用仓库配置
+main_app_repo: "git@github.com:company/web-application.git"
+main_app_path: "{{ app_base_path }}/webapp"
+main_app_branch: "develop"
+deploy_main_app: true
+
+# 生产环境应用配置
+production_app_repo: "git@github.com:company/production-app.git"
+production_app_path: "{{ app_base_path }}/production-app"
+production_app_tag: "v2.1.0"  # 生产环境使用标签版本
+deploy_production_app: false
+
+# 配置仓库配置
+config_repo: "git@github.com:company/app-config.git"
+config_path: "{{ app_base_path }}/config"
+config_branch: "main"
+deploy_config: true
+
+# 静态资源仓库配置
+assets_repo: "https://github.com/company/static-assets.git"
+assets_path: "{{ app_base_path }}/assets"
+assets_version: "v1.5.2"
+deploy_assets: true
+
+# 复杂应用仓库（包含子模块）
+complex_app_repo: "git@github.com:company/complex-service.git"
+complex_app_path: "{{ app_base_path }}/complex-service"
+complex_app_version: "feature/new-api"
+deploy_complex_app: false
+
+# 应用配置文件列表
+config_files:
+  - "database.yml"
+  - "redis.yml"
+  - "logging.yml"
+  - "secrets.yml"
+
+# 构建和安装配置
+install_dependencies: true
+install_command: "npm install --production"
+build_application: true
+build_command: "npm run build"
+
+# 服务管理配置
+manage_app_service: true
+app_service_name: "webapp"
+manage_web_server: true
+web_server_name: "nginx"
+
+# Git 操作选项
+git_force_update: true
+git_accept_hostkey: true
+git_clone_depth: 1  # 浅克隆深度，0 表示完整克隆
+
+# 部署策略配置
+enable_rollback: true
+backup_before_deploy: true
+max_backup_versions: 5
+
+# 重要：这些变量仅用于演示，生产环境请使用 Ansible Vault 或外部配置管理
+# ⚠️ 警告：Git 仓库 URL 和 SSH 密钥路径需要根据实际环境配置
+# 🔒 安全提示：生产环境应使用受保护的部署密钥，并定期轮换
+# 📝 注意：确保部署用户对目标目录有写权限，SSH 密钥文件权限为 600

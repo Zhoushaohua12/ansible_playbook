@@ -4,6 +4,7 @@
 
 ## 仓库结构
 - `advanced/`：高级特性讲解与示例 Playbook。
+- `applications/`：应用管理模块（软件包/容器/源码部署）的实践指南。
 - `commands/`：命令执行模块（shell、command、raw、script）的使用指南与安全实践。
 - `monitoring/`：主流监控系统的 Ansible 集成示例。
 - `storage/`：磁盘、LVM 与文件系统管理的演练场景。
@@ -13,6 +14,7 @@
 
 ## 进阶章节
 - [高级特性总览](advanced/README.md)
+- [应用管理指南](applications/README.md)
 - [命令执行模块指南](commands/README.md)
 - [监控模块总览](monitoring/README.md)
 - [存储模块实践指南](storage/README.md)
@@ -114,3 +116,46 @@ curl -I http://your-domain.com
 - [Nginx 配置管理](web/nginx/README.md) - 高性能 HTTP 服务器和反向代理
 - [Apache2 配置管理](web/apache2/README.md) - 传统开源 Web 服务器
 - [通用 Web 配置](web/web_config/README.md) - 跨服务器的通用配置场景
+
+## 应用管理章节
+
+### 管理概览
+`applications/` 目录提供完整的应用生命周期管理解决方案，涵盖以下场景：
+- **软件包管理**：通过 yum、apt、package 等模块实现跨平台软件部署
+- **容器化部署**：使用 docker_container 模块管理 Docker 容器生命周期
+- **源码部署**：通过 git 模块实现版本控制和持续部署
+
+### 模块特性
+每个应用管理模块都包含完整的部署示例：
+- **docker_container**：容器化应用部署，支持网络、存储、健康检查配置
+- **git**：源码仓库管理，支持版本控制、分支切换、子模块管理
+- **package**：跨平台包管理，自动适配不同系统的包管理器
+- **yum**：Red Hat 系统专用包管理，支持软件组和仓库管理
+- **apt**：Debian 系统专用包管理，支持软件源和 GPG 验证
+
+### 运行提示
+- **容器示例**：建议在本地或 CI 环境仅做语法检查，避免在生产环境直接运行
+- **包管理操作**：需要 root 权限，请确保适当的权限配置
+- **Git 操作**：需要网络访问，请检查防火墙和代理设置
+
+### 快速开始
+```bash
+# 1. 语法检查
+ansible-playbook applications/[module]/playbook.yml --syntax-check
+
+# 2. Dry-Run 预览
+ansible-playbook applications/[module]/playbook.yml --check
+
+# 3. 执行部署
+ansible-playbook applications/[module]/playbook.yml
+
+# 4. 验证结果
+ansible-playbook applications/[module]/playbook.yml --check
+```
+
+### 相关链接
+- [Docker 容器管理](applications/docker_container/README.md) - 容器化应用部署和管理
+- [Git 仓库管理](applications/git/README.md) - 源码部署和版本控制
+- [通用包管理](applications/package/README.md) - 跨平台软件包管理
+- [YUM 包管理](applications/yum/README.md) - Red Hat 系统包管理
+- [APT 包管理](applications/apt/README.md) - Debian 系统包管理
