@@ -1,0 +1,95 @@
+---
+- name: shell 模块使用示例演示
+  hosts: all
+  become: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    - name: 创建工作目录
+      ansible.builtin.file:
+        path: "{{ shell_working_directory }}"
+        state: directory
+        mode: '0755'
+    
+    - name: 多行 shell 命令演示 - 安全配置更新
+      ansible.builtin.shell: |
+        set -e  # 遇到错误立即退出
+        echo "开始配置 {{ app_name }} v{{ app_version }}" > {{ shell_log_file }}
+        
+        # 创建示例配置文件
+        cat > {{ shell_config_file }} << EOF
+        # {{ app_name }} 配置文件
+        version={{ app_version }}
+        {{ config_key }}={{ config_value }}
+        environment={{ custom_env_var }}
+        debug={{ debug_level }}
+        EOF
+        
+        # 创建备份文件
+        if [ -f "{{ shell_config_file }}" ]; then
+          cp "{{ shell_config_file }}" "{{ shell_backup_file }}"
+          echo "配置文件已备份到 {{ shell_backup_file }}" >> {{ shell_log_file }}
+        fi
+        
+        echo "配置更新完成" >> {{ shell_log_file }}
+      args:
+        creates: "{{ shell_config_file }}"
+        warn: false  # 禁用警告，因为我们使用了 set -e
+      changed_when: true
+    
+    - name: 管道和重定向演示 - 日志分析
+      ansible.builtin.shell: |
+        # 分析系统日志中的错误和警告数量
+        echo "开始分析日志文件..." > {{ shell_output_file }}
+        
+        if [ -f "{{ log_file_path }}" ]; then
+          error_count=$(grep -c "{{ error_keyword }}" "{{ log_file_path }}" || echo "0")
+          warning_count=$(grep -c "{{ warning_keyword }}" "{{ log_file_path }}" || echo "0")
+          
+          echo "错误数量: $error_count" >> {{ shell_output_file }}
+          echo "警告数量: $warning_count" >> {{ shell_output_file }}
+          
+          # 获取最近的错误信息
+          echo "" >> {{ shell_output_file }}
+          echo "最近的错误信息:" >> {{ shell_output_file }}
+          grep "{{ error_keyword }}" "{{ log_file_path }}" | tail -5 >> {{ shell_output_file }}
+        else
+          echo "日志文件 {{ log_file_path }} 不存在" >> {{ shell_output_file }}
+        fi
+      args:
+        warn: false
+      changed_when: false  # 仅读取日志，不修改系统状态
+    
+    - name: 环境变量和条件执行演示
+      ansible.builtin.shell: |
+        # 设置环境变量并执行条件操作
+        export APP_ENV="{{ custom_env_var }}"
+        export DEBUG_LEVEL="{{ debug_level }}"
+        
+        echo "应用环境: $APP_ENV" >> {{ shell_log_file }}
+        echo "调试级别: $DEBUG_LEVEL" >> {{ shell_log_file }}
+        
+        # 根据环境执行不同操作
+        if [ "$APP_ENV" = "production" ]; then
+          echo "生产环境：启用安全检查" >> {{ shell_log_file }}
+          echo "security_check=enabled" >> {{ shell_config_file }}
+        else
+          echo "开发环境：启用调试模式" >> {{ shell_log_file }}
+          echo "debug_mode=enabled" >> {{ shell_config_file }}
+        fi
+      args:
+        warn: false
+      changed_when: true
+    
+    - name: 清理演示 - 仅在文件存在时执行
+      ansible.builtin.shell: |
+        # 仅在临时文件存在时进行清理
+        if [ -f "{{ shell_output_file }}" ]; then
+          echo "清理临时文件: {{ shell_output_file }}" >> {{ shell_log_file }}
+          rm -f "{{ shell_output_file }}"
+        fi
+      args:
+        removes: "{{ shell_output_file }}"  # 仅当文件存在时执行
+        warn: false
+      changed_when: true

@@ -4,6 +4,7 @@
 
 ## 仓库结构
 - `advanced/`：高级特性讲解与示例 Playbook。
+- `commands/`：命令执行模块（shell、command、raw、script）的使用指南与安全实践。
 - `monitoring/`：主流监控系统的 Ansible 集成示例。
 - `storage/`：磁盘、LVM 与文件系统管理的演练场景。
 - `web/`：Web 服务器（Nginx、Apache）配置与管理示例。
@@ -12,6 +13,7 @@
 
 ## 进阶章节
 - [高级特性总览](advanced/README.md)
+- [命令执行模块指南](commands/README.md)
 - [监控模块总览](monitoring/README.md)
 - [存储模块实践指南](storage/README.md)
 - [Web 服务管理指南](web/README.md)
@@ -23,6 +25,20 @@
 - **存储示例严禁直接在生产环境运行**：`storage/` 下的 playbook 默认通过 loopback 设备和 `--check` 模式演练，请先阅读 [storage/README.md](storage/README.md) 并在沙箱环境验证。
 - **强制 Dry-Run**：执行任何存储任务前务必加上 `ansible-playbook --check`，必要时结合 `changed_when: false`/`failed_when: false`，确认计划后再放行。
 - **备份优先**：在尝试 mount/LVM/filesystem 实操前，先备份 fstab、VG metadata 以及关键数据，确保可以在出错时回滚。
+
+## 命令执行模块注意事项
+
+### 安全使用建议
+- **受控环境运行**：命令执行模块建议仅在受控主机上运行，避免在生产环境随意执行
+- **模块选择原则**：优先使用 command 模块，需要 shell 特性时使用 shell 模块，无 Python 环境时才使用 raw 模块
+- **幂等性控制**：使用 `creates`、`removes`、`changed_when` 确保命令执行的幂等性
+- **脚本安全审查**：使用 script 模块时，确保脚本内容经过安全审查，避免恶意代码
+
+### 测试验证建议
+- **中文文档检查**：确保所有 README 和 playbook 包含中文注释和任务名
+- **安全规范验证**：shell 模块应包含 `warn: false` 或 `set -e`，command 模块不应启用 shell
+- **raw 模块提醒**：raw 示例需包含中文安全提醒，说明会绕过 Python 依赖
+- **脚本引用检查**：script 模块示例应引用现有 `.sh` 脚本文件并有中文注释
 
 ## 监控模块使用提示
 

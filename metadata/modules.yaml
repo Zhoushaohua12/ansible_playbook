@@ -106,6 +106,44 @@ storage:
         - "mkfs.xfs 或 mkfs.ext4 命令"
         - "ansible.builtin.filesystem 模块"
 
+commands:
+  title: 命令执行模块
+  description: "演示 shell、command、raw、script 四个核心命令执行模块的使用差异、安全风险与最佳实践，包含中文文档和幂等性控制示例"
+  topics:
+    - id: shell
+      name: Shell 模块
+      doc: commands/shell/README.md
+      example: commands/shell/playbook.yml
+      summary: "通过系统 shell 执行命令，支持管道和重定向，包含安全说明和 set -e 错误处理"
+      external_deps:
+        - "目标主机 Python 环境"
+        - "系统 shell（/bin/sh 或 /bin/bash）"
+    - id: command
+      name: Command 模块
+      doc: commands/command/README.md
+      example: commands/command/playbook.yml
+      summary: "安全执行命令，不经过 shell 处理，避免 shell 注入风险，支持 creates/removes 幂等性控制"
+      external_deps:
+        - "目标主机 Python 环境"
+    - id: raw
+      name: Raw 模块
+      doc: commands/raw/README.md
+      example: commands/raw/playbook.yml
+      summary: "直接 SSH 执行命令，适用于无 Python 环境，包含中文安全提醒和绕过机制说明"
+      external_deps:
+        - "SSH 连接"
+        - "目标主机 shell 环境"
+    - id: script
+      name: Script 模块
+      doc: commands/script/README.md
+      example: commands/script/playbook.yml
+      summary: "传输本地脚本到远程主机执行，支持复杂脚本逻辑和版本控制，包含示例脚本和中文注释"
+      external_deps:
+        - "目标主机 Python 环境"
+        - "脚本执行权限"
+      files:
+        - "commands/script/files/example.sh"
+
 web:
   title: Web 服务管理
   description: "提供 Nginx、Apache 以及通用 Web 配置的自动化示例，涵盖反向代理、静态站点发布、SSL 证书管理等常见场景"

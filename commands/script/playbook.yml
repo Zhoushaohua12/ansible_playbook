@@ -1,0 +1,149 @@
+---
+- name: script 模块本地脚本传输执行示例演示
+  hosts: all
+  become: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    - name: 创建工作目录
+      ansible.builtin.file:
+        path: "{{ script_working_directory }}"
+        state: directory
+        mode: '0755'
+    
+    - name: 传输并执行应用部署脚本（带中文注释）
+      ansible.builtin.script: files/example.sh {{ script_working_directory }} {{ app_name }}
+      args:
+        creates: "{{ script_working_directory }}/app.conf"  # 幂等性控制
+      register: deploy_result
+    
+    - name: 显示部署结果
+      ansible.builtin.debug:
+        msg: |
+          应用部署脚本执行结果：
+          返回码: {{ deploy_result.rc }}
+          变更状态: {{ deploy_result.changed }}
+          输出内容:
+          {{ deploy_result.stdout_lines | default([]) | join('\n') }}
+    
+    - name: 检查部署生成的文件
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: file_stats
+      loop:
+        - "{{ script_working_directory }}/app.conf"
+        - "{{ script_working_directory }}/start_app.sh"
+        - "{{ script_working_directory }}/health_check.sh"
+        - "{{ script_working_directory }}/backup.sh"
+    
+    - name: 显示文件状态
+      ansible.builtin.debug:
+        msg: |
+          文件: {{ item.item }}
+          存在: {{ item.stat.exists | default(false) }}
+          大小: {{ item.stat.size | default(0) }} 字节
+          权限: {{ item.stat.mode | default('N/A') }}
+      loop: "{{ file_stats.results }}"
+    
+    - name: 读取生成的配置文件内容
+      ansible.builtin.slurp:
+        src: "{{ script_working_directory }}/app.conf"
+      register: config_content
+      when: file_stats.results[0].stat.exists | default(false)
+    
+    - name: 显示配置文件内容
+      ansible.builtin.debug:
+        msg: |
+          应用配置文件内容：
+          {{ config_content.content | b64decode }}
+      when: config_content is defined
+    
+    - name: 执行应用启动脚本（演示脚本调用）
+      ansible.builtin.script: "{{ script_working_directory }}/start_app.sh"
+      args:
+        chdir: "{{ script_working_directory }}"
+      register: start_result
+      when: file_stats.results[1].stat.exists | default(false)
+    
+    - name: 显示启动结果
+      ansible.builtin.debug:
+        msg: |
+          应用启动结果：
+          {{ start_result.stdout_lines | default([]) | join('\n') }}
+      when: start_result is defined
+    
+    - name: 执行健康检查脚本
+      ansible.builtin.script: "{{ script_working_directory }}/health_check.sh"
+      args:
+        chdir: "{{ script_working_directory }}"
+      register: health_result
+      when: file_stats.results[2].stat.exists | default(false)
+    
+    - name: 显示健康检查结果
+      ansible.builtin.debug:
+        msg: |
+          应用健康检查结果：
+          {{ health_result.stdout_lines | default([]) | join('\n') }}
+      when: health_result is defined
+    
+    - name: 执行备份脚本（演示备份功能）
+      ansible.builtin.script: "{{ script_working_directory }}/backup.sh"
+      args:
+        chdir: "{{ script_working_directory }}"
+      register: backup_result
+      when: file_stats.results[3].stat.exists | default(false)
+    
+    - name: 显示备份结果
+      ansible.builtin.debug:
+        msg: |
+          备份执行结果：
+          {{ backup_result.stdout_lines | default([]) | join('\n') }}
+      when: backup_result is defined
+    
+    - name: 检查备份文件是否生成
+      ansible.builtin.find:
+        paths: "{{ script_working_directory }}/backups"
+        patterns: "backup_*.tar.gz"
+      register: backup_files
+      when: backup_result is defined
+    
+    - name: 显示备份文件信息
+      ansible.builtin.debug:
+        msg: |
+          找到的备份文件：
+          {% for file in backup_files.files %}
+          - {{ file.path }} ({{ file.size }} 字节, 修改时间: {{ file.mtime }})
+          {% endfor %}
+      when: backup_files is defined and backup_files.files | length > 0
+    
+    - name: 清理演示 - 删除临时文件（默认禁用）
+      ansible.builtin.file:
+        path: "{{ script_working_directory }}"
+        state: absent
+      register: cleanup_result
+      when: false  # 默认禁用清理，可手动启用
+    
+    - name: 显示清理结果
+      ansible.builtin.debug:
+        msg: |
+          临时目录清理状态: {{ '已删除' if cleanup_result.changed else '未删除' }}
+      when: cleanup_result is defined
+    
+    - name: script 模块使用总结
+      ansible.builtin.debug:
+        msg: |
+          📝 script 模块使用总结：
+          
+          1. 脚本传输：自动将本地脚本文件传输到远程主机并执行
+          2. 幂等性：通过 creates/removes 参数实现幂等性控制
+          3. 参数传递：可在脚本路径后直接传递命令行参数
+          4. 错误处理：脚本应包含适当的错误处理逻辑（set -e）
+          5. 日志记录：建议脚本提供详细的执行日志
+          6. 文件组织：脚本文件放在 files/ 目录下，便于版本控制
+          
+          优势：
+          - 支持复杂脚本逻辑
+          - 脚本可独立测试和维护
+          - 支持版本控制和代码审查
+          - 可重用现有脚本资源

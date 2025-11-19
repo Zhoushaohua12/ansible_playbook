@@ -1,0 +1,27 @@
+# command 模块示例变量配置
+
+# 示例工作目录
+command_working_directory: "/tmp/ansible_command_demo"
+
+# 系统信息查询命令示例
+command_check_service: "nginx"
+command_check_package: "python3"
+command_check_user: "ansible"
+
+# 文件操作示例路径
+command_init_file: "{{ command_working_directory }}/app_initialized"
+command_config_file: "{{ command_working_directory }}/config.json"
+command_backup_file: "{{ command_working_directory }}/backup.tar.gz"
+
+# 应用信息示例
+app_name: "demo_app"
+app_version: "2.1.0"
+app_port: "8080"
+
+# 系统监控命令
+command_disk_usage: "/var/log"
+command_memory_info: "free"
+command_network_interface: "eth0"
+
+# 重要：这些变量仅用于演示，生产环境请使用 Ansible Vault 或外部配置管理
+# ⚠️ 警告：示例中的服务名和路径需要根据实际环境调整
