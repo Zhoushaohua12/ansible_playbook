@@ -1,0 +1,55 @@
+---
+# MongoDB 连接配置
+mongodb_host: "db.example.com"  # MongoDB 服务器地址
+mongodb_port: 27017  # MongoDB 服务器端口
+mongodb_admin_user: "admin"  # 管理员用户名，需要 userAdmin 权限
+mongodb_admin_password: "PLEASE_CHANGE_THIS_ADMIN_PASSWORD"  # ⚠️ 管理员密码 - 生产环境请使用 ansible-vault 加密
+mongodb_auth_database: "admin"  # 认证数据库，通常为 admin
+
+# 应用用户配置
+app_user_name: "webapp_user"  # 应用数据库用户名
+app_user_password: "PLEASE_CHANGE_THIS_APP_PASSWORD"  # ⚠️ 应用用户密码
+app_database: "webapp_db"  # 应用数据库名称
+
+# 只读用户配置
+readonly_user_name: "report_user"  # 只读用户名，用于报表和查询
+readonly_user_password: "PLEASE_CHANGE_THIS_READONLY_PASSWORD"  # ⚠️ 只读用户密码
+
+# 跨数据库用户配置
+multi_db_user_name: "integration_user"  # 跨数据库用户名
+multi_db_user_password: "PLEASE_CHANGE_THIS_MULTIDB_PASSWORD"  # ⚠️ 跨数据库用户密码
+log_database: "app_logs"  # 日志数据库名称
+session_database: "user_sessions"  # 会话数据库名称
+
+# 数据库管理员配置
+db_admin_user_name: "db_manager"  # 数据库管理员用户名
+db_admin_user_password: "PLEASE_CHANGE_THIS_DBADMIN_PASSWORD"  # ⚠️ 数据库管理员密码
+
+# 备份用户配置
+backup_user_name: "backup_user"  # 备份用户名
+backup_user_password: "PLEASE_CHANGE_THIS_BACKUP_PASSWORD"  # ⚠️ 备份用户密码
+
+# 监控用户配置
+create_monitor_user: false  # 是否创建监控用户
+monitor_user_name: "monitor_user"  # 监控用户名
+monitor_user_password: "PLEASE_CHANGE_THIS_MONITOR_PASSWORD"  # ⚠️ 监控用户密码
+
+# 密码轮换配置（可选）
+# new_app_user_password: "NEW_PASSWORD_HERE"  # 新密码，用于定期密码轮换
+
+# 测试用户清理配置
+cleanup_test_users: false  # 是否清理测试用户，生产环境设为 true
+test_users_to_delete:  # 待删除的测试用户列表
+  - "test_user_1"
+  - "test_user_2"
+  - "dev_temp_user"
+
+# ⚠️ 安全提示：
+# 1. 所有密码字段都是占位符，请替换为真实密码
+# 2. 生产环境务必使用 ansible-vault encrypt 加密此文件
+# 3. MongoDB 必须启用认证（配置文件中设置 security.authorization: enabled）
+# 4. 建议配合 vars_prompt 或外部密钥管理系统
+# 5. 定期更新数据库用户密码，建立轮换机制
+# 6. 遵循最小权限原则，仅授予必要的角色
+# 7. 生产环境建议启用 SSL/TLS 连接
+# 8. 限制 MongoDB 的 bindIp 和防火墙规则

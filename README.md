@@ -6,6 +6,7 @@
 - `advanced/`：高级特性讲解与示例 Playbook。
 - `applications/`：应用管理模块（软件包/容器/源码部署）的实践指南。
 - `commands/`：命令执行模块（shell、command、raw、script）的使用指南与安全实践。
+- `database/`：数据库管理模块（MySQL、PostgreSQL、MongoDB）的自动化运维示例。
 - `monitoring/`：主流监控系统的 Ansible 集成示例。
 - `storage/`：磁盘、LVM 与文件系统管理的演练场景。
 - `web/`：Web 服务器（Nginx、Apache）配置与管理示例。
@@ -16,6 +17,7 @@
 - [高级特性总览](advanced/README.md)
 - [应用管理指南](applications/README.md)
 - [命令执行模块指南](commands/README.md)
+- [数据库管理实践指南](database/README.md)
 - [监控模块总览](monitoring/README.md)
 - [存储模块实践指南](storage/README.md)
 - [Web 服务管理指南](web/README.md)
@@ -159,3 +161,75 @@ ansible-playbook applications/[module]/playbook.yml --check
 - [通用包管理](applications/package/README.md) - 跨平台软件包管理
 - [YUM 包管理](applications/yum/README.md) - Red Hat 系统包管理
 - [APT 包管理](applications/apt/README.md) - Debian 系统包管理
+
+## 数据库管理章节
+
+### 管理概览
+`database/` 目录提供主流数据库系统（MySQL、PostgreSQL、MongoDB）的自动化管理解决方案，涵盖以下场景：
+- **用户管理**：创建数据库用户、授予权限、密码管理
+- **数据库管理**：创建/删除数据库、导入导出数据、字符集配置
+- **权限控制**：精细化权限管理、最小权限原则实践
+- **备份恢复**：自动化数据库备份和恢复流程
+
+### 环境依赖
+在使用数据库模块前，需要安装对应的 Ansible Collection 和 Python 库：
+
+```bash
+# 安装 Ansible Collections
+ansible-galaxy collection install community.mysql
+ansible-galaxy collection install community.postgresql
+ansible-galaxy collection install community.mongodb
+
+# 在目标数据库主机安装 Python 库
+# MySQL 客户端库（任选其一）
+pip install PyMySQL
+# 或
+pip install mysqlclient
+
+# PostgreSQL 客户端库
+pip install psycopg2-binary
+
+# MongoDB 客户端库
+pip install pymongo
+```
+
+⚠️ **重要提示**：Python 库需要安装在**目标数据库主机**上，而非 Ansible 控制节点。
+
+### 模块特性
+每个数据库管理模块都包含完整的运维示例：
+- **mysql_user**：MySQL 用户创建、权限授予、密码管理
+- **mysql_db**：MySQL 数据库创建、导入导出、字符集配置
+- **postgresql_db**：PostgreSQL 数据库管理、owner 配置、备份恢复
+- **mongodb_user**：MongoDB 用户和角色管理、权限配置
+
+### 安全注意事项
+- **凭证加密**：所有示例使用占位符密码，生产环境务必使用 Ansible Vault 加密
+- **最小权限**：为不同应用创建专用数据库用户，避免使用超级用户
+- **check_mode 测试**：所有示例默认使用 `check_mode: true`，可在无真实数据库环境下运行
+- **审计日志**：使用 `no_log: true` 防止敏感信息记录到日志
+
+### 运行提示
+- **本地测试**：所有 playbook 默认使用 `check_mode: true` 和 `delegate_to`，适合学习和测试
+- **生产部署**：移除 `check_mode: true` 并配置正确的数据库连接信息
+- **凭证管理**：使用 `ansible-vault encrypt` 加密 `vars/example_vars.yml` 文件
+
+### 快速开始
+```bash
+# 1. 安装依赖
+ansible-galaxy collection install community.mysql community.postgresql community.mongodb
+
+# 2. 语法检查
+ansible-playbook database/mysql_user/playbook.yml --syntax-check
+
+# 3. Dry-Run 预览（默认 check_mode）
+ansible-playbook database/mysql_user/playbook.yml
+
+# 4. 实际执行（移除 playbook 中的 check_mode: true）
+ansible-playbook database/mysql_user/playbook.yml -i hosts.ini
+```
+
+### 相关链接
+- [MySQL 用户管理](database/mysql_user/README.md) - MySQL 用户创建和权限管理
+- [MySQL 数据库管理](database/mysql_db/README.md) - MySQL 数据库生命周期管理
+- [PostgreSQL 数据库管理](database/postgresql_db/README.md) - PostgreSQL 数据库和备份管理
+- [MongoDB 用户管理](database/mongodb_user/README.md) - MongoDB 用户和角色管理

@@ -1,0 +1,111 @@
+---
+- name: MySQL 用户管理示例演示
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    - name: 创建应用数据库用户 - 带完整权限
+      community.mysql.mysql_user:
+        login_host: "{{ mysql_host }}"
+        login_port: "{{ mysql_port }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+        name: "{{ app_user_name }}"
+        password: "{{ app_user_password }}"
+        host: "{{ app_user_host }}"
+        priv: "{{ app_database }}.*:{{ app_user_privileges }}"
+        state: present
+        update_password: on_create
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ mysql_host }}"
+    
+    - name: 创建只读用户 - 用于报表查询
+      community.mysql.mysql_user:
+        login_host: "{{ mysql_host }}"
+        login_port: "{{ mysql_port }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+        name: "{{ readonly_user_name }}"
+        password: "{{ readonly_user_password }}"
+        host: "{{ readonly_user_host }}"
+        priv: "{{ app_database }}.*:SELECT"
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ mysql_host }}"
+    
+    - name: 为现有用户追加日志库写入权限
+      community.mysql.mysql_user:
+        login_host: "{{ mysql_host }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+        name: "{{ app_user_name }}"
+        host: "{{ app_user_host }}"
+        priv: "{{ log_database }}.*:INSERT,UPDATE"
+        append_privs: true
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ mysql_host }}"
+    
+    - name: 更新用户密码 - 定期密码轮换
+      community.mysql.mysql_user:
+        login_host: "{{ mysql_host }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+        name: "{{ app_user_name }}"
+        host: "{{ app_user_host }}"
+        password: "{{ new_app_user_password }}"
+        update_password: always
+      check_mode: true
+      no_log: true
+      when: new_app_user_password is defined
+      delegate_to: "{{ mysql_host }}"
+    
+    - name: 创建备份用户 - 仅 SELECT 和 LOCK TABLES 权限
+      community.mysql.mysql_user:
+        login_host: "{{ mysql_host }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+        name: "{{ backup_user_name }}"
+        password: "{{ backup_user_password }}"
+        host: "{{ backup_user_host }}"
+        priv: "*.*:SELECT,LOCK TABLES,RELOAD"
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ mysql_host }}"
+    
+    - name: 删除测试用户 - 生产环境清理
+      community.mysql.mysql_user:
+        login_host: "{{ mysql_host }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+        name: "{{ test_user_name }}"
+        host: "%"
+        state: absent
+      check_mode: true
+      no_log: true
+      when: cleanup_test_users | default(false) | bool
+      delegate_to: "{{ mysql_host }}"
+    
+    - name: 限制 root 用户仅本地访问 - 安全加固
+      community.mysql.mysql_user:
+        login_host: "{{ mysql_host }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+        name: root
+        host: "{{ item }}"
+        state: absent
+      check_mode: true
+      no_log: true
+      loop:
+        - "%"
+        - "{{ mysql_host }}"
+      when: 
+        - item != "localhost"
+        - item != "127.0.0.1"
+        - harden_root_access | default(false) | bool
+      delegate_to: "{{ mysql_host }}"
