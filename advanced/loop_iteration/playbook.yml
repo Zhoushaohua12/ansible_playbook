@@ -1,0 +1,34 @@
+---
+# 演示 loop 以及 loop_control.loop_var 的使用
+- name: 循环任务示例
+  hosts: localhost
+  gather_facts: false
+  vars:
+    # web_targets 存放需要巡检的主机与端口
+    web_targets:
+      - name: web01
+        address: 10.0.0.11
+        ports: [80, 443]
+      - name: web02
+        address: 10.0.0.12
+        ports: [8080]
+
+  tasks:
+    - name: 遍历主机并输出端口
+      ansible.builtin.debug:
+        msg: "{{ target_item.name }} ({{ target_item.address }}) 需要检查端口 {{ target_item.ports | join(', ') }}"
+      loop: "{{ web_targets }}"
+      loop_control:
+        # 指定 loop_var=target_item，避免与其他 item 变量冲突
+        loop_var: target_item
+
+    - name: 为每个主机生成健康检查命令
+      ansible.builtin.shell: |
+        echo "checking {{ target_item.address }}:{{ port_item }}"
+      loop: "{{ query('subelements', web_targets, 'ports') }}"
+      loop_control:
+        # 这里的 target_item 和 port_item 来自 subelements 返回的二元组
+        loop_var: target_pair
+      vars:
+        target_item: "{{ target_pair[0] }}"
+        port_item: "{{ target_pair[1] }}"

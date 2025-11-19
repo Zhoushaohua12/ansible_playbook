@@ -1,0 +1,34 @@
+advanced:
+  title: 高级特性
+  description: "涵盖 block/rescue、条件判断、循环、变量、handler 以及 include_tasks 的实战示例"
+  topics:
+    - id: block_rescue
+      name: Block 与 Rescue
+      doc: advanced/block_rescue/README.md
+      example: advanced/block_rescue/playbook.yml
+      summary: "使用 block/rescue/always 保障多步任务可回滚"
+    - id: when_conditions
+      name: When 条件
+      doc: advanced/when_conditions/README.md
+      example: advanced/when_conditions/playbook.yml
+      summary: "通过 when 控制任务在不同系统上的执行"
+    - id: loop_iteration
+      name: Loop 循环
+      doc: advanced/loop_iteration/README.md
+      example: advanced/loop_iteration/playbook.yml
+      summary: "解释 loop_control.loop_var 并遍历主机列表"
+    - id: set_fact_vars
+      name: set_fact 变量构建
+      doc: advanced/set_fact_vars/README.md
+      example: advanced/set_fact_vars/playbook.yml
+      summary: "在运行时组合结构化变量并缓存"
+    - id: handlers_notify
+      name: Handler Notify 链路
+      doc: advanced/handlers_notify/README.md
+      example: advanced/handlers_notify/playbook.yml
+      summary: "展示配置变更触发多级 handler 的流程"
+    - id: include_tasks
+      name: Include Tasks
+      doc: advanced/include_tasks/README.md
+      example: advanced/include_tasks/playbook.yml
+      summary: "通过 include_tasks 拆分子任务并传递参数"

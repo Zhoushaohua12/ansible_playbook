@@ -1,0 +1,22 @@
+---
+# 使用 include_tasks 将通用逻辑拆分到子文件
+- name: include_tasks 示例
+  hosts: analytics_nodes
+  gather_facts: false
+  vars:
+    # child_task_file 指向需要引入的子任务
+    child_task_file: child_task.yml
+    # maintenance_actions 列出要执行的动作
+    maintenance_actions:
+      - restart_service
+      - sync_config
+
+  tasks:
+    - name: 针对不同动作调用子任务
+      ansible.builtin.include_tasks:
+        file: "{{ child_task_file }}"
+      vars:
+        current_action: "{{ action_item }}"
+      loop: "{{ maintenance_actions }}"
+      loop_control:
+        loop_var: action_item

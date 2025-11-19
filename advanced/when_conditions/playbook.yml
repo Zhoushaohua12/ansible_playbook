@@ -1,0 +1,37 @@
+---
+# 通过 when 条件控制任务执行顺序
+- name: 条件判断示例
+  hosts: web_servers
+  gather_facts: true
+  vars:
+    # desired_state 用于统一控制 httpd 服务状态
+    desired_state: "started"
+    # enable_tls 控制是否额外部署 TLS 配置
+    enable_tls: true
+
+  tasks:
+    - name: 仅在 RedHat 系列启动 httpd
+      ansible.builtin.service:
+        name: httpd
+        state: "{{ desired_state }}"
+      when:
+        - ansible_facts['os_family'] == 'RedHat'
+        - desired_state in ['started', 'restarted']
+
+    - name: Debian 系列采用 apache2
+      ansible.builtin.service:
+        name: apache2
+        state: "{{ desired_state }}"
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: 根据变量开启 TLS 配置
+      ansible.builtin.template:
+        src: tls.conf.j2
+        dest: /etc/httpd/conf.d/tls.conf
+      when:
+        - enable_tls | default(false)
+        - inventory_hostname in groups['web_servers']
+
+    - name: 打印最终决策
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} 使用服务 {{ 'httpd' if ansible_facts['os_family']=='RedHat' else 'apache2' }}"

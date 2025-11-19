@@ -1,0 +1,28 @@
+---
+# 使用 set_fact 生成可复用的结构化变量
+- name: set_fact 示例
+  hosts: db_servers
+  gather_facts: true
+  vars:
+    # release_version 代表当前部署版本
+    release_version: "2024.11"
+    # data_dir 指向数据库数据目录
+    data_dir: "/var/lib/postgresql/data"
+
+  tasks:
+    - name: 读取磁盘使用情况
+      ansible.builtin.command: df -h {{ data_dir }}
+      register: disk_usage
+
+    - name: 组合运行时事实
+      ansible.builtin.set_fact:
+        db_release_info:
+          version: "{{ release_version }}"
+          data_dir: "{{ data_dir }}"
+          last_check: "{{ ansible_date_time.iso8601 }}"
+          disk_usage: "{{ disk_usage.stdout_lines | join(' | ') }}"
+      cacheable: true
+
+    - name: 验证新变量（依赖 set_fact 输出）
+      ansible.builtin.debug:
+        msg: "即将以 {{ db_release_info.version }} 版本检查 {{ db_release_info.data_dir }}"
