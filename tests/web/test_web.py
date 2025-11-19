@@ -6,7 +6,7 @@ from typing import Dict
 import pytest
 import yaml
 
-MODULES = ["nginx", "apache2", "web_config"]
+MODULES = ["nginx", "apache2", "web_config", "haproxy", "ssl_certificate"]
 
 
 class TestWebFixtures:
@@ -142,6 +142,8 @@ class TestTemplates(TestWebFixtures):
         "apache2": ["apache.conf.j2", "security.conf.j2"],
         "web_config": ["proxy_nginx.conf.j2", "proxy_apache.conf.j2", 
                        "static_nginx.conf.j2", "static_apache.conf.j2"],
+        "haproxy": ["haproxy.cfg.j2", "rsyslog_haproxy.conf.j2"],
+        "ssl_certificate": ["nginx_https.conf.j2"],
     }
 
     def test_template_directories_exist(self, module_dirs: Dict[str, Path]) -> None:

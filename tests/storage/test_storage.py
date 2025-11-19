@@ -6,11 +6,14 @@ from typing import Dict
 import pytest
 import yaml
 
-MODULES = ["mount", "lvol", "filesystem"]
+MODULES = ["mount", "lvol", "filesystem", "lvg", "parted", "disk_facts"]
 FQCN_EXPECTATIONS = {
     "mount": "ansible.posix.mount",
     "lvol": "ansible.builtin.lvol",
     "filesystem": "ansible.builtin.filesystem",
+    "lvg": "community.general.lvg",
+    "parted": "community.general.parted",
+    "disk_facts": "ansible.builtin.setup",
 }
 
 

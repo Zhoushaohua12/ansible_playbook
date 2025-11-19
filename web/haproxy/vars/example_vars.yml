@@ -1,0 +1,73 @@
+---
+# HAProxy 负载均衡配置变量示例
+# ⚠️ 重要提示：这些变量为示例占位值，请根据实际环境修改后使用
+
+# HAProxy 基础配置
+haproxy_listen_address: "0.0.0.0"  # 监听地址，0.0.0.0 表示监听所有接口
+haproxy_listen_port: "80"  # 监听端口（HTTP）
+haproxy_https_listen_port: "443"  # HTTPS 监听端口
+
+# HAProxy 全局参数
+haproxy_maxconn: "4096"  # 最大连接数
+haproxy_user: "haproxy"  # 运行用户
+haproxy_group: "haproxy"  # 运行用户组
+haproxy_chroot: "/var/lib/haproxy"  # chroot 监狱目录
+
+# 日志配置
+haproxy_log_facility: "local0"  # 日志设施（local0-local7）
+haproxy_log_level: "info"  # 日志级别（debug/info/notice/warn/error/crit）
+
+# 后端应用配置
+haproxy_backend_servers:
+  - name: "app1"
+    host: "192.168.1.10"  # 后端服务器地址（占位值，请替换为实际地址）
+    port: "8000"  # 后端服务监听端口
+    weight: "1"  # 权重（用于加权轮询）
+    check: "check"  # 启用健康检查
+  - name: "app2"
+    host: "192.168.1.11"
+    port: "8000"
+    weight: "1"
+    check: "check"
+
+# 负载均衡策略
+# 可选值：roundrobin（轮询）、leastconn（最少连接）、source（基于源IP）等
+haproxy_balance_strategy: "roundrobin"
+
+# 健康检查配置
+haproxy_health_check_interval: "5s"  # 检查间隔
+haproxy_health_check_timeout: "3s"  # 检查超时
+haproxy_health_check_rise: "2"  # 连续成功次数（标记为 UP）
+haproxy_health_check_fall: "3"  # 连续失败次数（标记为 DOWN）
+
+# 连接超时配置（秒）
+haproxy_timeout_connect: "5"  # 连接超时
+haproxy_timeout_client: "50"  # 客户端超时
+haproxy_timeout_server: "50"  # 服务器超时
+haproxy_timeout_http_keep_alive: "1000"  # HTTP Keep-Alive 超时
+
+# SSL/TLS 配置
+haproxy_ssl_enabled: false  # 是否启用 HTTPS
+haproxy_ssl_certificate_path: "/etc/haproxy/certs/server.pem"  # SSL 证书路径（占位值）
+haproxy_ssl_protocols: "TLSv1.2 TLSv1.3"  # 支持的 SSL/TLS 协议版本
+haproxy_ssl_ciphers: "ECDHE+AESGCM:DHE+AESGCM:!aNULL:!MD5:!DSS"  # 加密套件
+
+# HAProxy 管理界面配置
+haproxy_stats_enabled: true  # 是否启用统计页面
+haproxy_stats_uri: "/stats"  # 统计页面 URI
+haproxy_stats_port: "8404"  # 统计页面监听端口
+haproxy_stats_admin: false  # 是否启用管理功能（谨慎启用）
+
+# 会话保持配置
+haproxy_session_persistence_type: "none"  # 可选值：none、cookie、source_ip
+haproxy_session_cookie_name: "SERVERID"  # Cookie 名称（当 type=cookie 时使用）
+
+# ⚠️ 安全提示：
+# 1. 生产环境请将后端服务器地址替换为实际地址
+# 2. 根据系统资源调整 haproxy_maxconn 参数（通常为系统 ulimit 的 50%）
+# 3. SSL 证书获取和管理需要额外配置，建议使用 Let's Encrypt
+# 4. 修改监听地址前请确认防火墙规则允许外部访问
+# 5. 启用 haproxy_stats_admin 前请配置身份验证
+# 6. 生产环境启用日志，但高并发场景可考虑使用 UDP 日志转发
+# 7. 定期检查日志，监控后端服务健康状况
+# 8. 请勿在版本控制系统中提交 SSL 私钥文件

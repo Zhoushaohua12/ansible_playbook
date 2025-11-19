@@ -137,6 +137,30 @@ storage:
       external_deps:
         - "mkfs.xfs 或 mkfs.ext4 命令"
         - "ansible.builtin.filesystem 模块"
+    - id: storage_lvg
+      name: LVM 卷组管理
+      doc: storage/lvg/README.md
+      example: storage/lvg/playbook.yml
+      summary: "使用 community.general.lvg 模块创建、扩展和管理 LVM 卷组"
+      external_deps:
+        - "community.general collection (lvg 模块)"
+        - "lvm2 软件包及命令行工具"
+    - id: storage_parted
+      name: 磁盘分区管理
+      doc: storage/parted/README.md
+      example: storage/parted/playbook.yml
+      summary: "使用 community.general.parted 模块进行磁盘分区操作，支持 MBR 和 GPT"
+      external_deps:
+        - "community.general collection (parted 模块)"
+        - "parted 软件包及工具"
+    - id: storage_disk_facts
+      name: 磁盘信息采集
+      doc: storage/disk_facts/README.md
+      example: storage/disk_facts/playbook.yml
+      summary: "使用 ansible.builtin.setup 模块采集和分析系统磁盘与 LVM 信息"
+      external_deps:
+        - "ansible.builtin.setup 模块（内置）"
+        - "lvm2 软件包（可选，用于 LVM 信息采集）"
 
 files:
   title: 文件操作模块
@@ -276,6 +300,29 @@ web:
       external_deps:
         - "nginx 或 apache2（根据配置选择）"
         - "SSL 证书文件"
+    - id: haproxy
+      name: HAProxy 负载均衡
+      doc: web/haproxy/README.md
+      example: web/haproxy/playbook.yml
+      summary: "高性能 TCP/HTTP 负载均衡和代理，支持健康检查、会话保持、SSL 终止等高级功能"
+      templates:
+        - "web/haproxy/templates/haproxy.cfg.j2"
+        - "web/haproxy/templates/rsyslog_haproxy.conf.j2"
+      external_deps:
+        - "haproxy 软件包"
+        - "community.general collection (ufw 模块)"
+        - "rsyslog (日志转发)"
+    - id: ssl_certificate
+      name: SSL 证书自动化管理
+      doc: web/ssl_certificate/README.md
+      example: web/ssl_certificate/playbook.yml
+      summary: "使用 Let's Encrypt 和 ACME 协议自动化获取、部署和续期 SSL 证书，支持多域名和自动续期"
+      templates:
+        - "web/ssl_certificate/templates/nginx_https.conf.j2"
+      external_deps:
+        - "community.crypto collection"
+        - "python3-openssl 和 python3-cryptography"
+        - "Let's Encrypt API 访问"
 
 applications:
   title: 应用管理

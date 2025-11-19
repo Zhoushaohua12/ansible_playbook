@@ -7,6 +7,8 @@
 - **nginx/**：Nginx Web 服务器安装、配置与管理示例
 - **apache2/**：Apache HTTP Server 安装、配置与虚拟主机管理示例
 - **web_config/**：通用 Web 配置场景，包含反向代理、静态站点发布等示例
+- **haproxy/**：HAProxy 负载均衡与代理配置示例
+- **ssl_certificate/**：SSL/TLS 证书自动化获取、部署与续期管理示例
 
 ## Web 服务章节说明
 
@@ -39,6 +41,26 @@ Apache HTTP Server 是久经考验的开源 Web 服务器，支持丰富的模�
 - 性能优化（缓存、压缩、连接池）
 
 参考：[web_config/README.md](web_config/README.md)
+
+### HAProxy 负载均衡与代理
+HAProxy 是高性能的 TCP/HTTP 负载均衡和代理解决方案，适合构建高可用集群和复杂的流量管理场景。本章节提供：
+- HAProxy 安装与配置
+- 多后端服务负载均衡策略
+- 会话保持与健康检查
+- SSL/TLS 通过 HAProxy 终止
+- 统计页面配置与监控
+
+参考：[haproxy/README.md](haproxy/README.md)
+
+### SSL/TLS 证书自动化管理
+本章节展示如何使用 Let's Encrypt 和 ACME 协议自动化获取、部署和续期 SSL 证书。提供：
+- SSL 证书生成与申请工作流
+- ACME 挑战验证（HTTP-01、DNS-01）
+- 证书部署到 Web 服务器
+- 自动续期与到期提醒配置
+- 多域名（SAN）证书管理
+
+参考：[ssl_certificate/README.md](ssl_certificate/README.md)
 
 ## 与 system/applications 的配合关系
 
@@ -219,9 +241,25 @@ ansible-playbook web/nginx/playbook.yml -i localhost, --connection=local --check
 - [Let's Encrypt 证书申请](https://letsencrypt.org/getting-started/)
 - [Mozilla SSL Configuration Generator](https://ssl-config.mozilla.org/)
 
+## 学习路径
+
+### 初级：基础 Web 服务
+1. [Nginx 配置示例](nginx/README.md) - 快速启动高性能 Web 服务
+2. [Apache2 配置示例](apache2/README.md) - 学习传统 Web 服务器配置
+
+### 中级：高级功能
+1. [HAProxy 负载均衡](haproxy/README.md) - 实现分布式负载均衡
+2. [通用 Web 配置](web_config/README.md) - 反向代理与静态站点
+
+### 高级：生产部署
+1. [SSL 证书自动化](ssl_certificate/README.md) - 自动化 HTTPS 证书管理
+2. [监控集成](../monitoring/README.md) - 与监控系统结合使用
+
 ## 快速导航
 
 - [Nginx 配置示例](nginx/README.md)
 - [Apache2 配置示例](apache2/README.md)
+- [HAProxy 负载均衡](haproxy/README.md)
+- [SSL 证书自动化](ssl_certificate/README.md)
 - [通用 Web 配置](web_config/README.md)
 - [监控集成](../monitoring/README.md)（与 Web 服务健康检查结合使用）
