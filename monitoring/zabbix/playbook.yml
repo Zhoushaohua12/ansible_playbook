@@ -1,0 +1,369 @@
+---
+# Zabbix 监控配置示例 Playbook
+# 用于演示如何安全地配置 Zabbix 企业级监控系统
+
+- name: 配置 Zabbix 企业级监控
+  hosts: all
+  gather_facts: yes
+  vars_files:
+    - vars/production_vars.yml  # 生产环境变量（包含敏感信息）
+  
+  tasks:
+    # 预检查：验证 Zabbix API 连接和认证
+    - name: 验证 Zabbix API 连通性
+      uri:
+        url: "{{ zabbix_url }}/api_jsonrpc.php"
+        method: POST
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "user.login"
+          params:
+            user: "{{ zabbix_user }}"
+            password: "{{ zabbix_password }}"
+          id: 1
+        headers:
+          Content-Type: "application/json-rpc"
+        status_code: 200
+      register: zabbix_api_check
+      no_log: true  # 保护认证信息不在日志中显示
+      check_mode: yes  # 仅检查，不实际执行
+      failed_when: false
+
+    - name: 解析 API 认证结果
+      set_fact:
+        zabbix_auth_token: "{{ zabbix_api_check.json.result | default('') }}"
+      when: 
+        - zabbix_api_check is defined
+        - zabbix_api_check.json.result is defined
+
+    - name: 显示 API 连接状态
+      debug:
+        msg: "Zabbix API 连接状态: {{ '正常' if zabbix_auth_token != '' else '异常' }}"
+      when: zabbix_api_check is defined
+
+    # 创建主机组（如果不存在）
+    - name: 创建 Web 服务器主机组
+      community.zabbix.zabbix_group:
+        server_url: "{{ zabbix_url }}"
+        login_user: "{{ zabbix_user }}"
+        login_password: "{{ zabbix_password }}"
+        host_groups:
+          - "Web Servers"
+          - "Production Servers"
+        state: present
+      no_log: true  # 保护密码信息
+      register: web_group_result
+      when: zabbix_auth_token != ''
+
+    - name: 创建数据库主机组
+      community.zabbix.zabbix_group:
+        server_url: "{{ zabbix_url }}"
+        login_user: "{{ zabbix_user }}"
+        login_password: "{{ zabbix_password }}"
+        host_groups:
+          - "Database Servers"
+          - "Production Servers"
+        state: present
+      no_log: true  # 保护密码信息
+      register: db_group_result
+      when: zabbix_auth_token != ''
+
+    - name: 创建应用服务器主机组
+      community.zabbix.zabbix_group:
+        server_url: "{{ zabbix_url }}"
+        login_user: "{{ zabbix_user }}"
+        login_password: "{{ zabbix_password }}"
+        host_groups:
+          - "Application Servers"
+          - "Production Servers"
+        state: present
+      no_log: true  # 保护密码信息
+      register: app_group_result
+      when: zabbix_auth_token != ''
+
+    # 添加监控主机
+    - name: 添加 Web 服务器到 Zabbix
+      community.zabbix.zabbix_host:
+        server_url: "{{ zabbix_url }}"
+        login_user: "{{ zabbix_user }}"
+        login_password: "{{ zabbix_password }}"
+        host_name: "{{ item.host_name }}"
+        visible_name: "{{ item.visible_name | default(item.host_name) }}"
+        host_groups:
+          - "Web Servers"
+          - "Production Servers"
+        templates:
+          - "Template OS Linux"
+          - "Template App HTTP Service"
+          - "Template Net Generic SNMPv2"
+        interfaces:
+          - type: 1  # Agent
+            main: 1
+            useip: 1
+            ip: "{{ item.host_address }}"
+            dns: ""
+            port: "10050"
+          - type: 2  # SNMP
+            main: 0
+            useip: 1
+            ip: "{{ item.host_address }}"
+            dns: ""
+            port: "161"
+            details:
+              version: 2
+              community: "{{ snmp_community }}"
+        status: "enabled"
+        state: present
+      loop: "{{ zabbix_web_hosts }}"
+      loop_control:
+        label: "{{ item.host_name }}"
+      no_log: true  # 保护密码信息
+      register: web_host_result
+      when: 
+        - zabbix_auth_token != ''
+        - zabbix_web_hosts is defined
+
+    - name: 添加数据库服务器到 Zabbix
+      community.zabbix.zabbix_host:
+        server_url: "{{ zabbix_url }}"
+        login_user: "{{ zabbix_user }}"
+        login_password: "{{ zabbix_password }}"
+        host_name: "{{ item.host_name }}"
+        visible_name: "{{ item.visible_name | default(item.host_name) }}"
+        host_groups:
+          - "Database Servers"
+          - "Production Servers"
+        templates:
+          - "Template OS Linux"
+          - "Template DB MySQL"
+        interfaces:
+          - type: 1  # Agent
+            main: 1
+            useip: 1
+            ip: "{{ item.host_address }}"
+            dns: ""
+            port: "10050"
+        status: "enabled"
+        state: present
+      loop: "{{ zabbix_db_hosts }}"
+      loop_control:
+        label: "{{ item.host_name }}"
+      no_log: true  # 保护密码信息
+      register: db_host_result
+      when: 
+        - zabbix_auth_token != ''
+        - zabbix_db_hosts is defined
+
+    # 创建自定义监控模板
+    - name: 创建自定义应用监控模板
+      community.zabbix.zabbix_template:
+        server_url: "{{ zabbix_url }}"
+        login_user: "{{ zabbix_user }}"
+        login_password: "{{ zabbix_password }}"
+        template_name: "Template App Custom Service"
+        template_groups:
+          - "Templates"
+        items:
+          - name: "Service Process Status"
+            key: "proc.num[{{ custom_service_name }}]"
+            type: "Zabbix agent"
+            value_type: "uint"
+            units: ""
+            description: "Number of {{ custom_service_name }} processes running"
+          - name: "Service Response Time"
+            key: "net.tcp.service.perf[http,{{ inventory_hostname }},80]"
+            type: "Zabbix agent"
+            value_type: "float"
+            units: "s"
+            description: "HTTP service response time in seconds"
+        triggers:
+          - name: "{{ custom_service_name }} service is down"
+            expression: "last(/Template App Custom Service/proc.num[{{ custom_service_name }}])=0"
+            severity: "high"
+            description: "{{ custom_service_name }} service is not running"
+            status: "enabled"
+          - name: "HTTP service response time is too high"
+            expression: "last(/Template App Custom Service/net.tcp.service.perf[http,{{ inventory_hostname }},80])>5"
+            severity: "warning"
+            description: "HTTP service response time exceeds 5 seconds"
+            status: "enabled"
+        state: present
+      no_log: true  # 保护密码信息
+      register: custom_template_result
+      when: 
+        - zabbix_auth_token != ''
+        - custom_service_name is defined
+
+    # 配置监控项
+    - name: 添加自定义监控项到 Web 服务器
+      community.zabbix.zabbix_item:
+        server_url: "{{ zabbix_url }}"
+        login_user: "{{ zabbix_user }}"
+        login_password: "{{ zabbix_password }}"
+        host_name: "{{ item.0.host_name }}"
+        item_name: "{{ item.1.name }}"
+        key: "{{ item.1.key }}"
+        type: "{{ item.1.type | default('Zabbix agent') }}"
+        value_type: "{{ item.1.value_type | default('float') }}"
+        units: "{{ item.1.units | default('') }}"
+        description: "{{ item.1.description }}"
+        state: present
+      with_subelements:
+        - "{{ zabbix_web_hosts | default([]) }}"
+        - custom_items
+        - flags:
+          skip_missing: true
+      loop_control:
+        label: "{{ item.0.host_name }} - {{ item.1.name }}"
+      no_log: true  # 保护密码信息
+      when: zabbix_auth_token != ''
+
+    # 创建网络发现规则
+    - name: 配置网络接口自动发现
+      community.zabbix.zabbix_discovery_rule:
+        server_url: "{{ zabbix_url }}"
+        login_user: "{{ zabbix_user }}"
+        login_password: "{{ zabbix_password }}"
+        host_name: "{{ inventory_hostname }}"
+        name: "Network Interface Discovery"
+        key: "net.if.discovery"
+        delay: "1h"
+        item_prototypes:
+          - name: "Interface $1 inbound traffic"
+            key: "net.if.in[{#IFNAME}]"
+            type: "Zabbix agent"
+            value_type: "float"
+            units: "bps"
+          - name: "Interface $1 outbound traffic"
+            key: "net.if.out[{#IFNAME}]"
+            type: "Zabbix agent"
+            value_type: "float"
+            units: "bps"
+        trigger_prototypes:
+          - name: "Interface $1 has high inbound traffic"
+            expression: "last(/{{ inventory_hostname }}/net.if.in[{#IFNAME}])>{{ network_traffic_threshold | default(100000000) }}"
+            severity: "warning"
+        state: present
+      no_log: true  # 保护密码信息
+      register: discovery_rule_result
+      when: 
+        - zabbix_auth_token != ''
+        - enable_network_discovery | default(true)
+
+    # 创建告警动作
+    - name: 配置告警邮件通知
+      community.zabbix.zabbix_action:
+        server_url: "{{ zabbix_url }}"
+        login_user: "{{ zabbix_user }}"
+        login_password: "{{ zabbix_password }}"
+        action_name: "Email Alert Notification"
+        event_source: "triggers"
+        esc_period: "1h"
+        conditions:
+          - type: "trigger_severity"
+            operator: ">="
+            value: "warning"
+        operations:
+          - type: "send_message"
+            media_type: "Email"
+            send_to_users:
+              - "Admin"
+              - "Ops Team"
+            message: |
+              Trigger: {TRIGGER.NAME}
+              Host: {HOST.NAME}
+              Severity: {TRIGGER.SEVERITY}
+              Time: {EVENT.DATE} {EVENT.TIME}
+              Value: {EVENT.VALUE}
+              Description: {TRIGGER.DESCRIPTION}
+        state: present
+      no_log: true  # 保护密码信息
+      register: email_action_result
+      when: 
+        - zabbix_auth_token != ''
+        - enable_email_alerts | default(true)
+
+    # 配置维护窗口
+    - name: 创建计划维护窗口
+      community.zabbix.zabbix_maintenance:
+        server_url: "{{ zabbix_url }}"
+        login_user: "{{ zabbix_user }}"
+        login_password: "{{ zabbix_password }}"
+        name: "Weekly Maintenance Window"
+        description: "Scheduled maintenance window for system updates"
+        active_since: "{{ ansible_date_time.epoch }}"
+        active_till: "{{ (ansible_date_time.epoch | int + 86400 * 7) | int }}"  # 7天后
+        host_groups:
+          - "Web Servers"
+          - "Database Servers"
+        timeperiods:
+          - period: "3600"  # 1小时
+            time_type: "0"   # 每天一次
+            start_time: "36000"  # 10:00 AM
+            start_date: "{{ ansible_date_time.epoch }}"
+        state: present
+      no_log: true  # 保护密码信息
+      register: maintenance_result
+      when: 
+        - zabbix_auth_token != ''
+        - create_maintenance_window | default(false)
+
+    # 配置 Zabbix Proxy（如果需要）
+    - name: 配置 Zabbix Proxy
+      community.zabbix.zabbix_proxy:
+        server_url: "{{ zabbix_url }}"
+        login_user: "{{ zabbix_user }}"
+        login_password: "{{ zabbix_password }}"
+        proxy_name: "{{ zabbix_proxy_name }}"
+        proxy_address: "{{ zabbix_proxy_address }}"
+        proxy_mode: 0  # Active mode
+        interface:
+          type: "agent"
+          main: 1
+          useip: 1
+          ip: "{{ zabbix_proxy_address }}"
+          dns: ""
+          port: "10051"
+        state: present
+      no_log: true  # 保护密码信息
+      register: proxy_result
+      when: 
+        - zabbix_auth_token != ''
+        - zabbix_proxy_name is defined
+        - zabbix_proxy_address is defined
+
+    # 输出配置摘要
+    - name: 显示配置变更摘要
+      debug:
+        msg: |
+          Zabbix 配置完成摘要:
+          - API 连接: {{ '成功' if zabbix_auth_token != '' else '失败' }}
+          - Web 主机组: {{ '创建成功' if web_group_result.changed else '已存在' }}
+          - 数据库主机组: {{ '创建成功' if db_group_result.changed else '已存在' }}
+          - 应用主机组: {{ '创建成功' if app_group_result.changed else '已存在' }}
+          - Web 主机: {{ web_host_result.results | selectattr('changed', 'equalto', true) | list | length }} 个
+          - 数据库主机: {{ db_host_result.results | selectattr('changed', 'equalto', true) | list | length }} 个
+          - 自定义模板: {{ '创建成功' if custom_template_result.changed else '已存在' }}
+          - 网络发现: {{ '配置成功' if discovery_rule_result.changed else '已存在' }}
+          - 邮件告警: {{ '配置成功' if email_action_result.changed else '已存在' }}
+          - 维护窗口: {{ '创建成功' if maintenance_result.changed else '未创建' }}
+          - Zabbix Proxy: {{ '配置成功' if proxy_result.changed else '未配置' }}
+      when: zabbix_api_check is defined
+
+  handlers:
+    - name: 重启 Zabbix Server
+      systemd:
+        name: zabbix-server
+        state: restarted
+      listen: "restart zabbix server"
+      when: ansible_service_mgr == "systemd"
+      check_mode: yes  # 仅检查，不实际执行
+
+    - name: 重启 Zabbix Agent
+      systemd:
+        name: zabbix-agent
+        state: restarted
+      listen: "restart zabbix agent"
+      when: ansible_service_mgr == "systemd"
+      check_mode: yes  # 仅检查，不实际执行

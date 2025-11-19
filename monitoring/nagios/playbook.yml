@@ -1,0 +1,182 @@
+---
+# Nagios 监控配置示例 Playbook
+# 用于演示如何安全地配置 Nagios 主机和服务监控
+
+- name: 配置 Nagios 监控
+  hosts: monitoring_servers
+  gather_facts: yes
+  vars_files:
+    - vars/production_vars.yml  # 生产环境变量（包含敏感信息）
+  
+  tasks:
+    # 基础环境检查
+    - name: 检查 Nagios 服务器连通性
+      uri:
+        url: "http://{{ nagios_server }}/nagios/cgi-bin/status.cgi"
+        method: GET
+        user: "{{ nagios_user }}"
+        password: "{{ nagios_password }}"
+        force_basic_auth: yes
+        status_code: 200
+      register: nagios_status
+      no_log: true  # 保护认证信息不在日志中显示
+      check_mode: yes  # 仅检查，不实际执行
+      failed_when: false
+
+    - name: 显示连通性检查结果
+      debug:
+        msg: "Nagios 服务器连接状态: {{ '正常' if nagios_status.status == 200 else '异常' }}"
+      when: nagios_status is defined
+
+    # 添加监控主机
+    - name: 添加 Web 服务器监控主机
+      community.general.nagios:
+        action: "add_host"
+        host_name: "{{ item.host_name }}"
+        host_address: "{{ item.host_address }}"
+        host_groups: "{{ item.host_groups | default('web-servers') }}"
+        host_template: "generic-host"
+        nagios_server: "{{ nagios_server }}"
+        nagios_user: "{{ nagios_user }}"
+        nagios_password: "{{ nagios_password }}"
+        nagios_config_path: "{{ nagios_config_path }}"
+      loop: "{{ nagios_hosts }}"
+      loop_control:
+        label: "{{ item.host_name }}"
+      no_log: true  # 保护密码信息
+      register: host_add_result
+      when: nagios_hosts is defined
+
+    # 添加基础服务监控
+    - name: 添加 HTTP 服务监控
+      community.general.nagios:
+        action: "add_service"
+        host_name: "{{ item.host_name }}"
+        service_description: "HTTP Service Check"
+        check_command: "check_http!-I {{ item.host_address }}!-w 3 -c 5"
+        max_check_attempts: 3
+        check_interval: 5
+        retry_interval: 1
+        use: "generic-service"
+        nagios_server: "{{ nagios_server }}"
+        nagios_user: "{{ nagios_user }}"
+        nagios_password: "{{ nagios_password }}"
+        nagios_config_path: "{{ nagios_config_path }}"
+      loop: "{{ nagios_hosts }}"
+      loop_control:
+        label: "{{ item.host_name }}"
+      no_log: true  # 保护密码信息
+      when: 
+        - nagios_hosts is defined
+        - item.monitor_http | default(true)
+      register: http_service_result
+
+    # 添加 HTTPS 服务监控
+    - name: 添加 HTTPS 服务监控
+      community.general.nagios:
+        action: "add_service"
+        host_name: "{{ item.host_name }}"
+        service_description: "HTTPS Service Check"
+        check_command: "check_http!-I {{ item.host_address }}!-S -w 3 -c 5"
+        max_check_attempts: 3
+        check_interval: 5
+        retry_interval: 1
+        use: "generic-service"
+        nagios_server: "{{ nagios_server }}"
+        nagios_user: "{{ nagios_user }}"
+        nagios_password: "{{ nagios_password }}"
+        nagios_config_path: "{{ nagios_config_path }}"
+      loop: "{{ nagios_hosts }}"
+      loop_control:
+        label: "{{ item.host_name }}"
+      no_log: true  # 保护密码信息
+      when: 
+        - nagios_hosts is defined
+        - item.monitor_https | default(false)
+      register: https_service_result
+
+    # 添加系统资源监控
+    - name: 添加 CPU 负载监控
+      community.general.nagios:
+        action: "add_service"
+        host_name: "{{ item.host_name }}"
+        service_description: "CPU Load"
+        check_command: "check_nrpe!check_load"
+        max_check_attempts: 3
+        check_interval: 5
+        retry_interval: 1
+        use: "generic-service"
+        nagios_server: "{{ nagios_server }}"
+        nagios_user: "{{ nagios_user }}"
+        nagios_password: "{{ nagios_password }}"
+        nagios_config_path: "{{ nagios_config_path }}"
+      loop: "{{ nagios_hosts }}"
+      loop_control:
+        label: "{{ item.host_name }}"
+      no_log: true  # 保护密码信息
+      when: 
+        - nagios_hosts is defined
+        - item.monitor_system | default(true)
+      register: load_service_result
+
+    # 添加磁盘空间监控
+    - name: 添加磁盘空间监控
+      community.general.nagios:
+        action: "add_service"
+        host_name: "{{ item.host_name }}"
+        service_description: "Disk Space"
+        check_command: "check_nrpe!check_disk"
+        max_check_attempts: 3
+        check_interval: 10
+        retry_interval: 1
+        use: "generic-service"
+        nagios_server: "{{ nagios_server }}"
+        nagios_user: "{{ nagios_user }}"
+        nagios_password: "{{ nagios_password }}"
+        nagios_config_path: "{{ nagios_config_path }}"
+      loop: "{{ nagios_hosts }}"
+      loop_control:
+        label: "{{ item.host_name }}"
+      no_log: true  # 保护密码信息
+      when: 
+        - nagios_hosts is defined
+        - item.monitor_system | default(true)
+      register: disk_service_result
+
+    # 配置验证和重载
+    - name: 验证 Nagios 配置文件语法
+      command: "nagios3 -v {{ nagios_config_main }}"
+      register: config_check
+      failed_when: false
+      check_mode: yes  # 仅检查，不实际执行
+      when: nagios_config_main is defined
+
+    - name: 重载 Nagios 配置
+      command: "systemctl reload nagios3"
+      register: nagios_reload
+      failed_when: false
+      when: 
+        - config_check is defined
+        - config_check.rc == 0
+      check_mode: yes  # 仅检查，不实际执行
+
+    # 输出操作摘要
+    - name: 显示配置变更摘要
+      debug:
+        msg: |
+          Nagios 配置完成摘要:
+          - 主机添加: {{ host_add_result.results | selectattr('changed', 'equalto', true) | list | length }} 个
+          - HTTP 服务添加: {{ http_service_result.results | selectattr('changed', 'equalto', true) | list | length }} 个
+          - HTTPS 服务添加: {{ https_service_result.results | selectattr('changed', 'equalto', true) | list | length }} 个
+          - 系统监控添加: {{ load_service_result.results | selectattr('changed', 'equalto', true) | list | length + disk_service_result.results | selectattr('changed', 'equalto', true) | list | length }} 个
+          - 配置验证: {{ '通过' if config_check.rc == 0 else '失败' }}
+      when: config_check is defined
+
+  # 手动处理器，确保配置变更后重载服务
+  handlers:
+    - name: 重启 Nagios 服务
+      systemd:
+        name: nagios3
+        state: restarted
+      listen: "restart nagios"
+      check_mode: yes  # 仅检查，不实际执行

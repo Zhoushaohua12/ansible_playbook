@@ -1,0 +1,162 @@
+---
+# Nagios 监控配置变量示例文件
+# 
+# 重要提示：
+# 1. 这是示例文件，包含占位符值
+# 2. 生产使用时请复制为 production_vars.yml 并填写真实值
+# 3. 不要将包含真实凭证的文件提交到版本控制系统
+# 4. 建议使用 Ansible Vault 加密敏感信息
+
+# =============================================================================
+# Nagios 服务器连接配置
+# =============================================================================
+
+# Nagios 服务器基本信息
+nagios_server: "nagios.example.com"  # 替换为实际的 Nagios 服务器地址
+nagios_config_path: "/etc/nagios3/conf.d"  # 配置文件存放路径
+nagios_config_main: "/etc/nagios3/nagios.cfg"  # 主配置文件路径
+
+# API 访问凭证（敏感信息 - 需要加密）
+# 注意：请使用 vault 加密这些敏感变量
+nagios_user: "nagiosadmin"  # 替换为实际的 API 用户名
+nagios_password: "{{ vault_nagios_password }}"  # 使用 vault 变量保护密码
+
+# =============================================================================
+# 监控主机配置
+# =============================================================================
+
+# 需要监控的主机列表
+nagios_hosts:
+  # Web 服务器示例
+  - host_name: "web-server-01.example.com"
+    host_address: "192.168.1.10"
+    host_groups: "web-servers,production"
+    monitor_http: true      # 是否监控 HTTP 服务
+    monitor_https: true     # 是否监控 HTTPS 服务
+    monitor_system: true    # 是否监控系统资源（CPU、磁盘等）
+  
+  - host_name: "web-server-02.example.com"
+    host_address: "192.168.1.11"
+    host_groups: "web-servers,production"
+    monitor_http: true
+    monitor_https: true
+    monitor_system: true
+  
+  # 数据库服务器示例
+  - host_name: "db-server-01.example.com"
+    host_address: "192.168.1.20"
+    host_groups: "database-servers,production"
+    monitor_http: false     # 数据库服务器通常不提供 HTTP 服务
+    monitor_https: false
+    monitor_system: true
+  
+  # 应用服务器示例
+  - host_name: "app-server-01.example.com"
+    host_address: "192.168.1.30"
+    host_groups: "app-servers,production"
+    monitor_http: true
+    monitor_https: false
+    monitor_system: true
+
+# =============================================================================
+# 服务监控参数配置
+# =============================================================================
+
+# HTTP 服务检查参数
+http_check_params:
+  warning_time: 3    # 响应时间警告阈值（秒）
+  critical_time: 5   # 响应时间严重阈值（秒）
+  port: 80           # HTTP 端口
+
+# HTTPS 服务检查参数
+https_check_params:
+  warning_time: 3
+  critical_time: 5
+  port: 443          # HTTPS 端口
+  ssl_check: true    # 是否检查 SSL 证书
+
+# 系统监控参数
+system_monitoring:
+  load_warning: "2.0,2.0,2.0"      # 负载警告阈值（1min,5min,15min）
+  load_critical: "4.0,4.0,4.0"     # 负载严重阈值
+  disk_warning: "80%"               # 磁盘使用率警告阈值
+  disk_critical: "90%"              # 磁盘使用率严重阈值
+  memory_warning: "80%"             # 内存使用率警告阈值
+  memory_critical: "90%"            # 内存使用率严重阈值
+
+# =============================================================================
+# 通知配置
+# =============================================================================
+
+# 联系人组配置
+contact_groups:
+  - name: "admin-team"
+    members: "admin1,admin2"
+  
+  - name: "ops-team"
+    members: "ops1,ops2,ops3"
+
+# 通知策略
+notification_policy:
+  email_enabled: true
+  sms_enabled: false
+  notification_period: "24x7"
+  notification_interval: 60  # 分钟
+
+# =============================================================================
+# 安全和审计配置
+# =============================================================================
+
+# 操作日志配置
+audit_settings:
+  log_all_changes: true
+  log_sensitive_operations: false  # 避免记录敏感操作细节
+
+# 访问控制
+access_control:
+  allowed_source_ips:  # 允许访问 Nagios API 的源 IP
+    - "192.168.1.0/24"
+    - "10.0.0.0/8"
+  
+  rate_limiting: true  # 是否启用 API 访问频率限制
+
+# =============================================================================
+# 环境特定配置
+# =============================================================================
+
+# 根据环境调整的配置
+environment_specific:
+  production:
+    check_interval: 5       # 生产环境检查间隔（分钟）
+    max_attempts: 3
+    notification_enabled: true
+  
+  staging:
+    check_interval: 10      # 测试环境检查间隔
+    max_attempts: 2
+    notification_enabled: false
+  
+  development:
+    check_interval: 30      # 开发环境检查间隔
+    max_attempts: 1
+    notification_enabled: false
+
+# =============================================================================
+# 使用说明
+# =============================================================================
+
+# 1. 安装依赖：
+#    ansible-galaxy collection install community.general
+#    pip install python-nagios
+#
+# 2. 加密敏感变量：
+#    ansible-vault encrypt_string 'your_password' --name 'vault_nagios_password'
+#
+# 3. 运行 playbook：
+#    ansible-playbook -i inventory playbook.yml --ask-vault-pass
+#
+# 4. 检查模式运行：
+#    ansible-playbook -i inventory playbook.yml --check --ask-vault-pass
+#
+# 5. 调试模式运行：
+#    ansible-playbook -i inventory playbook.yml -vvv --ask-vault-pass
