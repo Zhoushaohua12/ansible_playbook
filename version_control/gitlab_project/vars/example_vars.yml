@@ -1,0 +1,189 @@
+# GitLab 项目管理示例变量配置
+
+# GitLab API 配置
+gitlab_api_url: "https://gitlab.example.com/api/v4"  # GitLab API 地址
+gitlab_token: "glpat-xxxxxxxxxxxxxxxxxxxx"  # GitLab Personal Access Token（生产环境请使用 Ansible Vault）
+
+# 项目组配置
+dev_group: "development"  # 开发组
+test_group: "testing"  # 测试组
+prod_group: "production"  # 生产组
+templates_group: "templates"  # 模板组
+docs_group: "documentation"  # 文档组
+import_group: "imported"  # 导入组
+
+# 开发团队项目
+create_dev_project: true  # 是否创建开发项目
+dev_project_name: "dev-webapp"  # 开发项目名称
+dev_project_description: "开发团队的 Web 应用项目"  # 开发项目描述
+dev_visibility: "internal"  # 开发项目可见性
+
+# 测试团队项目
+create_test_project: true  # 是否创建测试项目
+test_project_name: "test-webapp"  # 测试项目名称
+test_project_description: "测试团队的 Web 应用项目"  # 测试项目描述
+test_visibility: "internal"  # 测试项目可见性
+
+# 生产团队项目
+create_prod_project: true  # 是否创建生产项目
+prod_project_name: "prod-webapp"  # 生产项目名称
+prod_project_description: "生产团队的 Web 应用项目"  # 生产项目描述
+prod_visibility: "private"  # 生产项目可见性
+
+# CI/CD 模板项目
+create_cicd_template: true  # 是否创建 CI/CD 模板
+cicd_template_name: "cicd-pipeline-template"  # CI/CD 模板名称
+cicd_template_description: "CI/CD 流水线模板项目"  # CI/CD 模板描述
+
+# 文档项目
+create_docs_project: true  # 是否创建文档项目
+docs_project_name: "project-documentation"  # 文档项目名称
+docs_project_description: "项目文档和知识库"  # 文档项目描述
+
+# 微服务项目配置
+create_microservice_projects: true  # 是否创建微服务项目
+microservice_projects:
+  - name: "user-service"
+    group: "{{ dev_group }}"
+    description: "用户管理微服务"
+    visibility: "private"
+    issues_enabled: true
+    wiki_enabled: true
+    merge_requests_enabled: true
+    builds_enabled: true
+    request_access_enabled: false
+    only_allow_merge_if_pipeline_succeeds: true
+  - name: "order-service"
+    group: "{{ dev_group }}"
+    description: "订单管理微服务"
+    visibility: "private"
+    issues_enabled: true
+    wiki_enabled: true
+    merge_requests_enabled: true
+    builds_enabled: true
+    request_access_enabled: false
+    only_allow_merge_if_pipeline_succeeds: true
+  - name: "payment-service"
+    group: "{{ dev_group }}"
+    description: "支付管理微服务"
+    visibility: "private"
+    issues_enabled: true
+    wiki_enabled: true
+    merge_requests_enabled: true
+    builds_enabled: true
+    request_access_enabled: false
+    only_allow_merge_if_pipeline_succeeds: true
+  - name: "notification-service"
+    group: "{{ dev_group }}"
+    description: "通知管理微服务"
+    visibility: "private"
+    issues_enabled: true
+    wiki_enabled: true
+    merge_requests_enabled: true
+    builds_enabled: true
+    request_access_enabled: false
+    only_allow_merge_if_pipeline_succeeds: true
+
+# 外部项目导入
+import_external_project: true  # 是否导入外部项目
+import_project_name: "imported-legacy-app"  # 导入项目名称
+import_project_description: "从外部仓库导入的遗留应用"  # 导入项目描述
+import_repo_url: "https://github.com/company/legacy-app.git"  # 外部仓库 URL
+
+# 模板项目
+create_template_projects: true  # 是否创建模板项目
+template_projects:
+  - name: "spring-boot-template"
+    description: "Spring Boot 应用模板"
+  - name: "react-frontend-template"
+    description: "React 前端应用模板"
+  - name: "python-api-template"
+    description: "Python API 服务模板"
+  - name: "docker-service-template"
+    description: "Docker 容器服务模板"
+
+# 项目更新配置
+update_project_config: true  # 是否更新项目配置
+update_project_name: "dev-webapp"  # 要更新的项目名称
+update_group: "{{ dev_group }}"  # 要更新的项目组
+updated_description: "更新后的开发团队 Web 应用项目描述"  # 更新后的描述
+updated_visibility: "private"  # 更新后的可见性
+
+# 信息获取配置
+get_project_info: true  # 是否获取项目信息
+projects_to_check:
+  - name: "{{ dev_project_name }}"
+    group: "{{ dev_group }}"
+  - name: "{{ test_project_name }}"
+    group: "{{ test_group }}"
+  - name: "{{ prod_project_name }}"
+    group: "{{ prod_group }}"
+  - name: "{{ docs_project_name }}"
+    group: "{{ docs_group }}"
+
+# 文件输出配置
+create_config_files: true  # 是否创建配置文件
+config_output_path: "/tmp/gitlab-project-configs"  # 配置文件输出路径
+generate_report: true  # 是否生成报告
+report_output_path: "/tmp/gitlab-reports"  # 报告输出路径
+
+# 显示配置
+show_results: true  # 是否显示操作结果摘要
+
+# 清理配置
+test_projects_to_cleanup:  # 测试完成后要清理的项目
+  - "test-temp-project-1"
+  - "test-temp-project-2"
+
+# 项目功能配置
+project_features:
+  issues:
+    enabled: true
+    description: "启用问题跟踪"
+  wiki:
+    enabled: true
+    description: "启用项目文档"
+  merge_requests:
+    enabled: true
+    description: "启用合并请求"
+  builds:
+    enabled: true
+    description: "启用 CI/CD"
+  snippets:
+    enabled: false
+    description: "禁用代码片段"
+
+# 权限配置
+permissions:
+  request_access:
+    enabled: true
+    description: "允许用户请求访问权限"
+  merge_restrictions:
+    pipeline_succeeds: true
+    description: "仅允许流水线成功时合并"
+    discussions_resolved: true
+    description: "仅允许所有讨论解决后合并"
+
+# 项目模板配置
+templates:
+  webapp:
+    name: "webapp-template"
+    description: "Web 应用标准模板"
+    visibility: "internal"
+  api:
+    name: "api-service-template"
+    description: "API 服务标准模板"
+    visibility: "private"
+  library:
+    name: "library-template"
+    description: "共享库标准模板"
+    visibility: "public"
+
+# 重要：这些变量仅用于演示，生产环境请使用 Ansible Vault 或外部配置管理
+# ⚠️ 警告：GitLab Token 需要安全存储，建议使用 Ansible Vault 加密
+# 🔒 安全提示：限制 Token 权限范围，仅授予必要的 API 权限
+# 📝 注意：GitLab API 地址和组名称需要根据实际情况调整
+# 🚀 性能优化：合理控制批量创建的并发数
+# 🔍 监控建议：监控项目创建的成功率和耗时
+# 🛡️ 安全加固：定期轮换 GitLab 访问令牌
+# 📊 容量规划：监控 GitLab 服务器的资源使用情况

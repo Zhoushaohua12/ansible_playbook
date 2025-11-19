@@ -1,0 +1,200 @@
+---
+- name: Docker 镜像管理示例演示
+  hosts: all
+  become: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    - name: 确保 Docker 服务运行
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+      when: docker_manage_service | bool
+
+    - name: 创建应用构建目录
+      ansible.builtin.file:
+        path: "{{ app_build_path }}"
+        state: directory
+        owner: "{{ build_user }}"
+        group: "{{ build_group }}"
+        mode: '0755'
+      when: create_build_dir | bool
+
+    - name: 准备应用源码文件
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ app_build_path }}/{{ item.dest }}"
+        owner: "{{ build_user }}"
+        group: "{{ build_group }}"
+        mode: '0644'
+      loop: "{{ app_source_files }}"
+      when: prepare_source_code | bool
+      loop_control:
+        label: "{{ item.dest }}"
+
+    - name: 生成 Dockerfile
+      ansible.builtin.template:
+        src: Dockerfile.j2
+        dest: "{{ app_build_path }}/Dockerfile"
+        owner: "{{ build_user }}"
+        group: "{{ build_group }}"
+        mode: '0644'
+      when: generate_dockerfile | bool
+
+    - name: 生成 .dockerignore 文件
+      ansible.builtin.template:
+        src: dockerignore.j2
+        dest: "{{ app_build_path }}/.dockerignore"
+        owner: "{{ build_user }}"
+        group: "{{ build_group }}"
+        mode: '0644'
+      when: generate_dockerignore | bool
+
+    - name: 拉取基础镜像
+      community.docker.docker_image:
+        name: "{{ item }}"
+        state: present
+        source: pull
+      loop: "{{ base_images }}"
+      when: pull_base_images | bool
+      register: base_images_result
+
+    - name: 构建应用镜像（开发版本）
+      community.docker.docker_image:
+        name: "{{ app_image_name }}:{{ app_version }}-dev"
+        state: build
+        build:
+          path: "{{ app_build_path }}"
+          dockerfile: "{{ dockerfile_name }}"
+          args: "{{ build_args }}"
+          pull: "{{ pull_base_images_on_build }}"
+          cache_from: "{{ build_cache_from }}"
+      when: build_dev_image | bool
+      register: dev_image_result
+
+    - name: 构建应用镜像（生产版本）
+      community.docker.docker_image:
+        name: "{{ app_image_name }}:{{ app_version }}"
+        state: build
+        build:
+          path: "{{ app_build_path }}"
+          dockerfile: "{{ dockerfile_prod_name }}"
+          args: "{{ prod_build_args }}"
+          pull: "{{ pull_base_images_on_build }}"
+          cache_from: "{{ prod_build_cache_from }}"
+      when: build_prod_image | bool
+      register: prod_image_result
+
+    - name: 为镜像添加多个标签
+      community.docker.docker_image:
+        name: "{{ app_image_name }}:{{ app_version }}"
+        repository: "{{ registry_url }}/{{ app_image_name }}"
+        tag: "{{ item }}"
+        state: present
+      loop: "{{ image_tags }}"
+      when: add_image_tags | bool
+      register: tag_result
+
+    - name: 登录到私有镜像仓库
+      community.docker.docker_login:
+        registry: "{{ registry_url }}"
+        username: "{{ registry_username }}"
+        password: "{{ registry_password }}"
+        email: "{{ registry_email }}"
+      when: 
+        - login_to_registry | bool
+        - push_to_registry | bool
+      no_log: true
+
+    - name: 推送镜像到私有仓库
+      community.docker.docker_image:
+        name: "{{ registry_url }}/{{ app_image_name }}:{{ item }}"
+        state: push
+        push: true
+      loop: "{{ image_tags }}"
+      when: push_to_registry | bool
+      register: push_result
+
+    - name: 推送开发版本镜像
+      community.docker.docker_image:
+        name: "{{ registry_url }}/{{ app_image_name }}:{{ app_version }}-dev"
+        state: push
+        push: true
+      when: 
+        - push_dev_image | bool
+        - build_dev_image | bool
+      register: dev_push_result
+
+    - name: 扫描镜像安全漏洞
+      ansible.builtin.command: docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image "{{ app_image_name }}:{{ app_version }}"
+      register: security_scan
+      failed_when: false
+      when: run_security_scan | bool
+      changed_when: false
+
+    - name: 显示安全扫描结果
+      ansible.builtin.debug:
+        var: security_scan.stdout_lines
+      when: 
+        - run_security_scan | bool
+        - security_scan.stdout_lines is defined
+
+    - name: 清理旧版本镜像
+      community.docker.docker_image:
+        name: "{{ registry_url }}/{{ app_image_name }}:{{ item }}"
+        state: absent
+      loop: "{{ old_image_versions }}"
+      when: cleanup_old_images | bool
+      register: cleanup_result
+
+    - name: 显示镜像管理操作结果
+      ansible.builtin.debug:
+        msg: |
+          Docker 镜像管理操作结果摘要:
+          - 基础镜像拉取: {{ '成功' if base_images_result.changed else '无变更' }}
+          - 开发镜像构建: {{ '成功' if dev_image_result.changed else '无变更' }}
+          - 生产镜像构建: {{ '成功' if prod_image_result.changed else '无变更' }}
+          - 镜像标签添加: {{ '成功' if tag_result.changed else '无变更' }}
+          - 镜像推送: {{ '成功' if push_result.changed else '无变更' }}
+          - 开发镜像推送: {{ '成功' if dev_push_result.changed else '无变更' }}
+          - 旧镜像清理: {{ '成功' if cleanup_result.changed else '无变更' }}
+      when: show_results | bool
+
+    - name: 检查本地镜像列表
+      ansible.builtin.command: docker images "{{ app_image_name }}"
+      register: docker_images
+      when: verify_images | bool
+      changed_when: false
+
+    - name: 显示本地镜像信息
+      ansible.builtin.debug:
+        var: docker_images.stdout_lines
+      when: 
+        - verify_images | bool
+        - docker_images.stdout_lines is defined
+
+    - name: 获取镜像详细信息
+      community.docker.docker_image_info:
+        name: "{{ app_image_name }}:{{ app_version }}"
+      register: image_info
+      when: get_image_info | bool
+
+    - name: 显示镜像详细信息
+      ansible.builtin.debug:
+        var: image_info.images
+      when: 
+        - get_image_info | bool
+        - image_info.images is defined
+
+  handlers:
+    - name: 清理构建缓存
+      ansible.builtin.command: docker builder prune -f
+      listen: cleanup build cache
+      changed_when: false
+
+    - name: 清理无用镜像
+      ansible.builtin.command: docker image prune -f
+      listen: cleanup unused images
+      changed_when: false

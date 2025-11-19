@@ -1,0 +1,180 @@
+# GitHub Release 管理示例变量配置
+
+# GitHub 认证配置
+github_user: "myorg"  # GitHub 用户名或组织名
+github_repo: "awesome-app"  # GitHub 仓库名称
+github_token: "ghp_xxxxxxxxxxxxxxxxxxxx"  # GitHub Personal Access Token（生产环境请使用 Ansible Vault）
+
+# 应用信息
+app_name: "awesome-app"  # 应用名称
+app_version: "2.1.3"  # 当前版本
+next_version: "2.2.0"  # 下一个版本
+
+# 构建配置
+build_path: "/tmp/github-release-build"  # 构建目录路径
+create_build_dir: true  # 是否创建构建目录
+prepare_binaries: true  # 是否准备二进制文件
+create_archives: true  # 是否创建压缩包
+prepare_windows_binaries: true  # 是否准备 Windows 二进制文件
+generate_checksums: true  # 是否生成校验和文件
+
+# 平台配置
+platforms:
+  - platform: "linux"
+    arch: "amd64"
+  - platform: "linux"
+    arch: "arm64"
+  - platform: "darwin"
+    arch: "amd64"
+  - platform: "darwin"
+    arch: "arm64"
+
+windows_archs:
+  - arch: "amd64"
+  - arch: "386"
+
+# Release 配置
+create_production_release: true  # 是否创建生产环境 Release
+upload_production_files: true  # 是否上传生产环境文件
+create_rc_release: true  # 是否创建预发布 Release
+upload_rc_files: true  # 是否上传预发布文件
+create_draft_release: true  # 是否创建草稿 Release
+
+# 提交配置
+target_commit: "main"  # 生产环境目标提交
+rc_target_commit: "develop"  # 预发布环境目标提交
+
+# Release Notes 配置
+release_notes_body: |
+  # Release v{{ app_version }}
+  
+  ## 🚀 新功能
+  - 添加了用户认证功能
+  - 优化了 API 响应性能
+  - 新增了数据导出功能
+  
+  ## 🐛 问题修复
+  - 修复了内存泄漏问题
+  - 解决了并发访问的竞态条件
+  - 修复了 UI 显示异常
+  
+  ## 🔧 改进
+  - 重构了代码架构
+  - 优化了数据库查询
+  - 改进了错误处理机制
+  
+  ## 📦 依赖更新
+  - 升级了 Spring Boot 到 2.7.x
+  - 更新了安全依赖包
+  - 升级了数据库驱动
+  
+  ## 📋 安装说明
+  ```bash
+  # 下载对应平台的二进制文件
+  wget https://github.com/{{ github_user }}/{{ github_repo }}/releases/download/v{{ app_version }}/{{ app_name }}-{{ app_version }}-linux-amd64.tar.gz
+  
+  # 解压并运行
+  tar -xzf {{ app_name }}-{{ app_version }}-linux-amd64.tar.gz
+  ./{{ app_name }}-{{ app_version }}-linux-amd64/{{ app_name }}
+  ```
+  
+  ## 🔐 校验和
+  请使用提供的校验和文件验证文件完整性：
+  ```bash
+  sha256sum -c {{ app_name }}-{{ app_version }}-sha256sum.txt
+  ```
+
+rc_release_notes_body: |
+  # Release Candidate v{{ app_version }}-rc.1
+  
+  ## 🧪 测试版本
+  这是一个候选发布版本，包含以下功能：
+  
+  - 新的用户认证系统
+  - 性能优化改进
+  - 安全性增强
+  
+  ## ⚠️ 注意事项
+  - 此版本仅用于测试，不建议在生产环境使用
+  - 请在测试环境充分验证后再升级
+  - 发现问题请及时反馈
+  
+  ## 📋 测试指南
+  1. 备份现有数据
+  2. 在测试环境部署此版本
+  3. 验证核心功能正常
+  4. 检查性能和稳定性
+  5. 报告发现的问题
+
+draft_release_notes_body: |
+  # Draft Release v{{ next_version }}
+  
+  ## 📝 计划功能
+  - [ ] 新功能 A
+  - [ ] 新功能 B
+  - [ ] 性能优化
+  - [ ] 安全改进
+  
+  ## 🔧 开发进度
+  - 功能 A：进行中 (80%)
+  - 功能 B：未开始 (0%)
+  - 文档更新：待开始
+  
+  ## 📅 发布计划
+  - 预计发布时间：{{ (ansible_date_time.iso8601 | regex_replace('T.*', '')) | to_datetime('%Y-%m-%d') + timedelta(days=14) }}
+  - 测试开始：{{ (ansible_date_time.iso8601 | regex_replace('T.*', '')) | to_datetime('%Y-%m-%d') + timedelta(days=7) }}
+
+# 文件列表配置
+production_files:
+  - "{{ build_path }}/{{ app_name }}-{{ app_version }}-linux-amd64.tar.gz"
+  - "{{ build_path }}/{{ app_name }}-{{ app_version }}-linux-arm64.tar.gz"
+  - "{{ build_path }}/{{ app_name }}-{{ app_version }}-darwin-amd64.tar.gz"
+  - "{{ build_path }}/{{ app_name }}-{{ app_version }}-darwin-arm64.tar.gz"
+  - "{{ build_path }}/{{ app_name }}-{{ app_version }}-windows-amd64.exe"
+  - "{{ build_path }}/{{ app_name }}-{{ app_version }}-windows-386.exe"
+  - "{{ build_path }}/{{ app_name }}-{{ app_version }}-sha256sum.txt"
+  - "{{ build_path }}/{{ app_name }}-{{ app_version }}-md5sum.txt"
+
+rc_files:
+  - "{{ build_path }}/{{ app_name }}-{{ app_version }}-rc.1-linux-amd64.tar.gz"
+  - "{{ build_path }}/{{ app_name }}-{{ app_version }}-rc.1-linux-arm64.tar.gz"
+  - "{{ build_path }}/{{ app_name }}-{{ app_version }}-rc.1-darwin-amd64.tar.gz"
+  - "{{ build_path }}/{{ app_name }}-{{ app_version }}-rc.1-windows-amd64.exe"
+  - "{{ build_path }}/{{ app_name }}-{{ app_version }}-rc.1-sha256sum.txt"
+
+# 信息获取配置
+get_latest_release: true  # 是否获取最新 Release
+list_all_releases: true  # 是否列出所有 Release
+verify_uploaded_files: true  # 是否验证上传文件
+
+# 清理配置
+cleanup_build_files: true  # 是否清理构建文件
+old_release_tags:  # 要清理的旧 Release 标签
+  - "v1.0.0"
+  - "v1.0.1"
+  - "v1.1.0"
+
+# 显示配置
+show_results: true  # 是否显示操作结果摘要
+
+# 应用元数据
+app_description: "一个优秀的开源应用"
+app_homepage: "https://github.com/{{ github_user }}/{{ github_repo }}"
+app_license: "MIT"
+app_author: "开发团队"
+
+# 发布策略配置
+release_strategy:
+  auto_tag: true  # 是否自动创建标签
+  auto_changelog: true  # 是否自动生成变更日志
+  require_tests: true  # 是否要求测试通过
+  require_review: true  # 是否要求代码审查
+
+# 重要：这些变量仅用于演示，生产环境请使用 Ansible Vault 或外部配置管理
+# ⚠️ 警告：GitHub Token 需要安全存储，建议使用 Ansible Vault 加密
+# 🔒 安全提示：限制 Token 权限范围，仅授予必要的仓库权限
+# 📝 注意：仓库和用户名需要根据实际情况调整
+# 🚀 性能优化：合理控制文件大小和上传频率
+# 🔍 监控建议：监控 Release 创建的成功率和耗时
+# 🛡️ 安全加固：定期轮换 GitHub 访问令牌
+# 📊 容量规划：监控 GitHub API 调用频率限制

@@ -1,0 +1,239 @@
+---
+- name: GitHub Release 管理示例演示
+  hosts: all
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    - name: 创建应用构建目录
+      ansible.builtin.file:
+        path: "{{ build_path }}"
+        state: directory
+        mode: '0755'
+      when: create_build_dir | bool
+
+    - name: 准备示例二进制文件
+      ansible.builtin.copy:
+        content: |
+          #!/bin/bash
+          echo "Hello from {{ app_name }} version {{ app_version }}"
+          echo "Build date: {{ ansible_date_time.iso8601 }}"
+          echo "Platform: {{ item.platform }}"
+          echo "Architecture: {{ item.arch }}"
+        dest: "{{ build_path }}/{{ app_name }}-{{ app_version }}-{{ item.platform }}-{{ item.arch }}"
+        mode: '0755'
+      loop: "{{ platforms }}"
+      when: prepare_binaries | bool
+      loop_control:
+        label: "{{ app_name }}-{{ app_version }}-{{ item.platform }}-{{ item.arch }}"
+
+    - name: 创建压缩包文件
+      ansible.builtin.archive:
+        path: "{{ build_path }}/{{ app_name }}-{{ app_version }}-{{ item.platform }}-{{ item.arch }}"
+        dest: "{{ build_path }}/{{ app_name }}-{{ app_version }}-{{ item.platform }}-{{ item.arch }}.tar.gz"
+        format: gz
+        remove: true
+      loop: "{{ platforms }}"
+      when: create_archives | bool
+      loop_control:
+        label: "{{ app_name }}-{{ app_version }}-{{ item.platform }}-{{ item.arch }}.tar.gz"
+
+    - name: 创建 Windows 可执行文件
+      ansible.builtin.copy:
+        content: |
+          @echo off
+          echo Hello from {{ app_name }} version {{ app_version }}
+          echo Build date: {{ ansible_date_time.iso8601 }}
+          echo Platform: Windows
+          echo Architecture: {{ item.arch }}
+          pause
+        dest: "{{ build_path }}/{{ app_name }}-{{ app_version }}-windows-{{ item.arch }}.exe"
+        mode: '0644'
+      loop: "{{ windows_archs }}"
+      when: prepare_windows_binaries | bool
+      loop_control:
+        label: "{{ app_name }}-{{ app_version }}-windows-{{ item.arch }}.exe"
+
+    - name: 生成校验和文件
+      ansible.builtin.shell: |
+        cd {{ build_path }}
+        sha256sum {{ app_name }}-{{ app_version }}-*.tar.gz {{ app_name }}-{{ app_version }}-windows-*.exe > {{ app_name }}-{{ app_version }}-sha256sum.txt
+        md5sum {{ app_name }}-{{ app_version }}-*.tar.gz {{ app_name }}-{{ app_version }}-windows-*.exe > {{ app_name }}-{{ app_version }}-md5sum.txt
+      when: generate_checksums | bool
+      register: checksum_result
+      changed_when: false
+
+    - name: 创建正式 Release
+      community.general.github_release:
+        user: "{{ github_user }}"
+        repo: "{{ github_repo }}"
+        token: "{{ github_token }}"
+        action: create_release
+        tag: "v{{ app_version }}"
+        name: "Release v{{ app_version }}"
+        body: "{{ release_notes_body }}"
+        draft: false
+        prerelease: false
+        target_commitish: "{{ target_commit }}"
+      when: create_production_release | bool
+      register: production_release
+
+    - name: 上传生产版本文件
+      community.general.github_release:
+        user: "{{ github_user }}"
+        repo: "{{ github_repo }}"
+        token: "{{ github_token }}"
+        action: create_release
+        tag: "v{{ app_version }}"
+        name: "Release v{{ app_version }}"
+        body: "{{ release_notes_body }}"
+        files: "{{ production_files }}"
+      when: upload_production_files | bool
+      register: production_upload
+
+    - name: 创建预发布版本
+      community.general.github_release:
+        user: "{{ github_user }}"
+        repo: "{{ github_repo }}"
+        token: "{{ github_token }}"
+        action: create_release
+        tag: "v{{ app_version }}-rc.1"
+        name: "Release Candidate v{{ app_version }}-rc.1"
+        body: "{{ rc_release_notes_body }}"
+        draft: false
+        prerelease: true
+        target_commitish: "{{ rc_target_commit }}"
+      when: create_rc_release | bool
+      register: rc_release
+
+    - name: 上传预发布版本文件
+      community.general.github_release:
+        user: "{{ github_user }}"
+        repo: "{{ github_repo }}"
+        token: "{{ github_token }}"
+        action: create_release
+        tag: "v{{ app_version }}-rc.1"
+        name: "Release Candidate v{{ app_version }}-rc.1"
+        body: "{{ rc_release_notes_body }}"
+        files: "{{ rc_files }}"
+      when: upload_rc_files | bool
+      register: rc_upload
+
+    - name: 创建草稿 Release
+      community.general.github_release:
+        user: "{{ github_user }}"
+        repo: "{{ github_repo }}"
+        token: "{{ github_token }}"
+        action: create_release
+        tag: "v{{ next_version }}-draft"
+        name: "Draft Release v{{ next_version }}"
+        body: "{{ draft_release_notes_body }}"
+        draft: true
+      when: create_draft_release | bool
+      register: draft_release
+
+    - name: 获取最新 Release 信息
+      community.general.github_release:
+        user: "{{ github_user }}"
+        repo: "{{ github_repo }}"
+        token: "{{ github_token }}"
+        action: latest_release
+      register: latest_release_info
+      when: get_latest_release | bool
+
+    - name: 列出所有 Release
+      community.general.github_release:
+        user: "{{ github_user }}"
+        repo: "{{ github_repo }}"
+        token: "{{ github_token }}"
+        action: list_releases
+      register: all_releases_info
+      when: list_all_releases | bool
+
+    - name: 显示 Release 创建结果
+      ansible.builtin.debug:
+        msg: |
+          GitHub Release 操作结果摘要:
+          - 生产环境 Release: {{ '成功创建' if production_release.changed else '无变更' }}
+          - 生产文件上传: {{ '成功' if production_upload.changed else '无变更' }}
+          - 预发布 Release: {{ '成功创建' if rc_release.changed else '无变更' }}
+          - 预发布文件上传: {{ '成功' if rc_upload.changed else '无变更' }}
+          - 草稿 Release: {{ '成功创建' if draft_release.changed else '无变更' }}
+      when: show_results | bool
+
+    - name: 显示最新 Release 信息
+      ansible.builtin.debug:
+        msg: |
+          最新 Release 信息:
+          - 标签: {{ latest_release_info.release.tag_name }}
+          - 名称: {{ latest_release_info.release.name }}
+          - 是否为预发布: {{ latest_release_info.release.prerelease }}
+          - 是否为草稿: {{ latest_release_info.release.draft }}
+          - 发布时间: {{ latest_release_info.release.published_at }}
+          - URL: {{ latest_release_info.release.html_url }}
+      when: 
+        - get_latest_release | bool
+        - latest_release_info.release is defined
+
+    - name: 显示所有 Release 列表
+      ansible.builtin.debug:
+        msg: |
+          {% for release in all_releases_info.releases %}
+          Release {{ loop.index }}:
+          - 标签: {{ release.tag_name }}
+          - 名称: {{ release.name }}
+          - 是否为预发布: {{ release.prerelease }}
+          - 是否为草稿: {{ release.draft }}
+          - 发布时间: {{ release.published_at }}
+          - URL: {{ release.html_url }}
+          ---
+          {% endfor %}
+      when: 
+        - list_all_releases | bool
+        - all_releases_info.releases is defined
+
+    - name: 验证上传文件
+      ansible.builtin.uri:
+        url: "{{ production_release.release.upload_url | regex_replace('{\\?name,label}','') }}?name={{ item | basename }}"
+        method: GET
+        headers:
+          Authorization: "token {{ github_token }}"
+        status_code: [200, 302]
+      loop: "{{ production_files }}"
+      when: 
+        - upload_production_files | bool
+        - production_release.release is defined
+        - verify_uploaded_files | bool
+      register: file_verification
+      loop_control:
+        label: "{{ item | basename }}"
+
+    - name: 显示文件验证结果
+      ansible.builtin.debug:
+        msg: |
+          文件 {{ item.item | basename }} 验证结果:
+          - 状态码: {{ item.status }}
+          - 可访问: {{ '是' if item.status == 200 or item.status == 302 else '否' }}
+      loop: "{{ file_verification.results }}"
+      when: 
+        - verify_uploaded_files | bool
+        - file_verification.results is defined
+      loop_control:
+        label: "{{ item.item | basename }}"
+
+    - name: 清理构建文件
+      ansible.builtin.file:
+        path: "{{ build_path }}"
+        state: absent
+      when: cleanup_build_files | bool
+
+  handlers:
+    - name: 清理旧 Release
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/{{ github_user }}/{{ github_repo }}/releases/tags/{{ item }}"
+        method: DELETE
+        headers:
+          Authorization: "token {{ github_token }}"
+        status_code: [204]
+      loop: "{{ old_release_tags }}"
+      listen: cleanup old releases

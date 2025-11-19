@@ -1,0 +1,373 @@
+---
+- name: Kubernetes 资源管理示例演示
+  hosts: all
+  become: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    - name: 确保目标命名空间存在
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: "{{ app_namespace }}"
+            labels:
+              environment: "{{ app_environment }}"
+              project: "{{ app_name }}"
+      when: create_namespace | bool
+
+    - name: 创建应用 ConfigMap
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: "{{ app_configmap_name }}"
+            namespace: "{{ app_namespace }}"
+            labels:
+              app: "{{ app_name }}"
+              component: config
+          data:
+            "{{ item.key }}": "{{ item.value }}"
+      loop: "{{ configmap_data | dict2items }}"
+      when: create_configmap | bool
+      loop_control:
+        label: "{{ item.key }}"
+
+    - name: 创建应用 Secret
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: "{{ app_secret_name }}"
+            namespace: "{{ app_namespace }}"
+            labels:
+              app: "{{ app_name }}"
+              component: secret
+          type: Opaque
+          data:
+            "{{ item.key }}": "{{ item.value | b64encode }}"
+      loop: "{{ secret_data | dict2items }}"
+      when: create_secret | bool
+      loop_control:
+        label: "{{ item.key }}"
+      no_log: true
+
+    - name: 部署应用 Deployment
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: "{{ app_deployment_name }}"
+            namespace: "{{ app_namespace }}"
+            labels:
+              app: "{{ app_name }}"
+              component: backend
+              version: "{{ app_version }}"
+          spec:
+            replicas: "{{ app_replicas }}"
+            selector:
+              matchLabels:
+                app: "{{ app_name }}"
+                component: backend
+            template:
+              metadata:
+                labels:
+                  app: "{{ app_name }}"
+                  component: backend
+                  version: "{{ app_version }}"
+              spec:
+                containers:
+                - name: "{{ app_container_name }}"
+                  image: "{{ app_image }}:{{ app_version }}"
+                  ports:
+                  - containerPort: "{{ app_container_port }}"
+                  env:
+                  - name: APP_ENV
+                    value: "{{ app_environment }}"
+                  - name: CONFIG_PATH
+                    value: "/etc/app/config"
+                  - name: DATABASE_URL
+                    valueFrom:
+                      secretKeyRef:
+                        name: "{{ app_secret_name }}"
+                        key: database_url
+                  volumeMounts:
+                  - name: config-volume
+                    mountPath: /etc/app/config
+                    readOnly: true
+                  resources:
+                    requests:
+                      memory: "{{ app_memory_request }}"
+                      cpu: "{{ app_cpu_request }}"
+                    limits:
+                      memory: "{{ app_memory_limit }}"
+                      cpu: "{{ app_cpu_limit }}"
+                  livenessProbe:
+                    httpGet:
+                      path: "{{ app_health_path }}"
+                      port: "{{ app_container_port }}"
+                    initialDelaySeconds: 30
+                    periodSeconds: 10
+                  readinessProbe:
+                    httpGet:
+                      path: "{{ app_ready_path }}"
+                      port: "{{ app_container_port }}"
+                    initialDelaySeconds: 5
+                    periodSeconds: 5
+                volumes:
+                - name: config-volume
+                  configMap:
+                    name: "{{ app_configmap_name }}"
+      when: deploy_app | bool
+      register: deployment_result
+
+    - name: 创建应用 Service
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: "{{ app_service_name }}"
+            namespace: "{{ app_namespace }}"
+            labels:
+              app: "{{ app_name }}"
+              component: service
+          spec:
+            selector:
+              app: "{{ app_name }}"
+              component: backend
+            ports:
+            - protocol: TCP
+              port: "{{ app_service_port }}"
+              targetPort: "{{ app_container_port }}"
+            type: "{{ app_service_type }}"
+      when: create_service | bool
+
+    - name: 创建应用 Ingress
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: "{{ app_ingress_name }}"
+            namespace: "{{ app_namespace }}"
+            annotations:
+              nginx.ingress.kubernetes.io/rewrite-target: /
+              nginx.ingress.kubernetes.io/ssl-redirect: "true"
+              cert-manager.io/cluster-issuer: "{{ cert_issuer }}"
+          spec:
+            tls:
+            - hosts:
+              - "{{ app_domain }}"
+              secretName: "{{ app_tls_secret }}"
+            rules:
+            - host: "{{ app_domain }}"
+              http:
+                paths:
+                - path: "{{ app_ingress_path }}"
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: "{{ app_service_name }}"
+                      port:
+                        number: "{{ app_service_port }}"
+      when: create_ingress | bool
+
+    - name: 创建 HorizontalPodAutoscaler
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: autoscaling/v2
+          kind: HorizontalPodAutoscaler
+          metadata:
+            name: "{{ app_hpa_name }}"
+            namespace: "{{ app_namespace }}"
+            labels:
+              app: "{{ app_name }}"
+              component: autoscaler
+          spec:
+            scaleTargetRef:
+              apiVersion: apps/v1
+              kind: Deployment
+              name: "{{ app_deployment_name }}"
+            minReplicas: "{{ hpa_min_replicas }}"
+            maxReplicas: "{{ hpa_max_replicas }}"
+            metrics:
+            - type: Resource
+              resource:
+                name: cpu
+                target:
+                  type: Utilization
+                  averageUtilization: "{{ hpa_cpu_target }}"
+            - type: Resource
+              resource:
+                name: memory
+                target:
+                  type: Utilization
+                  averageUtilization: "{{ hpa_memory_target }}"
+      when: create_hpa | bool
+
+    - name: 从文件部署额外资源
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ item }}"
+        namespace: "{{ app_namespace }}"
+        wait: true
+        wait_timeout: "{{ deployment_wait_timeout }}"
+      loop: "{{ additional_manifests }}"
+      when: deploy_additional_resources | bool
+      loop_control:
+        label: "{{ item | basename }}"
+
+    - name: 等待应用部署完成
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        name: "{{ app_deployment_name }}"
+        namespace: "{{ app_namespace }}"
+        wait_condition:
+          type: Progressing
+          status: "True"
+          reason: NewReplicaSetAvailable
+      register: deployment_status
+      when: 
+        - deploy_app | bool
+        - wait_for_deployment | bool
+      retries: "{{ deployment_wait_retries }}"
+      delay: "{{ deployment_wait_delay }}"
+
+    - name: 获取应用 Pod 信息
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: "{{ app_namespace }}"
+        label_selectors:
+          - "app={{ app_name }}"
+          - "component=backend"
+      register: pod_info
+      when: get_pod_info | bool
+
+    - name: 显示 Pod 状态信息
+      ansible.builtin.debug:
+        msg: |
+          应用 {{ app_name }} 的 Pod 状态:
+          {% for pod in pod_info.resources %}
+          - Pod 名称: {{ pod.metadata.name }}
+          - 状态: {{ pod.status.phase }}
+          - 节点: {{ pod.spec.nodeName }}
+          - IP 地址: {{ pod.status.podIP }}
+          - 创建时间: {{ pod.metadata.creationTimestamp }}
+          {% endfor %}
+      when: 
+        - get_pod_info | bool
+        - pod_info.resources is defined
+
+    - name: 获取应用 Service 信息
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Service
+        name: "{{ app_service_name }}"
+        namespace: "{{ app_namespace }}"
+      register: service_info
+      when: get_service_info | bool
+
+    - name: 显示 Service 信息
+      ansible.builtin.debug:
+        msg: |
+          应用 {{ app_name }} 的 Service 信息:
+          - 服务名称: {{ service_info.resources[0].metadata.name }}
+          - 服务类型: {{ service_info.resources[0].spec.type }}
+          - 集群IP: {{ service_info.resources[0].spec.clusterIP }}
+          - 端口映射: {{ service_info.resources[0].spec.ports }}
+          - 选择器: {{ service_info.resources[0].spec.selector }}
+      when: 
+        - get_service_info | bool
+        - service_info.resources is defined
+
+    - name: 扩容应用实例
+      kubernetes.core.k8s:
+        state: patched
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: "{{ app_deployment_name }}"
+            namespace: "{{ app_namespace }}"
+          spec:
+            replicas: "{{ scale_replicas }}"
+      when: scale_app | bool
+      register: scale_result
+
+    - name: 更新应用镜像版本
+      kubernetes.core.k8s:
+        state: patched
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: "{{ app_deployment_name }}"
+            namespace: "{{ app_namespace }}"
+          spec:
+            template:
+              spec:
+                containers:
+                - name: "{{ app_container_name }}"
+                  image: "{{ new_app_image }}:{{ new_app_version }}"
+      when: update_app_image | bool
+      register: update_result
+
+    - name: 显示 Kubernetes 资源管理操作结果
+      ansible.builtin.debug:
+        msg: |
+          Kubernetes 资源管理操作结果摘要:
+          - 命名空间创建: {{ '完成' if create_namespace else '跳过' }}
+          - ConfigMap 创建: {{ '完成' if create_configmap else '跳过' }}
+          - Secret 创建: {{ '完成' if create_secret else '跳过' }}
+          - Deployment 部署: {{ '成功' if deployment_result.changed else '无变更' }}
+          - Service 创建: {{ '完成' if create_service else '跳过' }}
+          - Ingress 创建: {{ '完成' if create_ingress else '跳过' }}
+          - HPA 创建: {{ '完成' if create_hpa else '跳过' }}
+          - 扩容操作: {{ '成功' if scale_result.changed else '无变更' }}
+          - 镜像更新: {{ '成功' if update_result.changed else '无变更' }}
+      when: show_results | bool
+
+  handlers:
+    - name: 重启应用 Deployment
+      kubernetes.core.k8s:
+        state: restarted
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: "{{ app_deployment_name }}"
+            namespace: "{{ app_namespace }}"
+      listen: restart app deployment
+
+    - name: 清理应用资源
+      kubernetes.core.k8s:
+        state: absent
+        definition:
+          apiVersion: "{{ item.api_version }}"
+          kind: "{{ item.kind }}"
+          metadata:
+            name: "{{ item.name }}"
+            namespace: "{{ app_namespace }}"
+      loop:
+        - { api_version: "networking.k8s.io/v1", kind: "Ingress", name: "{{ app_ingress_name }}" }
+        - { api_version: "v1", kind: "Service", name: "{{ app_service_name }}" }
+        - { api_version: "autoscaling/v2", kind: "HorizontalPodAutoscaler", name: "{{ app_hpa_name }}" }
+        - { api_version: "apps/v1", kind: "Deployment", name: "{{ app_deployment_name }}" }
+        - { api_version: "v1", kind: "Secret", name: "{{ app_secret_name }}" }
+        - { api_version: "v1", kind: "ConfigMap", name: "{{ app_configmap_name }}" }
+      listen: cleanup app resources

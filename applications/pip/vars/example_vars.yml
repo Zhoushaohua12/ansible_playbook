@@ -1,0 +1,89 @@
+# Python 包管理示例变量配置
+
+# 系统配置
+install_system_python: true  # 是否安装系统级 Python 和 pip
+virtualenv_command: "python3 -m venv"  # 虚拟环境创建命令
+
+# 虚拟环境配置
+project_venv_path: "/opt/app/venv"  # 项目虚拟环境路径
+dev_venv_path: "/opt/app/dev_venv"  # 开发虚拟环境路径
+create_venv: true  # 是否创建虚拟环境
+upgrade_pip: true  # 是否升级 pip 到最新版本
+
+# Web 应用依赖包
+web_dependencies:
+  - "flask==2.3.2"
+  - "gunicorn==21.2.0"
+  - "redis==4.6.0"
+  - "celery==5.3.1"
+  - "jinja2==3.1.2"
+install_web_deps: true  # 是否安装 Web 依赖
+
+# 数据库相关包
+database_dependencies:
+  - "psycopg2-binary==2.9.7"
+  - "sqlalchemy==2.0.20"
+  - "alembic==1.12.0"
+  - "pymongo==4.5.0"
+install_database_deps: true  # 是否安装数据库依赖
+
+# Requirements 文件配置
+requirements_file_path: "/opt/app/requirements.txt"  # requirements.txt 文件路径
+pip_extra_args: "--no-cache-dir --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org"
+install_from_requirements: true  # 是否从 requirements 文件安装
+
+# 开发工具包
+development_tools:
+  - "pytest==7.4.2"
+  - "black==23.9.1"
+  - "flake8==6.1.0"
+  - "mypy==1.5.1"
+  - "coverage==7.3.2"
+  - "pre-commit==3.4.0"
+install_dev_tools: true  # 是否安装开发工具
+
+# Git 仓库包
+git_packages:
+  - "git+https://github.com/user/custom-lib.git@v2.1.0#egg=custom_lib"
+  - "git+https://github.com/another-org/another-lib.git@develop#egg=another_lib"
+install_git_packages: false  # 是否安装 Git 仓库包
+
+# 安全相关包（需要保持最新）
+security_packages:
+  - "requests"
+  - "urllib3"
+  - "certifi"
+  - "cryptography"
+  - "pyopenssl"
+upgrade_security_packages: true  # 是否升级安全包
+
+# 清理包列表
+cleanup_packages:
+  - "debugpy"
+  - "ipython"
+  - "jupyter"
+cleanup_dev_packages: false  # 是否清理开发包
+
+# 验证包
+verification_packages:
+  - "flask"
+  - "gunicorn"
+  - "redis"
+verify_installation: true  # 是否验证安装结果
+
+# 应用配置
+app_install_path: "/opt/app"
+app_service_name: "webapp"
+app_user: "appuser"
+app_group: "appgroup"
+create_app_script: true  # 是否创建应用启动脚本
+set_permissions: true  # 是否设置目录权限
+
+# 显示配置
+show_results: true  # 是否显示操作结果摘要
+
+# 重要：这些变量仅用于演示，生产环境请使用 Ansible Vault 或外部配置管理
+# ⚠️ 警告：包版本需要根据实际需求调整，建议固定版本号
+# 🔒 安全提示：使用可信的 PyPI 源，避免安装恶意包
+# 📝 注意：虚拟环境路径需要根据实际部署环境调整
+# 🚀 性能优化：使用本地 PyPI 镜像可以加速包下载

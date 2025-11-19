@@ -1,0 +1,129 @@
+# Kubernetes 资源管理示例变量配置
+
+# 集群连接配置
+kubeconfig_path: "{{ ansible_user_dir }}/.kube/config"  # kubeconfig 文件路径
+cluster_context: "default"  # Kubernetes 上下文
+
+# 应用基础配置
+app_name: "webapp"  # 应用名称
+app_version: "v1.2.3"  # 应用版本
+app_environment: "production"  # 应用环境
+app_namespace: "webapp-prod"  # 应用命名空间
+create_namespace: true  # 是否创建命名空间
+
+# 应用镜像配置
+app_image: "registry.example.com/webapp"  # 应用镜像地址
+new_app_image: "registry.example.com/webapp"  # 新镜像地址（用于更新）
+new_app_version: "v1.3.0"  # 新应用版本
+
+# Deployment 配置
+app_deployment_name: "webapp-deployment"  # Deployment 名称
+app_container_name: "webapp"  # 容器名称
+app_container_port: 8080  # 容器端口
+app_replicas: 3  # 初始副本数
+scale_replicas: 5  # 扩容目标副本数
+
+# 应用资源配置
+app_memory_request: "256Mi"  # 内存请求
+app_cpu_request: "250m"  # CPU 请求
+app_memory_limit: "512Mi"  # 内存限制
+app_cpu_limit: "500m"  # CPU 限制
+
+# 健康检查配置
+app_health_path: "/health"  # 健康检查路径
+app_ready_path: "/ready"  # 就绪检查路径
+
+# ConfigMap 配置
+app_configmap_name: "webapp-config"  # ConfigMap 名称
+create_configmap: true  # 是否创建 ConfigMap
+configmap_data:
+  app_name: "{{ app_name }}"
+  app_version: "{{ app_version }}"
+  log_level: "INFO"
+  database_host: "postgres.example.com"
+  database_port: "5432"
+  redis_host: "redis.example.com"
+  redis_port: "6379"
+  cache_ttl: "3600"
+  max_connections: "100"
+
+# Secret 配置
+app_secret_name: "webapp-secrets"  # Secret 名称
+create_secret: true  # 是否创建 Secret
+secret_data:
+  database_url: "postgresql://user:password@postgres.example.com:5432/webapp"
+  redis_password: "SecureRedisPassword123"
+  api_key: "SuperSecretApiKey456"
+  jwt_secret: "VerySecureJWTSecret789"
+  encryption_key: "EncryptionKeyForData123"
+
+# Service 配置
+app_service_name: "webapp-service"  # Service 名称
+app_service_port: 80  # 服务端口
+app_service_type: "ClusterIP"  # 服务类型
+create_service: true  # 是否创建 Service
+
+# Ingress 配置
+app_ingress_name: "webapp-ingress"  # Ingress 名称
+app_domain: "webapp.example.com"  # 应用域名
+app_ingress_path: "/"  # Ingress 路径
+app_tls_secret: "webapp-tls"  # TLS 证书 Secret
+cert_issuer: "letsencrypt-prod"  # 证书颁发者
+create_ingress: true  # 是否创建 Ingress
+
+# HPA 配置
+app_hpa_name: "webapp-hpa"  # HPA 名称
+hpa_min_replicas: 2  # 最小副本数
+hpa_max_replicas: 10  # 最大副本数
+hpa_cpu_target: 70  # CPU 目标利用率
+hpa_memory_target: 80  # 内存目标利用率
+create_hpa: true  # 是否创建 HPA
+
+# 部署控制配置
+deploy_app: true  # 是否部署应用
+wait_for_deployment: true  # 是否等待部署完成
+deployment_wait_timeout: 300  # 部署等待超时时间
+deployment_wait_retries: 10  # 部署等待重试次数
+deployment_wait_delay: 30  # 部署等待延迟
+
+# 额外资源配置
+deploy_additional_resources: false  # 是否部署额外资源
+additional_manifests:
+  - "/opt/k8s/manifests/pvc.yaml"
+  - "/opt/k8s/manifests/networkpolicy.yaml"
+  - "/opt/k8s/manifests/resourcequota.yaml"
+
+# 应用操作配置
+scale_app: false  # 是否扩容应用
+update_app_image: false  # 是否更新应用镜像
+
+# 信息获取配置
+get_pod_info: true  # 是否获取 Pod 信息
+get_service_info: true  # 是否获取 Service 信息
+
+# 显示配置
+show_results: true  # 是否显示操作结果摘要
+
+# 环境标签
+environment_labels:
+  production:
+    environment: "production"
+    team: "platform"
+    cost-center: "engineering"
+  staging:
+    environment: "staging"
+    team: "platform"
+    cost-center: "engineering"
+  development:
+    environment: "development"
+    team: "platform"
+    cost-center: "engineering"
+
+# 重要：这些变量仅用于演示，生产环境请使用 Ansible Vault 或外部配置管理
+# ⚠️ 警告：Secret 中的敏感信息需要加密存储
+# 🔒 安全提示：使用 RBAC 限制对集群的访问权限
+# 📝 注意：资源名称和命名空间需要根据实际环境调整
+# 🚀 性能优化：根据实际负载调整资源限制和副本数
+# 🔍 监控建议：配置 Prometheus 监控和告警规则
+# 🛡️ 安全加固：启用网络策略和 Pod 安全策略
+# 📊 容量规划：根据业务增长规划集群资源

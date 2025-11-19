@@ -6,9 +6,13 @@ from typing import Dict
 import pytest
 import yaml
 
-MODULES = ["docker_container", "git", "package", "yum", "apt"]
+MODULES = ["docker_container", "docker_image", "kubernetes", "pip", "npm", "git", "package", "yum", "apt"]
 FQCN_EXPECTATIONS = {
     "docker_container": "community.docker.docker_container",
+    "docker_image": "community.docker.docker_image",
+    "kubernetes": "kubernetes.core.k8s",
+    "pip": "ansible.builtin.pip",
+    "npm": "community.general.npm",
     "git": "ansible.builtin.git",
     "package": "ansible.builtin.package",
     "yum": "ansible.builtin.yum",
@@ -38,12 +42,17 @@ class TestApplicationsReadme(TestApplicationsFixtures):
     def test_applications_readme_contains_module_overview(self, applications_root: Path) -> None:
         content = (applications_root / "README.md").read_text(encoding="utf-8")
         assert "docker_container" in content, "applications/README.md 应包含 docker_container 模块说明"
+        assert "docker_image" in content, "applications/README.md 应包含 docker_image 模块说明"
+        assert "kubernetes" in content, "applications/README.md 应包含 kubernetes 模块说明"
+        assert "pip" in content, "applications/README.md 应包含 pip 模块说明"
+        assert "npm" in content, "applications/README.md 应包含 npm 模块说明"
         assert "git" in content, "applications/README.md 应包含 git 模块说明"
         assert "package" in content, "applications/README.md 应包含 package 模块说明"
         assert "yum" in content, "applications/README.md 应包含 yum 模块说明"
         assert "apt" in content, "applications/README.md 应包含 apt 模块说明"
         assert "应用管理" in content, "applications/README.md 应说明应用管理场景"
         assert "容器化部署" in content, "applications/README.md 应包含容器化部署场景"
+        assert "语言依赖" in content, "applications/README.md 应包含语言依赖场景"
         assert "源码部署" in content, "applications/README.md 应包含源码部署场景"
 
 
@@ -168,6 +177,90 @@ class TestPlaybooks(TestApplicationsFixtures):
         assert "update_cache" in content, "apt playbook 应包含 update_cache 参数"
         # 检查中文注释
         assert "APT" in content, "apt playbook 应包含中文 APT 相关注释"
+
+    def test_docker_image_readme_contains_docker_image_specific_content(self, module_dirs: Dict[str, Path]) -> None:
+        """检查 docker_image README 是否包含 Docker 镜像特定内容"""
+        content = (module_dirs["docker_image"] / "README.md").read_text(encoding="utf-8")
+        assert "image" in content, "docker_image README.md 应包含 image 参数说明"
+        assert "build" in content, "docker_image README.md 应包含 build 参数说明"
+        assert "镜像" in content, "docker_image README.md 应包含镜像相关说明"
+
+    def test_kubernetes_readme_contains_kubernetes_specific_content(self, module_dirs: Dict[str, Path]) -> None:
+        """检查 kubernetes README 是否包含 K8s 特定内容"""
+        content = (module_dirs["kubernetes"] / "README.md").read_text(encoding="utf-8")
+        assert "deployment" in content, "kubernetes README.md 应包含 deployment 参数说明"
+        assert "service" in content, "kubernetes README.md 应包含 service 参数说明"
+        assert "容器编排" in content, "kubernetes README.md 应包含容器编排说明"
+
+    def test_pip_readme_contains_pip_specific_content(self, module_dirs: Dict[str, Path]) -> None:
+        """检查 pip README 是否包含 Python 包特定内容"""
+        content = (module_dirs["pip"] / "README.md").read_text(encoding="utf-8")
+        assert "requirements" in content, "pip README.md 应包含 requirements 参数说明"
+        assert "virtualenv" in content, "pip README.md 应包含 virtualenv 参数说明"
+        assert "Python" in content, "pip README.md 应包含 Python 相关注释"
+
+    def test_npm_readme_contains_npm_specific_content(self, module_dirs: Dict[str, Path]) -> None:
+        """检查 npm README 是否包含 Node.js 包特定内容"""
+        content = (module_dirs["npm"] / "README.md").read_text(encoding="utf-8")
+        assert "package.json" in content, "npm README.md 应包含 package.json 参数说明"
+        assert "production" in content, "npm README.md 应包含 production 参数说明"
+        assert "Node.js" in content, "npm README.md 应包含 Node.js 相关注释"
+
+    def test_docker_image_playbook_contains_docker_image_tasks(self, module_dirs: Dict[str, Path]) -> None:
+        """检查 docker_image playbook 是否包含 Docker 镜像相关任务"""
+        content = (module_dirs["docker_image"] / "playbook.yml").read_text(encoding="utf-8")
+        assert "community.docker.docker_image" in content, "docker_image playbook 应包含 docker_image 任务"
+        assert "build" in content, "docker_image playbook 应包含 build 参数"
+        # 检查中文注释
+        assert "镜像" in content, "docker_image playbook 应包含中文镜像相关注释"
+
+    def test_kubernetes_playbook_contains_kubernetes_tasks(self, module_dirs: Dict[str, Path]) -> None:
+        """检查 kubernetes playbook 是否包含 K8s 相关任务"""
+        content = (module_dirs["kubernetes"] / "playbook.yml").read_text(encoding="utf-8")
+        assert "kubernetes.core.k8s" in content, "kubernetes playbook 应包含 k8s 任务"
+        assert "deployment" in content, "kubernetes playbook 应包含 deployment 参数"
+        # 检查中文注释
+        assert "容器" in content, "kubernetes playbook 应包含中文容器相关注释"
+
+    def test_pip_playbook_contains_pip_tasks(self, module_dirs: Dict[str, Path]) -> None:
+        """检查 pip playbook 是否包含 Python 包相关任务"""
+        content = (module_dirs["pip"] / "playbook.yml").read_text(encoding="utf-8")
+        assert "ansible.builtin.pip" in content, "pip playbook 应包含 pip 任务"
+        assert "requirements" in content, "pip playbook 应包含 requirements 参数"
+        # 检查中文注释
+        assert "Python" in content, "pip playbook 应包含中文 Python 相关注释"
+
+    def test_npm_playbook_contains_npm_tasks(self, module_dirs: Dict[str, Path]) -> None:
+        """检查 npm playbook 是否包含 Node.js 包相关任务"""
+        content = (module_dirs["npm"] / "playbook.yml").read_text(encoding="utf-8")
+        assert "community.general.npm" in content, "npm playbook 应包含 npm 任务"
+        assert "package.json" in content, "npm playbook 应包含 package.json 参数"
+        # 检查中文注释
+        assert "Node.js" in content, "npm playbook 应包含中文 Node.js 相关注释"
+
+    def test_docker_image_vars_contains_docker_image_specific_vars(self, module_dirs: Dict[str, Path]) -> None:
+        """检查 docker_image vars 是否包含 Docker 镜像特定变量"""
+        content = (module_dirs["docker_image"] / "vars" / "example_vars.yml").read_text(encoding="utf-8")
+        assert "image" in content or "镜像" in content, "docker_image vars 应包含镜像相关变量"
+        assert "build" in content, "docker_image vars 应包含构建相关变量"
+
+    def test_kubernetes_vars_contains_kubernetes_specific_vars(self, module_dirs: Dict[str, Path]) -> None:
+        """检查 kubernetes vars 是否包含 K8s 特定变量"""
+        content = (module_dirs["kubernetes"] / "vars" / "example_vars.yml").read_text(encoding="utf-8")
+        assert "deployment" in content, "kubernetes vars 应包含 deployment 相关变量"
+        assert "service" in content, "kubernetes vars 应包含 service 相关变量"
+
+    def test_pip_vars_contains_pip_specific_vars(self, module_dirs: Dict[str, Path]) -> None:
+        """检查 pip vars 是否包含 Python 包特定变量"""
+        content = (module_dirs["pip"] / "vars" / "example_vars.yml").read_text(encoding="utf-8")
+        assert "requirements" in content, "pip vars 应包含 requirements 相关变量"
+        assert "virtualenv" in content, "pip vars 应包含 virtualenv 相关变量"
+
+    def test_npm_vars_contains_npm_specific_vars(self, module_dirs: Dict[str, Path]) -> None:
+        """检查 npm vars 是否包含 Node.js 包特定变量"""
+        content = (module_dirs["npm"] / "vars" / "example_vars.yml").read_text(encoding="utf-8")
+        assert "package.json" in content or "package" in content, "npm vars 应包含 package 相关变量"
+        assert "npm" in content.lower(), "npm vars 应包含 npm 相关变量"
 
     def test_playbooks_use_vars_files(self, module_dirs: Dict[str, Path]) -> None:
         """检查所有 playbook 都引用了 vars 文件"""

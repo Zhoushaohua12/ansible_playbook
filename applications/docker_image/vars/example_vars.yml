@@ -1,0 +1,119 @@
+# Docker 镜像管理示例变量配置
+
+# Docker 服务配置
+docker_manage_service: true  # 是否管理 Docker 服务状态
+
+# 构建环境配置
+app_build_path: "/opt/docker-build"  # 构建目录路径
+build_user: "builduser"  # 构建用户
+build_group: "buildgroup"  # 构建组
+create_build_dir: true  # 是否创建构建目录
+
+# 应用源码文件配置
+prepare_source_code: true  # 是否准备应用源码
+app_source_files:
+  - src: "app.py"
+    dest: "app.py"
+  - src: "requirements.txt"
+    dest: "requirements.txt"
+  - src: "config.py"
+    dest: "config.py"
+  - src: "static/"
+    dest: "static/"
+
+# Dockerfile 配置
+generate_dockerfile: true  # 是否生成 Dockerfile
+dockerfile_name: "Dockerfile"  # 开发环境 Dockerfile 名称
+dockerfile_prod_name: "Dockerfile.prod"  # 生产环境 Dockerfile 名称
+generate_dockerignore: true  # 是否生成 .dockerignore
+
+# 基础镜像配置
+base_images:
+  - "python:3.11-alpine"
+  - "node:18-alpine"
+  - "nginx:1.21-alpine"
+pull_base_images: true  # 是否拉取基础镜像
+pull_base_images_on_build: true  # 构建时是否拉取基础镜像
+
+# 应用镜像配置
+app_image_name: "myapp"  # 应用镜像名称
+app_version: "v1.2.3"  # 应用版本
+registry_url: "registry.example.com"  # 镜像仓库地址
+
+# 构建参数
+build_args:
+  APP_VERSION: "{{ app_version }}"
+  BUILD_ENV: "development"
+  BUILD_NUMBER: "42"
+  GIT_COMMIT: "abc123def"
+
+# 生产环境构建参数
+prod_build_args:
+  APP_VERSION: "{{ app_version }}"
+  BUILD_ENV: "production"
+  BUILD_NUMBER: "42"
+  GIT_COMMIT: "abc123def"
+  MINIMIZE: "true"
+
+# 构建缓存配置
+build_cache_from:
+  - "python:3.11-alpine"
+  - "{{ app_image_name }}:latest"
+
+prod_build_cache_from:
+  - "python:3.11-alpine"
+  - "{{ app_image_name }}:latest"
+  - "{{ registry_url }}/{{ app_image_name }}:stable"
+
+# 镜像构建开关
+build_dev_image: true  # 是否构建开发版本镜像
+build_prod_image: true  # 是否构建生产版本镜像
+
+# 镜像标签配置
+add_image_tags: true  # 是否添加多个标签
+image_tags:
+  - "{{ app_version }}"
+  - "latest"
+  - "stable"
+
+# 仓库配置
+login_to_registry: true  # 是否登录到仓库
+registry_username: "dockeruser"  # 仓库用户名
+registry_password: "SecureDockerPassword123"  # 仓库密码（生产环境请使用 Ansible Vault）
+registry_email: "docker@example.com"  # 仓库邮箱
+push_to_registry: true  # 是否推送到仓库
+push_dev_image: false  # 是否推送开发版本镜像
+
+# 安全扫描配置
+run_security_scan: true  # 是否运行安全扫描
+
+# 清理配置
+old_image_versions:
+  - "v1.0.0"
+  - "v1.1.0"
+  - "v1.2.0"
+cleanup_old_images: true  # 是否清理旧版本镜像
+
+# 验证和显示配置
+verify_images: true  # 是否验证镜像
+get_image_info: true  # 是否获取镜像详细信息
+show_results: true  # 是否显示操作结果摘要
+
+# 应用信息
+app_name: "My Web Application"
+app_description: "基于 Python Flask 的 Web 应用"
+app_author: "DevOps Team"
+
+# 构建环境变量
+build_environment:
+  - "DEBIAN_FRONTEND=noninteractive"
+  - "TZ=Asia/Shanghai"
+  - "LANG=C.UTF-8"
+
+# 重要：这些变量仅用于演示，生产环境请使用 Ansible Vault 或外部配置管理
+# ⚠️ 警告：仓库密码和敏感信息需要安全存储
+# 🔒 安全提示：使用 HTTPS 连接镜像仓库，避免明文传输
+# 📝 注意：镜像标签需要根据实际发布策略调整
+# 🚀 性能优化：使用镜像仓库代理可以加速拉取和推送
+# 🔍 安全审计：建议定期扫描镜像安全漏洞
+# 💾 存储管理：定期清理无用镜像释放存储空间

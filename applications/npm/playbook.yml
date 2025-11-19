@@ -1,0 +1,196 @@
+---
+- name: Node.js 包管理示例演示
+  hosts: all
+  become: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    - name: 确保系统 Node.js 和 npm 已安装
+      ansible.builtin.package:
+        name:
+          - nodejs
+          - npm
+        state: present
+      when: install_system_nodejs | bool
+
+    - name: 安装全局 CLI 工具
+      community.general.npm:
+        name: "{{ global_cli_tools }}"
+        state: present
+        global: true
+      when: install_global_tools | bool
+      register: global_tools_result
+
+    - name: 创建 Node.js 应用目录
+      ansible.builtin.file:
+        path: "{{ app_path }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0755'
+      when: create_app_dir | bool
+
+    - name: 复制 package.json 文件
+      ansible.builtin.template:
+        src: package.json.j2
+        dest: "{{ app_path }}/package.json"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0644'
+      when: create_package_json | bool
+
+    - name: 安装应用核心依赖
+      community.general.npm:
+        name: "{{ core_dependencies }}"
+        path: "{{ app_path }}"
+        state: present
+      when: install_core_deps | bool
+      register: core_deps_result
+
+    - name: 安装开发依赖
+      community.general.npm:
+        name: "{{ development_dependencies }}"
+        path: "{{ app_path }}"
+        state: present
+      when: install_dev_deps | bool
+      register: dev_deps_result
+
+    - name: 从 package.json 安装所有依赖
+      community.general.npm:
+        path: "{{ app_path }}"
+        state: present
+        production: false
+        registry: "{{ npm_registry }}"
+      when: 
+        - install_from_package | bool
+        - package_json_exists | bool
+      register: package_install_result
+
+    - name: 只安装生产环境依赖
+      community.general.npm:
+        path: "{{ app_path }}"
+        state: present
+        production: true
+        registry: "{{ npm_registry }}"
+      when: install_production_only | bool
+      register: production_install_result
+
+    - name: 从 Git 仓库安装开发版本包
+      community.general.npm:
+        name: "{{ git_packages }}"
+        state: present
+        path: "{{ app_path }}"
+      when: install_git_packages | bool
+      register: git_packages_result
+
+    - name: 升级安全相关包到最新版本
+      community.general.npm:
+        name: "{{ security_packages }}"
+        state: latest
+        path: "{{ app_path }}"
+      when: upgrade_security_packages | bool
+      register: security_upgrade_result
+
+    - name: 卸载不需要的开发包
+      community.general.npm:
+        name: "{{ cleanup_packages }}"
+        state: absent
+        path: "{{ app_path }}"
+      when: cleanup_dev_packages | bool
+      register: cleanup_result
+
+    - name: 运行 npm audit 检查安全漏洞
+      ansible.builtin.command: npm audit --audit-level moderate
+      args:
+        chdir: "{{ app_path }}"
+      register: npm_audit
+      failed_when: false
+      when: run_npm_audit | bool
+      changed_when: false
+
+    - name: 显示 npm audit 结果
+      ansible.builtin.debug:
+        var: npm_audit.stdout_lines
+      when: 
+        - run_npm_audit | bool
+        - npm_audit.stdout_lines is defined
+
+    - name: 运行 npm audit 自动修复
+      ansible.builtin.command: npm audit fix
+      args:
+        chdir: "{{ app_path }}"
+      when: 
+        - run_npm_audit_fix | bool
+        - npm_audit.rc != 0
+      register: audit_fix_result
+
+    - name: 构建前端应用
+      ansible.builtin.command: npm run build
+      args:
+        chdir: "{{ app_path }}"
+      when: 
+        - build_app | bool
+        - package_json_exists | bool
+      register: build_result
+
+    - name: 显示包管理操作结果
+      ansible.builtin.debug:
+        msg: |
+          Node.js 包管理操作结果摘要:
+          - 全局工具安装: {{ '成功' if global_tools_result.changed else '无变更' }}
+          - 核心依赖安装: {{ '成功' if core_deps_result.changed else '无变更' }}
+          - 开发依赖安装: {{ '成功' if dev_deps_result.changed else '无变更' }}
+          - Package.json 安装: {{ '成功' if package_install_result.changed else '无变更' }}
+          - 生产依赖安装: {{ '成功' if production_install_result.changed else '无变更' }}
+          - Git 包安装: {{ '成功' if git_packages_result.changed else '无变更' }}
+          - 安全包升级: {{ '成功' if security_upgrade_result.changed else '无变更' }}
+          - 清理操作: {{ '成功' if cleanup_result.changed else '无变更' }}
+          - 应用构建: {{ '成功' if build_result.changed else '无变更' }}
+      when: show_results | bool
+
+    - name: 检查已安装的包列表
+      ansible.builtin.command: npm list --depth=0
+      args:
+        chdir: "{{ app_path }}"
+      register: npm_list
+      when: verify_installation | bool
+      changed_when: false
+
+    - name: 显示已安装的包
+      ansible.builtin.debug:
+        var: npm_list.stdout_lines
+      when: 
+        - verify_installation | bool
+        - npm_list.stdout_lines is defined
+
+    - name: 创建应用启动脚本
+      ansible.builtin.template:
+        src: start_app.j2
+        dest: "{{ app_path }}/start.sh"
+        mode: '0755'
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+      when: create_start_script | bool
+
+    - name: 设置应用目录权限
+      ansible.builtin.file:
+        path: "{{ app_path }}"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0755'
+        recurse: true
+      when: set_permissions | bool
+
+  handlers:
+    - name: 重启 Node.js 应用
+      ansible.builtin.systemd:
+        name: "{{ app_service_name }}"
+        state: restarted
+      listen: restart nodejs app
+
+    - name: 清理 node_modules
+      ansible.builtin.file:
+        path: "{{ app_path }}/node_modules"
+        state: absent
+      listen: cleanup node_modules

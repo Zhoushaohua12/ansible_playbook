@@ -1,0 +1,283 @@
+---
+- name: GitLab 项目管理示例演示
+  hosts: all
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    - name: 创建开发团队项目
+      community.general.gitlab_project:
+        api_url: "{{ gitlab_api_url }}"
+        api_token: "{{ gitlab_token }}"
+        name: "{{ dev_project_name }}"
+        group: "{{ dev_group }}"
+        description: "{{ dev_project_description }}"
+        visibility: "{{ dev_visibility }}"
+        issues_enabled: true
+        wiki_enabled: true
+        merge_requests_enabled: true
+        builds_enabled: true
+        request_access_enabled: true
+        state: present
+      when: create_dev_project | bool
+      register: dev_project_result
+
+    - name: 创建测试团队项目
+      community.general.gitlab_project:
+        api_url: "{{ gitlab_api_url }}"
+        api_token: "{{ gitlab_token }}"
+        name: "{{ test_project_name }}"
+        group: "{{ test_group }}"
+        description: "{{ test_project_description }}"
+        visibility: "{{ test_visibility }}"
+        issues_enabled: true
+        wiki_enabled: false
+        merge_requests_enabled: true
+        builds_enabled: true
+        request_access_enabled: false
+        state: present
+      when: create_test_project | bool
+      register: test_project_result
+
+    - name: 创建生产团队项目
+      community.general.gitlab_project:
+        api_url: "{{ gitlab_api_url }}"
+        api_token: "{{ gitlab_token }}"
+        name: "{{ prod_project_name }}"
+        group: "{{ prod_group }}"
+        description: "{{ prod_project_description }}"
+        visibility: "{{ prod_visibility }}"
+        issues_enabled: false
+        wiki_enabled: false
+        merge_requests_enabled: true
+        builds_enabled: true
+        request_access_enabled: false
+        only_allow_merge_if_pipeline_succeeds: true
+        only_allow_merge_if_all_discussions_are_resolved: true
+        state: present
+      when: create_prod_project | bool
+      register: prod_project_result
+
+    - name: 创建 CI/CD 模板项目
+      community.general.gitlab_project:
+        api_url: "{{ gitlab_api_url }}"
+        api_token: "{{ gitlab_token }}"
+        name: "{{ cicd_template_name }}"
+        group: "{{ templates_group }}"
+        description: "{{ cicd_template_description }}"
+        visibility: internal
+        issues_enabled: true
+        wiki_enabled: true
+        merge_requests_enabled: true
+        builds_enabled: true
+        request_access_enabled: true
+        state: present
+      when: create_cicd_template | bool
+      register: cicd_template_result
+
+    - name: 创建文档项目
+      community.general.gitlab_project:
+        api_url: "{{ gitlab_api_url }}"
+        api_token: "{{ gitlab_token }}"
+        name: "{{ docs_project_name }}"
+        group: "{{ docs_group }}"
+        description: "{{ docs_project_description }}"
+        visibility: public
+        issues_enabled: true
+        wiki_enabled: true
+        merge_requests_enabled: false
+        builds_enabled: false
+        request_access_enabled: true
+        state: present
+      when: create_docs_project | bool
+      register: docs_project_result
+
+    - name: 批量创建团队微服务项目
+      community.general.gitlab_project:
+        api_url: "{{ gitlab_api_url }}"
+        api_token: "{{ gitlab_token }}"
+        name: "{{ item.name }}"
+        group: "{{ item.group }}"
+        description: "{{ item.description }}"
+        visibility: "{{ item.visibility }}"
+        issues_enabled: "{{ item.issues_enabled }}"
+        wiki_enabled: "{{ item.wiki_enabled }}"
+        merge_requests_enabled: "{{ item.merge_requests_enabled }}"
+        builds_enabled: "{{ item.builds_enabled }}"
+        request_access_enabled: "{{ item.request_access_enabled }}"
+        only_allow_merge_if_pipeline_succeeds: "{{ item.only_allow_merge_if_pipeline_succeeds }}"
+        state: present
+      loop: "{{ microservice_projects }}"
+      when: create_microservice_projects | bool
+      loop_control:
+        label: "{{ item.name }}"
+      register: microservice_results
+
+    - name: 从外部仓库导入项目
+      community.general.gitlab_project:
+        api_url: "{{ gitlab_api_url }}"
+        api_token: "{{ gitlab_token }}"
+        name: "{{ import_project_name }}"
+        group: "{{ import_group }}"
+        description: "{{ import_project_description }}"
+        import_url: "{{ import_repo_url }}"
+        visibility: private
+        issues_enabled: true
+        wiki_enabled: true
+        merge_requests_enabled: true
+        builds_enabled: true
+        state: present
+      when: import_external_project | bool
+      register: import_project_result
+
+    - name: 创建项目模板
+      community.general.gitlab_project:
+        api_url: "{{ gitlab_api_url }}"
+        api_token: "{{ gitlab_token }}"
+        name: "{{ item.name }}"
+        group: "{{ templates_group }}"
+        description: "{{ item.description }}"
+        visibility: internal
+        issues_enabled: true
+        wiki_enabled: true
+        merge_requests_enabled: true
+        builds_enabled: true
+        request_access_enabled: true
+        state: present
+      loop: "{{ template_projects }}"
+      when: create_template_projects | bool
+      loop_control:
+        label: "{{ item.name }}"
+      register: template_results
+
+    - name: 更新项目配置
+      community.general.gitlab_project:
+        api_url: "{{ gitlab_api_url }}"
+        api_token: "{{ gitlab_token }}"
+        name: "{{ update_project_name }}"
+        group: "{{ update_group }}"
+        description: "{{ updated_description }}"
+        visibility: "{{ updated_visibility }}"
+        only_allow_merge_if_pipeline_succeeds: true
+        only_allow_merge_if_all_discussions_are_resolved: true
+        state: present
+      when: update_project_config | bool
+      register: update_project_result
+
+    - name: 获取项目信息
+      community.general.gitlab_project:
+        api_url: "{{ gitlab_api_url }}"
+        api_token: "{{ gitlab_token }}"
+        name: "{{ item.name }}"
+        group: "{{ item.group }}"
+        state: present
+      loop: "{{ projects_to_check }}"
+      when: get_project_info | bool
+      loop_control:
+        label: "{{ item.name }}"
+      register: project_info_results
+
+    - name: 显示 GitLab 项目管理操作结果
+      ansible.builtin.debug:
+        msg: |
+          GitLab 项目管理操作结果摘要:
+          - 开发团队项目: {{ '成功创建' if dev_project_result.changed else '无变更' }}
+          - 测试团队项目: {{ '成功创建' if test_project_result.changed else '无变更' }}
+          - 生产团队项目: {{ '成功创建' if prod_project_result.changed else '无变更' }}
+          - CI/CD 模板项目: {{ '成功创建' if cicd_template_result.changed else '无变更' }}
+          - 文档项目: {{ '成功创建' if docs_project_result.changed else '无变更' }}
+          - 微服务项目: {{ '成功创建' if (microservice_results.results | selectattr('changed') | list | count > 0) else '无变更' }}
+          - 外部导入项目: {{ '成功创建' if import_project_result.changed else '无变更' }}
+          - 模板项目: {{ '成功创建' if (template_results.results | selectattr('changed') | list | count > 0) else '无变更' }}
+          - 项目配置更新: {{ '成功更新' if update_project_result.changed else '无变更' }}
+      when: show_results | bool
+
+    - name: 显示项目详细信息
+      ansible.builtin.debug:
+        msg: |
+          项目 {{ item.item.name }} 详细信息:
+          - 项目ID: {{ item.project.id }}
+          - 名称: {{ item.project.name }}
+          - 路径: {{ item.project.path }}
+          - 描述: {{ item.project.description }}
+          - 可见性: {{ item.project.visibility }}
+          - URL: {{ item.project.web_url }}
+          - 创建时间: {{ item.project.created_at }}
+          - 最后更新: {{ item.project.last_activity_at }}
+          - Issues 启用: {{ item.project.issues_enabled }}
+          - Wiki 启用: {{ item.project.wiki_enabled }}
+          - 合并请求启用: {{ item.project.merge_requests_enabled }}
+          - CI/CD 启用: {{ item.project.builds_enabled }}
+      loop: "{{ project_info_results.results }}"
+      when: 
+        - get_project_info | bool
+        - project_info_results.results is defined
+        - item.project is defined
+      loop_control:
+        label: "{{ item.item.name }}"
+
+    - name: 显示微服务项目创建结果
+      ansible.builtin.debug:
+        msg: |
+          微服务项目 {{ item.item.name }} 创建结果:
+          - 状态: {{ '成功' if item.changed else '已存在' }}
+          - 项目ID: {{ item.project.id if item.project is defined else '未知' }}
+          - URL: {{ item.project.web_url if item.project is defined else '未知' }}
+      loop: "{{ microservice_results.results }}"
+      when: 
+        - create_microservice_projects | bool
+        - microservice_results.results is defined
+      loop_control:
+        label: "{{ item.item.name }}"
+
+    - name: 显示模板项目创建结果
+      ansible.builtin.debug:
+        msg: |
+          模板项目 {{ item.item.name }} 创建结果:
+          - 状态: {{ '成功' if item.changed else '已存在' }}
+          - 项目ID: {{ item.project.id if item.project is defined else '未知' }}
+          - URL: {{ item.project.web_url if item.project is defined else '未知' }}
+      loop: "{{ template_results.results }}"
+      when: 
+        - create_template_projects | bool
+        - template_results.results is defined
+      loop_control:
+        label: "{{ item.item.name }}"
+
+    - name: 创建项目配置文件
+      ansible.builtin.template:
+        src: project_config.j2
+        dest: "{{ config_output_path }}/{{ item.name }}_config.yml"
+        mode: '0644'
+      loop: "{{ projects_to_check }}"
+      when: create_config_files | bool
+      loop_control:
+        label: "{{ item.name }}"
+      vars:
+        project_info: "{{ item }}"
+
+    - name: 生成项目报告
+      ansible.builtin.template:
+        src: project_report.j2
+        dest: "{{ report_output_path }}/gitlab_projects_report_{{ ansible_date_time.epoch }}.md"
+        mode: '0644'
+      when: generate_report | bool
+      vars:
+        all_results:
+          dev: dev_project_result
+          test: test_project_result
+          prod: prod_project_result
+          cicd: cicd_template_result
+          docs: docs_project_result
+          import: import_project_result
+          update: update_project_result
+
+  handlers:
+    - name: 清理测试项目
+      community.general.gitlab_project:
+        api_url: "{{ gitlab_api_url }}"
+        api_token: "{{ gitlab_token }}"
+        name: "{{ item }}"
+        state: absent
+      loop: "{{ test_projects_to_cleanup }}"
+      listen: cleanup test projects
