@@ -1,0 +1,48 @@
+- name: AWS EC2 Dry Run 演练
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 显示 Dry Run 规划摘要
+      ansible.builtin.debug:
+        msg: |
+          即将在 {{ aws_region }} 区域检查 EC2 计划：
+          - 名称: {{ aws_instance_name }}
+          - 规格: {{ aws_instance_type }}
+          - 子网: {{ aws_subnet_id }}
+          - 安全组: {{ aws_security_groups | join(', ') }}
+          请确保 AWS Profile {{ aws_profile }} 已配置只读或 Dry Run 权限。
+
+    - name: 使用 community.aws.ec2_instance 预览实例创建（不会真实执行）
+      community.aws.ec2_instance:
+        name: "{{ aws_instance_name }}"
+        instance_type: "{{ aws_instance_type }}"
+        image_id: "{{ aws_ami_id }}"
+        key_name: "{{ aws_key_name }}"
+        profile: "{{ aws_profile }}"
+        region: "{{ aws_region }}"
+        network:
+          assign_public_ip: {{ aws_assign_public_ip }}
+          subnet_id: "{{ aws_subnet_id }}"
+          security_groups: {{ aws_security_groups }}
+        volumes:
+          - device_name: /dev/xvda
+            ebs:
+              volume_size: {{ aws_volume_size }}
+              volume_type: "{{ aws_volume_type }}"
+              delete_on_termination: true
+        wait: false
+        tags: {{ aws_tags }}
+        state: running
+      check_mode: true
+      no_log: true
+
+    - name: 输出后续操作建议
+      ansible.builtin.debug:
+        msg: |
+          Dry Run 已完成。若要真正创建实例：
+          1. 使用 ansible-vault 加密 vars/example_vars.yml。
+          2. 取消 playbook 中的 check_mode: true。
+          3. 执行 ansible-playbook playbook.yml -e aws_profile={{ aws_profile }}。

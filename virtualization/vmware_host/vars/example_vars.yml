@@ -1,0 +1,19 @@
+# ⚠️ 生产 vCenter 凭证请使用 Vault/Secret Manager；以下值为占位符
+# ansible-vault encrypt virtualization/vmware_host/vars/example_vars.yml
+
+vmware_hostname: vcenter.lab.local
+vmware_username: svc-ansible@vsphere.local
+vmware_password: "REPLACE_WITH_VAULT_SECRET"
+vmware_validate_certs: false
+
+vmware_esxi_hostname: esxi-01.lab.local
+vmware_cluster_name: Lab-Cluster
+vmware_datacenter_name: Lab-DC
+vmware_host_state: present  # 也可设置为 maintenance / absent
+vmware_maintenance_mode: false
+vmware_license_key: AAAAA-BBBBB-CCCCC-DDDDD-EEEEE  # 仅示例，请勿提交真实许可
+
+# 📌 安全提示
+# - 为 ansible 用户创建自定义 RBAC 角色，仅包含主机纳管/维护所需权限。
+# - 建议使用 `{{ lookup('env','VMWARE_PASSWORD') }}` 或 Vault 变量，而非明文。
+# - Dry Run 默认启用 check_mode；真实操作前需在维护窗口再执行一次。

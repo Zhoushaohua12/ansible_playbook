@@ -1,0 +1,35 @@
+- name: qemu_img 镜像 Dry Run 演练
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 显示镜像规划
+      ansible.builtin.debug:
+        msg: |
+          即将使用 qemu-img 检查镜像：
+            - 源: {{ qemu_img_src }}
+            - 目标: {{ qemu_img_dest }}
+            - 目标格式: {{ qemu_img_format }} / 大小 {{ qemu_img_size }}
+            - Backing File: {{ qemu_img_backing_file | default('无') }}
+          请在安全目录中操作，避免覆盖生产镜像。
+
+    - name: 使用 community.general.qemu_img 预演命令
+      community.general.qemu_img:
+        src: "{{ qemu_img_src }}"
+        dest: "{{ qemu_img_dest }}"
+        format: "{{ qemu_img_format }}"
+        size: "{{ qemu_img_size }}"
+        backing_file: "{{ qemu_img_backing_file }}"
+        state: present
+        force: {{ qemu_img_force }}
+      check_mode: true
+      no_log: true
+
+    - name: 提示空间与备份要求
+      ansible.builtin.debug:
+        msg: |
+          Dry Run 完成：
+          - 执行前请确认磁盘空间与备份策略。
+          - 将 vars/example_vars.yml 加密后再在团队内部分享。

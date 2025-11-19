@@ -1,0 +1,37 @@
+- name: VMware Host Dry Run 演练
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 汇总即将验证的 ESXi 主机
+      ansible.builtin.debug:
+        msg: |
+          连接 vCenter {{ vmware_hostname }} 以检查主机:
+            - ESXi: {{ vmware_esxi_hostname }}
+            - 目标集群: {{ vmware_cluster_name }} / 数据中心 {{ vmware_datacenter_name }}
+            - 计划状态: {{ vmware_host_state }}
+          所有凭证应由 Vault 或 Secret Manager 注入，切勿在仓库中存放明文。
+
+    - name: 使用 community.vmware.vmware_host 进行 Dry Run
+      community.vmware.vmware_host:
+        hostname: "{{ vmware_hostname }}"
+        username: "{{ vmware_username }}"
+        password: "{{ vmware_password }}"
+        validate_certs: {{ vmware_validate_certs }}
+        esxi_hostname: "{{ vmware_esxi_hostname }}"
+        cluster_name: "{{ vmware_cluster_name }}"
+        datacenter: "{{ vmware_datacenter_name }}"
+        state: "{{ vmware_host_state }}"
+        maintenance_mode: {{ vmware_maintenance_mode }}
+        license: "{{ vmware_license_key }}"
+      check_mode: true
+      no_log: true
+
+    - name: 输出安全提醒
+      ansible.builtin.debug:
+        msg: |
+          Dry Run 结束：
+          - 仅在变更窗口移除 check_mode。
+          - 建议使用具有限定权限的服务账号，并在 vCenter 上启用审计日志。

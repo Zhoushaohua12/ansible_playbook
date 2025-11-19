@@ -453,3 +453,89 @@ network:
        summary: "端口可用性和服务就绪监控，支持集群协调、滚动更新和多服务依赖场景"
        external_deps:
          - "ansible.builtin collection（wait_for 内置模块）"
+cloud:
+  title: 云资源管理
+  description: "涵盖 AWS、Azure、GCP、OpenStack、阿里云等云平台的 Dry Run 示例，强调依赖安装、认证方式与 Vault 管理"
+  external_dependencies:
+    - "community.aws、azure.azcollection、google.cloud、openstack.cloud、alibaba.cloud collections"
+    - "Python SDK：boto3、azure-identity、google-auth、openstacksdk、aliyun-python-sdk-core"
+    - "CLI/配置：aws configure、az login、gcloud auth、clouds.yaml、RAM 临时凭证"
+  topics:
+    - id: aws_ec2
+      name: AWS EC2 Dry Run
+      doc: cloud/aws_ec2/README.md
+      example: cloud/aws_ec2/playbook.yml
+      summary: "使用 community.aws.ec2_instance Dry Run 规划实例、网络与标签，结合 Vault 保护凭证"
+      external_deps:
+        - "community.aws collection"
+        - "boto3/botocore"
+        - "AWS CLI profile 或 IAM Role"
+    - id: azure_vm
+      name: Azure VM Dry Run
+      doc: cloud/azure_vm/README.md
+      example: cloud/azure_vm/playbook.yml
+      summary: "基于 Service Principal 在 check_mode 下定义 Azure VM、磁盘与 NIC，附带认证指南"
+      external_deps:
+        - "azure.azcollection"
+        - "azure-identity & azure-mgmt-compute"
+    - id: gcp_compute
+      name: GCP Compute Engine 演练
+      doc: cloud/gcp_compute/README.md
+      example: cloud/gcp_compute/playbook.yml
+      summary: "借助 google.cloud.gcp_compute_instance Dry Run 验证服务账号、VPC 与标签策略"
+      external_deps:
+        - "google.cloud collection"
+        - "google-auth 及 Service Account JSON"
+    - id: openstack_server
+      name: OpenStack Server 演练
+      doc: cloud/openstack_server/README.md
+      example: cloud/openstack_server/playbook.yml
+      summary: "使用 openstack.cloud.server 结合 clouds.yaml Dry Run 实例定义"
+      external_deps:
+        - "openstack.cloud collection"
+        - "openstacksdk"
+        - "clouds.yaml 或 Application Credential"
+    - id: aliyun_ecs
+      name: 阿里云 ECS 演练
+      doc: cloud/aliyun_ecs/README.md
+      example: cloud/aliyun_ecs/playbook.yml
+      summary: "通过 alibaba.cloud.ali_ecs 规划 ECS 规格、VSwitch、标签，强调 RAM 凭证安全"
+      external_deps:
+        - "alibaba.cloud collection"
+        - "aliyun-python-sdk-core"
+        - "RAM 访问密钥或 STS Token"
+
+virtualization:
+  title: 虚拟化与私有云模板
+  description: "聚焦本地 libvirt、qemu-img 及 VMware vSphere 的 Dry Run 示例，衔接云资源与线下集群"
+  external_dependencies:
+    - "community.libvirt、community.vmware、community.general collections"
+    - "libvirt-daemon、qemu-kvm、qemu-img 系统工具"
+    - "pyvmomi、libvirt-python 等 Python 库"
+  topics:
+    - id: libvirt_domain
+      name: libvirt Domain 模板
+      doc: virtualization/libvirt_domain/README.md
+      example: virtualization/libvirt_domain/playbook.yml
+      summary: "使用 community.libvirt.libvirt_domain Dry Run 渲染 XML、定义本地 KVM 虚拟机"
+      external_deps:
+        - "community.libvirt collection"
+        - "libvirt-daemon / qemu-kvm"
+    - id: vmware_host
+      name: VMware Host 管理
+      doc: virtualization/vmware_host/README.md
+      example: virtualization/vmware_host/playbook.yml
+      summary: "借助 community.vmware.vmware_host 演练主机纳管、维护模式与证书验证"
+      external_deps:
+        - "community.vmware collection"
+        - "pyvmomi"
+        - "vCenter API 访问权限"
+    - id: qemu_img
+      name: qemu-img 镜像管理
+      doc: virtualization/qemu_img/README.md
+      example: virtualization/qemu_img/playbook.yml
+      summary: "通过 community.general.qemu_img Dry Run 镜像克隆、扩容与格式转换"
+      external_deps:
+        - "community.general collection"
+        - "qemu-img / qemu-utils"
+

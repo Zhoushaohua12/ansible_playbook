@@ -1,0 +1,14 @@
+# ⚠️ 仅在测试目录中使用以下路径；切勿直接指向生产镜像
+# 建议在执行前创建 loopback 或临时目录，例如 /srv/qemu-lab
+
+qemu_img_src: /srv/qemu-lab/base.qcow2
+qemu_img_dest: /srv/qemu-lab/app01.qcow2
+qemu_img_format: qcow2
+qemu_img_size: 20G
+qemu_img_backing_file: /srv/qemu-lab/base.qcow2  # 若无 backing file，可留空
+qemu_img_force: false
+
+# 📌 安全提示
+# - 将真实镜像/备份路径保存在 Vault 或受控存储，避免仓库泄露。
+# - 执行前确认磁盘空间充足，并在 Dry Run 后再移除 check_mode。
+# - 若需要转换到 vmdk/vhd，请只在隔离环境测试。

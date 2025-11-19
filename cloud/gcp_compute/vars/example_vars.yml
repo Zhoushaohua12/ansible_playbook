@@ -1,0 +1,30 @@
+# ⚠️ GCP Service Account JSON 不应直接存入仓库
+# 建议：
+#   export GCP_SERVICE_ACCOUNT_FILE=/secure/path/sa.json
+#   ansible-playbook playbook.yml --check -e "gcp_service_account_file=$GCP_SERVICE_ACCOUNT_FILE"
+
+gcp_service_account_file: /secure/path/REPLACE_service_account.json  # 示例：{{ lookup('env','GCP_SA_FILE') }}
+gcp_project: ansible-lab
+gcp_zone: asia-southeast2-a
+
+gcp_instance_name: gce-dry-run
+gcp_machine_type: e2-standard-2
+gcp_disk_image: projects/debian-cloud/global/images/family/debian-11
+gcp_disk_size_gb: 20
+
+gcp_network: default
+gcp_subnetwork: default
+
+gcp_tags:
+  - ssh
+  - http
+
+gcp_labels:
+  env: demo
+  owner: sre
+  managed_by: ansible
+
+# 📌 安全提示
+# - Service Account 至少需要 roles/compute.instanceAdmin.v1 + roles/iam.serviceAccountUser，且应限制在演练项目。
+# - 若 JSON 需要随仓库存储，请务必使用 ansible-vault 加密，并限定读取权限。
+# - Dry Run 默认启用 check_mode，真实执行请务必确认配额与费用。

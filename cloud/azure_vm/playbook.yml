@@ -1,0 +1,53 @@
+- name: Azure VM Dry Run 演练
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 输出 Azure Dry Run 规划
+      ansible.builtin.debug:
+        msg: |
+          资源组 {{ azure_resource_group }} 将创建/检查 VM:
+          - 名称: {{ azure_vm_name }}
+          - 区域: {{ azure_location }}
+          - 规格: {{ azure_vm_size }}
+          - 映像: {{ azure_image_publisher }}/{{ azure_image_offer }}/{{ azure_image_sku }}
+          请确认 Service Principal 拥有最小权限，并在 Vault 中保护 client_secret。
+
+    - name: 预演创建/更新 Azure VM（不会真实执行）
+      azure.azcollection.azure_rm_virtualmachine:
+        subscription_id: "{{ azure_subscription_id }}"
+        tenant: "{{ azure_tenant_id }}"
+        client_id: "{{ azure_client_id }}"
+        secret: "{{ azure_client_secret }}"
+        resource_group: "{{ azure_resource_group }}"
+        name: "{{ azure_vm_name }}"
+        location: "{{ azure_location }}"
+        vm_size: "{{ azure_vm_size }}"
+        admin_username: "{{ azure_admin_username }}"
+        admin_password: "{{ azure_admin_password }}"
+        state: present
+        image:
+          publisher: "{{ azure_image_publisher }}"
+          offer: "{{ azure_image_offer }}"
+          sku: "{{ azure_image_sku }}"
+          version: "{{ azure_image_version }}"
+        os_disk_size_gb: {{ azure_os_disk_size }}
+        tags: {{ azure_tags }}
+        network_interface_names:
+          - "{{ azure_nic_name }}"
+        virtual_network_name: "{{ azure_virtual_network }}"
+        subnet_name: "{{ azure_subnet_name }}"
+        assign_identity: false
+        public_ip_allocation_method: "{{ azure_public_ip_allocation_method }}"
+      check_mode: true
+      no_log: true
+
+    - name: 提示后续执行方式
+      ansible.builtin.debug:
+        msg: |
+          Dry Run 结束。若需真实创建：
+          1. 使用 ansible-vault 加密 vars/example_vars.yml。
+          2. 将 Service Principal 权限收敛到指定资源组。
+          3. 运行 ansible-playbook playbook.yml -e state=present（移除 check_mode: true）。

@@ -1,0 +1,29 @@
+# ⚠️ 本文件仅用于教学，请勿填写真实 Access Key；上线前请执行：
+# ansible-vault encrypt cloud/aws_ec2/vars/example_vars.yml
+
+# ========== AWS Profile 与 Region ==========
+aws_profile: demo-profile  # 建议使用配置在 ~/.aws/credentials 中的只读 profile
+aws_region: ap-southeast-1
+
+# ========== EC2 基础参数 ==========
+aws_instance_name: ansible-dry-run-ec2
+aws_instance_type: t3.small
+aws_ami_id: ami-0REPLACE_ME  # 使用公共 AMI，切勿提交自定义镜像 ID
+aws_key_name: demo-keypair
+aws_subnet_id: subnet-0abc123456789def0
+aws_security_groups:
+  - sg-0abc123456789def0
+aws_assign_public_ip: false
+
+# ========== 磁盘与标签 ==========
+aws_volume_size: 20  # 单位 GiB，仅用于模拟
+aws_volume_type: gp3
+aws_tags:
+  Env: demo
+  Owner: sre-team
+  Purpose: "DryRun-{{ aws_instance_name }}"
+
+# ========== 安全提示 ==========
+# 1. Access Key/Secret 推荐通过环境变量 (AWS_ACCESS_KEY_ID/SECRET_ACCESS_KEY) 或 Vault 注入。
+# 2. 若必须写入本文件，请使用占位符如 REPLACE_WITH_AWS_KEY，并在运行时通过 -e/--extra-vars 覆盖。
+# 3. Dry Run 以 check_mode: true 执行，即使误运行也不会创建实例，但仍需在受控账号进行实验。
