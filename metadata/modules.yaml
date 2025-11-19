@@ -72,3 +72,36 @@ monitoring:
         - "zabbix-api Python library"
         - "Zabbix Server API 访问权限"
         - "Zabbix Agent 安装配置"
+
+storage:
+  title: 存储与文件系统
+  description: "演示如何在 loopback 设备上练习 mount、lvol、filesystem 等存储模块，并提供安全演练指南"
+  external_dependencies:
+    - "ansible.posix collection (mount)"
+    - "LVM2 与 ansible.builtin.lvol 模块运行所需的系统命令"
+    - "losetup、dd、mkfs.xfs/mkfs.ext4 等磁盘模拟工具"
+  topics:
+    - id: storage_mount
+      name: Loopback 挂载演练
+      doc: storage/mount/README.md
+      example: storage/mount/playbook.yml
+      summary: "使用 ansible.posix.mount 管理临时 fstab 条目并验证挂载参数"
+      external_deps:
+        - "ansible.posix collection"
+        - "dd/losetup 命令"
+    - id: storage_lvol
+      name: LVM 逻辑卷演练
+      doc: storage/lvol/README.md
+      example: storage/lvol/playbook.yml
+      summary: "通过 ansible.builtin.lvol 在模拟 VG 中创建 LV，并结合 check 模式输出结果"
+      external_deps:
+        - "lvm2 套件"
+        - "ansible.builtin.lvol 模块"
+    - id: storage_filesystem
+      name: 文件系统格式化演练
+      doc: storage/filesystem/README.md
+      example: storage/filesystem/playbook.yml
+      summary: "借助 ansible.builtin.filesystem 在 loopback 设备上预览 mkfs 操作"
+      external_deps:
+        - "mkfs.xfs 或 mkfs.ext4 命令"
+        - "ansible.builtin.filesystem 模块"

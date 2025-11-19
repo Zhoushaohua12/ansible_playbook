@@ -1,0 +1,61 @@
+---
+# ⚠️ 警告：lvol 示例仅供学习 LVM 参数，请勿在生产环境直接执行真实卷组操作。
+- name: 使用 lvol 模块模拟创建逻辑卷流程
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 确认当前运行在 --check 模式
+      ansible.builtin.assert:
+        that:
+          - ansible_check_mode | bool
+        fail_msg: "请通过 ansible-playbook --check 运行，避免在无备份情况下改写 VG/LV"
+        success_msg: "检测到 --check，以下任务仅展示将要执行的操作"
+
+    - name: 输出逻辑卷演练的安全提示
+      ansible.builtin.debug:
+        msg: "本任务会展示 dd、losetup、lvol 的顺序，务必确保真实环境已备份 VG 元数据"
+
+    - name: 创建 LVM 实验目录
+      ansible.builtin.file:
+        path: "{{ lvm_work_dir }}"
+        state: directory
+        mode: "0700"
+
+    - name: 使用 command + loop 描述 pvcreate/vgcreate 过程
+      ansible.builtin.command: "{{ item }}"
+      args:
+        warn: false
+      loop:
+        - "dd if=/dev/zero of={{ lvm_loop_file }} bs=1M count={{ lvm_loop_size_mb }} status=none"
+        - "losetup --find --show {{ lvm_loop_file }}"
+        - "pvcreate {{ lvm_loop_device }} --yes"
+        - "vgcreate {{ lvm_vg_name }} {{ lvm_loop_device }}"
+      register: lvm_prep_commands
+      changed_when: false
+      failed_when: false
+
+    - name: 记录 LVM 准备命令输出
+      ansible.builtin.debug:
+        msg: "{{ lvm_prep_commands.stdout_lines | default(['在 --check 模式下仅展示计划命令']) }}"
+
+    - name: 在模拟 VG 中创建逻辑卷
+      ansible.builtin.lvol:
+        vg: "{{ lvm_vg_name }}"
+        lv: "{{ lvm_lv_name }}"
+        size: "{{ lvm_lv_size }}"
+        pvs: "{{ lvm_pvs }}"
+        shrink: false
+        force: false
+        state: present
+      check_mode: yes
+      register: lvol_result
+      changed_when: false
+
+    - name: 输出 lvol 模块返回值
+      ansible.builtin.debug:
+        var: lvol_result

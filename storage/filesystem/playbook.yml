@@ -1,0 +1,56 @@
+---
+# ⚠️ 提醒：filesystem 示例会生成/格式化临时镜像，仅供教学演练，请勿直接作用于生产设备。
+- name: 在 loopback 设备上演示 filesystem 模块
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 校验必须处于 --check 模式
+      ansible.builtin.assert:
+        that:
+          - ansible_check_mode | bool
+        fail_msg: "请使用 ansible-playbook --check 运行，防止误格式化真实设备"
+        success_msg: "已确认 --check 模式，以下 mkfs 命令仅做计划展示"
+
+    - name: 输出格式化演练安全提示
+      ansible.builtin.debug:
+        msg: "该 playbook 通过 loopback 镜像演示 mkfs.xfs/mkfs.ext4 流程，请确保重要数据已备份"
+
+    - name: 准备 filesystem 实验目录
+      ansible.builtin.file:
+        path: "{{ fs_work_dir }}"
+        state: directory
+        mode: "0700"
+
+    - name: 使用 command + loop 描述镜像与 losetup 操作
+      ansible.builtin.command: "{{ item }}"
+      args:
+        warn: false
+      loop:
+        - "dd if=/dev/zero of={{ fs_loop_file }} bs=1M count={{ fs_loop_size_mb }} status=none"
+        - "losetup --find --show {{ fs_loop_file }}"
+      register: fs_loopback_preview
+      changed_when: false
+      failed_when: false
+
+    - name: 打印 loopback 命令结果
+      ansible.builtin.debug:
+        msg: "{{ fs_loopback_preview.stdout_lines | default(['当前仅输出计划步骤']) }}"
+
+    - name: 使用 filesystem 模块预览格式化命令
+      ansible.builtin.filesystem:
+        fstype: "{{ fs_fstype }}"
+        dev: "{{ fs_loop_device }}"
+        force: {{ fs_force_format }}
+        opts: "{{ fs_mkfs_options }}"
+      check_mode: yes
+      register: filesystem_preview
+      changed_when: false
+
+    - name: 输出 filesystem 模块返回字段
+      ansible.builtin.debug:
+        var: filesystem_preview
