@@ -1,0 +1,159 @@
+# Apache 虚拟主机配置: {{ apache_server_name }}
+# 由 Ansible 自动生成
+
+{% if apache_enable_https | default(false) %}
+# HTTP 虚拟主机（重定向到 HTTPS）
+<VirtualHost *:80>
+    ServerName {{ apache_server_name }}
+    {% if apache_server_alias is defined %}
+    ServerAlias {{ apache_server_alias }}
+    {% endif %}
+    
+    # 强制跳转到 HTTPS
+    Redirect permanent / https://{{ apache_server_name }}/
+    
+    ErrorLog ${APACHE_LOG_DIR}/{{ apache_server_name }}_error.log
+    CustomLog ${APACHE_LOG_DIR}/{{ apache_server_name }}_access.log combined
+</VirtualHost>
+
+# HTTPS 虚拟主机
+<VirtualHost *:443>
+    ServerName {{ apache_server_name }}
+    {% if apache_server_alias is defined %}
+    ServerAlias {{ apache_server_alias }}
+    {% endif %}
+    ServerAdmin {{ apache_server_admin | default('webmaster@localhost') }}
+    
+    # SSL 引擎配置
+    SSLEngine on
+    SSLCertificateFile {{ apache_ssl_certificate }}
+    SSLCertificateKeyFile {{ apache_ssl_certificate_key }}
+    {% if apache_ssl_certificate_chain is defined %}
+    SSLCertificateChainFile {{ apache_ssl_certificate_chain }}
+    {% endif %}
+    
+    # SSL 协议和加密套件
+    SSLProtocol -all +TLSv1.2 +TLSv1.3
+    SSLCipherSuite HIGH:!aNULL:!MD5
+    SSLHonorCipherOrder on
+    
+    # HSTS（强制浏览器使用 HTTPS）
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+{% else %}
+# HTTP 虚拟主机
+<VirtualHost *:80>
+    ServerName {{ apache_server_name }}
+    {% if apache_server_alias is defined %}
+    ServerAlias {{ apache_server_alias }}
+    {% endif %}
+    ServerAdmin {{ apache_server_admin | default('webmaster@localhost') }}
+{% endif %}
+    
+{% if apache_site_type == 'static' %}
+    # 静态站点配置
+    DocumentRoot {{ apache_document_root }}
+    
+    <Directory {{ apache_document_root }}>
+        # 禁止目录浏览，允许符号链接
+        Options -Indexes +FollowSymLinks
+        
+        # 允许 .htaccess 覆盖配置
+        AllowOverride {{ apache_allow_override | default('All') }}
+        
+        # 访问控制（Apache 2.4 语法）
+        Require all granted
+    </Directory>
+    
+    # 默认首页文件
+    DirectoryIndex index.html index.htm index.php
+    
+{% elif apache_site_type == 'proxy' %}
+    # 反向代理配置
+    ProxyPreserveHost On
+    ProxyTimeout {{ apache_proxy_timeout | default('300') }}
+    
+    # 代理规则
+    ProxyPass / http://{{ apache_proxy_backend_host }}:{{ apache_proxy_backend_port }}/
+    ProxyPassReverse / http://{{ apache_proxy_backend_host }}:{{ apache_proxy_backend_port }}/
+    
+    # 代理权限控制
+    <Proxy *>
+        Require all granted
+    </Proxy>
+    
+    # 传递客户端真实 IP 和协议信息
+    RequestHeader set X-Forwarded-Proto "{{ 'https' if apache_enable_https | default(false) else 'http' }}"
+    RequestHeader set X-Forwarded-Port "{{ '443' if apache_enable_https | default(false) else '80' }}"
+    RequestHeader set X-Real-IP %{REMOTE_ADDR}s
+    
+    {% if apache_serve_static | default(true) %}
+    # 静态资源直接由 Apache 处理（性能优化）
+    ProxyPass /static !
+    ProxyPass /media !
+    
+    Alias /static {{ apache_document_root }}/static
+    Alias /media {{ apache_document_root }}/media
+    
+    <Directory {{ apache_document_root }}/static>
+        Options -Indexes
+        Require all granted
+        
+        # 静态资源缓存
+        <IfModule mod_expires.c>
+            ExpiresActive On
+            ExpiresDefault "access plus 30 days"
+        </IfModule>
+    </Directory>
+    
+    <Directory {{ apache_document_root }}/media>
+        Options -Indexes
+        Require all granted
+        
+        <IfModule mod_expires.c>
+            ExpiresActive On
+            ExpiresDefault "access plus 7 days"
+        </IfModule>
+    </Directory>
+    {% endif %}
+{% endif %}
+    
+    # 日志配置
+    ErrorLog ${APACHE_LOG_DIR}/{{ apache_server_name }}_error.log
+    CustomLog ${APACHE_LOG_DIR}/{{ apache_server_name }}_access.log combined
+    
+    # 日志级别（可选：debug, info, notice, warn, error, crit）
+    LogLevel {{ apache_log_level | default('warn') }}
+    
+    # 安全头配置
+    <IfModule mod_headers.c>
+        # 防止点击劫持攻击
+        Header always set X-Frame-Options "SAMEORIGIN"
+        
+        # 防止 MIME 类型嗅探
+        Header always set X-Content-Type-Options "nosniff"
+        
+        # 启用 XSS 防护
+        Header always set X-XSS-Protection "1; mode=block"
+        
+        # Referrer 策略
+        Header always set Referrer-Policy "no-referrer-when-downgrade"
+    </IfModule>
+    
+    # 禁止访问隐藏文件（安全加固）
+    <FilesMatch "^\.">
+        Require all denied
+    </FilesMatch>
+    
+    # 禁止访问敏感文件
+    <FilesMatch "\.(sql|bak|swp|old|conf|ini)$">
+        Require all denied
+    </FilesMatch>
+    
+    # 自定义错误页面（可选）
+    {% if apache_custom_error_pages | default(false) %}
+    ErrorDocument 404 /404.html
+    ErrorDocument 500 /50x.html
+    {% endif %}
+</VirtualHost>
+
+# vim: syntax=apache ts=4 sw=4 sts=4 sr noet

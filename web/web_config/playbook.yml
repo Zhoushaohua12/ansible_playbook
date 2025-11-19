@@ -1,0 +1,240 @@
+---
+# ⚠️ 教学声明：本 playbook 主要用于学习通用 Web 配置管理，请在测试环境验证后再应用于生产。
+- name: 通用 Web 配置管理（反向代理与静态站点）
+  hosts: web_servers
+  become: yes
+  vars_files:
+    - vars/example_vars.yml
+
+  handlers:
+    - name: 重载 Nginx 服务
+      ansible.builtin.service:
+        name: nginx
+        state: reloaded
+      when: web_server_type == "nginx"
+
+    - name: 重载 Apache 服务
+      ansible.builtin.service:
+        name: apache2
+        state: reloaded
+      when: web_server_type == "apache2"
+
+    - name: 验证 Nginx 配置语法
+      ansible.builtin.command: nginx -t
+      register: nginx_test
+      changed_when: false
+      failed_when: nginx_test.rc != 0
+      when: web_server_type == "nginx"
+
+    - name: 验证 Apache 配置语法
+      ansible.builtin.command: apache2ctl configtest
+      register: apache_test
+      changed_when: false
+      failed_when: apache_test.rc != 0
+      when: web_server_type == "apache2"
+
+  tasks:
+    - name: 检查 Web 服务器类型变量已定义
+      ansible.builtin.assert:
+        that:
+          - web_server_type is defined
+          - web_server_type in ['nginx', 'apache2']
+        fail_msg: "请在变量中定义 web_server_type 为 nginx 或 apache2"
+        success_msg: "已选择 Web 服务器类型: {{ web_server_type }}"
+
+    - name: 设置 Web 服务相关变量
+      ansible.builtin.set_fact:
+        web_service_name: "{{ 'nginx' if web_server_type == 'nginx' else 'apache2' }}"
+        web_config_dir: "{{ '/etc/nginx' if web_server_type == 'nginx' else '/etc/apache2' }}"
+        web_sites_available: "{{ '/etc/nginx/sites-available' if web_server_type == 'nginx' else '/etc/apache2/sites-available' }}"
+        web_sites_enabled: "{{ '/etc/nginx/sites-enabled' if web_server_type == 'nginx' else '/etc/apache2/sites-enabled' }}"
+        web_log_dir: "{{ '/var/log/nginx' if web_server_type == 'nginx' else '/var/log/apache2' }}"
+
+    - name: 显示配置信息
+      ansible.builtin.debug:
+        msg:
+          - "Web 服务器类型: {{ web_server_type }}"
+          - "服务名称: {{ web_service_name }}"
+          - "配置目录: {{ web_config_dir }}"
+          - "日志目录: {{ web_log_dir }}"
+
+    - name: 创建 Web 根目录
+      ansible.builtin.file:
+        path: "{{ web_root }}"
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+
+    - name: 创建静态资源子目录
+      ansible.builtin.file:
+        path: "{{ web_root }}/{{ item }}"
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+      loop:
+        - static
+        - media
+        - images
+
+    - name: 部署反向代理配置（Nginx）
+      ansible.builtin.template:
+        src: templates/proxy_nginx.conf.j2
+        dest: "{{ web_sites_available }}/{{ proxy_domain }}.conf"
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      when:
+        - web_server_type == "nginx"
+        - deployment_type == "proxy"
+      notify:
+        - 验证 Nginx 配置语法
+        - 重载 Nginx 服务
+
+    - name: 部署反向代理配置（Apache）
+      ansible.builtin.template:
+        src: templates/proxy_apache.conf.j2
+        dest: "{{ web_sites_available }}/{{ proxy_domain }}.conf"
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      when:
+        - web_server_type == "apache2"
+        - deployment_type == "proxy"
+      notify:
+        - 验证 Apache 配置语法
+        - 重载 Apache 服务
+
+    - name: 部署静态站点配置（Nginx）
+      ansible.builtin.template:
+        src: templates/static_nginx.conf.j2
+        dest: "{{ web_sites_available }}/{{ static_domain }}.conf"
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      when:
+        - web_server_type == "nginx"
+        - deployment_type == "static"
+      notify:
+        - 验证 Nginx 配置语法
+        - 重载 Nginx 服务
+
+    - name: 部署静态站点配置（Apache）
+      ansible.builtin.template:
+        src: templates/static_apache.conf.j2
+        dest: "{{ web_sites_available }}/{{ static_domain }}.conf"
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      when:
+        - web_server_type == "apache2"
+        - deployment_type == "static"
+      notify:
+        - 验证 Apache 配置语法
+        - 重载 Apache 服务
+
+    - name: 启用站点配置（Nginx - 创建软链接）
+      ansible.builtin.file:
+        src: "{{ web_sites_available }}/{{ item }}.conf"
+        dest: "{{ web_sites_enabled }}/{{ item }}.conf"
+        state: link
+      loop:
+        - "{{ proxy_domain if deployment_type == 'proxy' else static_domain }}"
+      when: web_server_type == "nginx"
+      notify: 重载 Nginx 服务
+
+    - name: 启用站点配置（Apache - 使用 a2ensite）
+      ansible.builtin.command:
+        cmd: "a2ensite {{ item }}.conf"
+        creates: "{{ web_sites_enabled }}/{{ item }}.conf"
+      loop:
+        - "{{ proxy_domain if deployment_type == 'proxy' else static_domain }}"
+      when: web_server_type == "apache2"
+      notify: 重载 Apache 服务
+
+    - name: 部署示例静态页面
+      ansible.builtin.copy:
+        dest: "{{ web_root }}/index.html"
+        content: |
+          <!DOCTYPE html>
+          <html lang="zh-CN">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Web 配置示例</title>
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
+                  h1 { color: #333; }
+                  .info { background: #f4f4f4; padding: 15px; border-left: 4px solid #007bff; }
+              </style>
+          </head>
+          <body>
+              <h1>Web 配置成功！</h1>
+              <div class="info">
+                  <p><strong>部署类型：</strong>{{ deployment_type }}</p>
+                  <p><strong>Web 服务器：</strong>{{ web_server_type }}</p>
+                  <p><strong>域名：</strong>{{ proxy_domain if deployment_type == 'proxy' else static_domain }}</p>
+                  <p><strong>根目录：</strong>{{ web_root }}</p>
+              </div>
+              <p>这是由 Ansible 自动部署的测试页面。</p>
+          </body>
+          </html>
+        owner: www-data
+        group: www-data
+        mode: '0644'
+
+    - name: 配置防火墙规则
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - '80'
+        - '443'
+      when: ansible_os_family == "Debian"
+
+    - name: 确保 Web 服务正在运行
+      ansible.builtin.service:
+        name: "{{ web_service_name }}"
+        state: started
+        enabled: yes
+
+    - name: 等待 Web 服务端口就绪
+      ansible.builtin.wait_for:
+        port: 80
+        delay: 2
+        timeout: 30
+        state: started
+
+    - name: 验证 Web 服务健康状态
+      ansible.builtin.uri:
+        url: "http://localhost"
+        status_code: 200
+        return_content: yes
+      register: health_check
+      changed_when: false
+
+    - name: 输出健康检查结果
+      ansible.builtin.debug:
+        msg:
+          - "HTTP 状态码: {{ health_check.status }}"
+          - "响应大小: {{ health_check.content_length | default('N/A') }} 字节"
+          - "服务器类型: {{ health_check.server | default('N/A') }}"
+
+    - name: 显示部署摘要
+      ansible.builtin.debug:
+        msg:
+          - "==================== 部署摘要 ===================="
+          - "Web 服务器: {{ web_server_type }}"
+          - "部署类型: {{ deployment_type }}"
+          - "域名: {{ proxy_domain if deployment_type == 'proxy' else static_domain }}"
+          - "Web 根目录: {{ web_root }}"
+          - "配置文件: {{ web_sites_available }}/{{ proxy_domain if deployment_type == 'proxy' else static_domain }}.conf"
+          - "访问日志: {{ web_log_dir }}/{{ proxy_domain if deployment_type == 'proxy' else static_domain }}_access.log"
+          - "错误日志: {{ web_log_dir }}/{{ proxy_domain if deployment_type == 'proxy' else static_domain }}_error.log"
+          - "================================================"

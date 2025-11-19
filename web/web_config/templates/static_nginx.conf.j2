@@ -1,0 +1,124 @@
+# Nginx 静态站点配置: {{ static_domain }}
+# 由 Ansible 自动生成
+
+{% if ssl_enabled | default(false) %}
+# HTTP 服务器（重定向到 HTTPS）
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{ static_domain }};
+    
+    return 301 https://$server_name$request_uri;
+}
+
+# HTTPS 静态站点服务器
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name {{ static_domain }};
+    
+    # SSL 证书配置
+    ssl_certificate {{ ssl_certificate_path }};
+    ssl_certificate_key {{ ssl_certificate_key_path }};
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+    
+    # HSTS 安全头
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+{% else %}
+# HTTP 静态站点服务器
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{ static_domain }};
+{% endif %}
+    
+    # 网站根目录
+    root {{ web_root }};
+    
+    # 默认首页文件
+    index {{ static_index_files | default(['index.html', 'index.htm']) | join(' ') }};
+    
+    # 字符编码
+    charset utf-8;
+    
+    # 日志配置
+    access_log /var/log/nginx/{{ static_domain }}_access.log;
+    error_log /var/log/nginx/{{ static_domain }}_error.log warn;
+    
+    # 主 location 配置
+    location / {
+        # 尝试按顺序匹配文件、目录，最后返回 404
+        try_files $uri $uri/ =404;
+        
+        {% if static_cache_enabled | default(true) %}
+        # HTML 文件短期缓存
+        location ~* \.(html|htm)$ {
+            expires 1h;
+            add_header Cache-Control "public, must-revalidate";
+        }
+        {% endif %}
+    }
+    
+    {% if static_cache_enabled | default(true) %}
+    # CSS 和 JavaScript 长期缓存
+    location ~* \.(css|js)$ {
+        expires {{ static_cache_duration | default('30d') }};
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+    
+    # 图片和字体长期缓存
+    location ~* \.(jpg|jpeg|png|gif|ico|svg|webp|bmp)$ {
+        expires {{ static_cache_duration | default('30d') }};
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+    
+    location ~* \.(woff|woff2|ttf|eot|otf)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+    {% endif %}
+    
+    # Gzip 压缩配置
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1000;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css text/xml text/javascript
+               application/json application/javascript application/xml+rss
+               application/x-javascript image/svg+xml;
+    
+    # 禁止访问隐藏文件
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+    
+    # 禁止访问备份和临时文件
+    location ~* \.(bak|config|sql|old|swp|tmp)$ {
+        deny all;
+    }
+    
+    # 安全响应头
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "no-referrer-when-downgrade" always;
+    
+    # 自定义错误页面
+    error_page 404 /404.html;
+    error_page 500 502 503 504 /50x.html;
+    
+    location = /404.html {
+        internal;
+    }
+    
+    location = /50x.html {
+        internal;
+    }
+}

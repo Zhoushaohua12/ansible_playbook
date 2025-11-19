@@ -1,0 +1,154 @@
+---
+# ⚠️ 教学声明：本 playbook 主要用于学习 Nginx 配置管理，请在测试环境验证后再应用于生产。
+- name: Nginx Web 服务器安装与配置
+  hosts: web_servers
+  become: yes
+  vars_files:
+    - vars/example_vars.yml
+
+  handlers:
+    - name: 重载 Nginx 服务
+      ansible.builtin.service:
+        name: nginx
+        state: reloaded
+
+    - name: 重启 Nginx 服务
+      ansible.builtin.service:
+        name: nginx
+        state: restarted
+
+    - name: 验证 Nginx 配置语法
+      ansible.builtin.command: nginx -t
+      register: nginx_test
+      changed_when: false
+      failed_when: nginx_test.rc != 0
+
+  tasks:
+    - name: 更新 APT 包缓存（Debian/Ubuntu）
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: 安装 Nginx 及相关依赖
+      ansible.builtin.package:
+        name:
+          - nginx
+          - python3-passlib  # 用于生成 htpasswd 文件
+        state: present
+
+    - name: 创建 Nginx 配置目录结构
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      loop:
+        - /etc/nginx/sites-available
+        - /etc/nginx/sites-enabled
+        - /etc/nginx/ssl
+        - "{{ nginx_web_root }}"
+        - /var/log/nginx
+
+    - name: 部署 Nginx 主配置文件
+      ansible.builtin.template:
+        src: templates/nginx.conf.j2
+        dest: /etc/nginx/nginx.conf
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+        validate: 'nginx -t -c %s'
+      notify:
+        - 验证 Nginx 配置语法
+        - 重载 Nginx 服务
+
+    - name: 部署虚拟主机配置文件
+      ansible.builtin.template:
+        src: templates/vhost.conf.j2
+        dest: "/etc/nginx/sites-available/{{ nginx_server_name }}.conf"
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      notify:
+        - 验证 Nginx 配置语法
+        - 重载 Nginx 服务
+
+    - name: 启用虚拟主机配置（创建软链接）
+      ansible.builtin.file:
+        src: "/etc/nginx/sites-available/{{ nginx_server_name }}.conf"
+        dest: "/etc/nginx/sites-enabled/{{ nginx_server_name }}.conf"
+        state: link
+      notify: 重载 Nginx 服务
+
+    - name: 部署示例静态页面
+      ansible.builtin.copy:
+        dest: "{{ nginx_web_root }}/index.html"
+        content: |
+          <!DOCTYPE html>
+          <html lang="zh-CN">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Nginx 测试页面</title>
+          </head>
+          <body>
+              <h1>Nginx 配置成功！</h1>
+              <p>这是由 Ansible 自动部署的测试页面。</p>
+              <p>服务器名称: {{ nginx_server_name }}</p>
+          </body>
+          </html>
+        owner: www-data
+        group: www-data
+        mode: '0644'
+
+    - name: 配置防火墙规则（开放 HTTP 和 HTTPS 端口）
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - '80'
+        - '443'
+      when: ansible_os_family == "Debian"
+
+    - name: 启动 Nginx 服务并设置开机自启
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: 等待 Nginx 端口监听就绪
+      ansible.builtin.wait_for:
+        port: 80
+        delay: 2
+        timeout: 30
+        state: started
+
+    - name: 验证 Nginx HTTP 端点可访问
+      ansible.builtin.uri:
+        url: "http://localhost"
+        status_code: 200
+        return_content: yes
+      register: http_check
+      changed_when: false
+
+    - name: 输出 HTTP 健康检查结果
+      ansible.builtin.debug:
+        msg: "Nginx 运行正常，HTTP 状态码: {{ http_check.status }}"
+
+    - name: 显示 Nginx 服务状态信息
+      ansible.builtin.systemd:
+        name: nginx
+      register: nginx_status
+
+    - name: 输出服务状态摘要
+      ansible.builtin.debug:
+        msg:
+          - "服务名称: {{ nginx_status.name }}"
+          - "运行状态: {{ nginx_status.status.ActiveState }}"
+          - "开机自启: {{ nginx_status.status.UnitFileState }}"
+          - "访问地址: http://{{ nginx_server_name }}"
+          - "日志路径: /var/log/nginx/{{ nginx_server_name }}_access.log"

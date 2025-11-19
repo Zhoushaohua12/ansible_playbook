@@ -1,0 +1,108 @@
+# Apache 安全配置
+# 由 Ansible 自动生成，用于全局安全加固
+
+# 隐藏 Apache 版本和操作系统信息（减少信息泄露）
+ServerTokens Prod
+ServerSignature Off
+
+# 禁用 TRACE 方法（防止 XST 攻击）
+TraceEnable Off
+
+# 限制请求大小（防止大文件上传攻击）
+LimitRequestBody {{ apache_limit_request_body | default('10485760') }}  # 默认 10MB
+
+# 限制请求行和请求头大小
+LimitRequestLine 8190
+LimitRequestFields 100
+LimitRequestFieldSize 8190
+
+# 超时配置（防止慢速攻击）
+Timeout {{ apache_timeout | default('60') }}
+KeepAlive {{ apache_keepalive | default('On') }}
+MaxKeepAliveRequests {{ apache_max_keepalive_requests | default('100') }}
+KeepAliveTimeout {{ apache_keepalive_timeout | default('5') }}
+
+# 禁止目录浏览（全局设置）
+<Directory />
+    Options -Indexes
+    AllowOverride None
+    Require all denied
+</Directory>
+
+# 防止访问版本控制目录
+<DirectoryMatch "/\.git">
+    Require all denied
+</DirectoryMatch>
+
+<DirectoryMatch "/\.svn">
+    Require all denied
+</DirectoryMatch>
+
+# 禁止访问备份文件和敏感文件
+<FilesMatch "\.(bak|config|sql|fla|psd|ini|log|sh|inc|swp|dist)$">
+    Require all denied
+</FilesMatch>
+
+# 启用压缩（mod_deflate）
+<IfModule mod_deflate.c>
+    # 压缩文本类型内容
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css
+    AddOutputFilterByType DEFLATE text/javascript application/javascript application/x-javascript
+    AddOutputFilterByType DEFLATE application/json application/xml application/rss+xml
+    AddOutputFilterByType DEFLATE image/svg+xml
+    
+    # 禁止对已压缩格式再次压缩
+    SetEnvIfNoCase Request_URI \.(?:gif|jpe?g|png|zip|gz|bz2)$ no-gzip
+</IfModule>
+
+# 启用缓存（mod_expires）
+<IfModule mod_expires.c>
+    ExpiresActive On
+    
+    # HTML 文档：1 小时
+    ExpiresByType text/html "access plus 1 hour"
+    
+    # CSS 和 JavaScript：30 天
+    ExpiresByType text/css "access plus 30 days"
+    ExpiresByType application/javascript "access plus 30 days"
+    ExpiresByType text/javascript "access plus 30 days"
+    
+    # 图片：30 天
+    ExpiresByType image/jpeg "access plus 30 days"
+    ExpiresByType image/png "access plus 30 days"
+    ExpiresByType image/gif "access plus 30 days"
+    ExpiresByType image/svg+xml "access plus 30 days"
+    ExpiresByType image/x-icon "access plus 30 days"
+    
+    # 字体：1 年
+    ExpiresByType font/ttf "access plus 1 year"
+    ExpiresByType font/woff "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    
+    # 默认：1 周
+    ExpiresDefault "access plus 1 week"
+</IfModule>
+
+# 安全响应头（全局应用）
+<IfModule mod_headers.c>
+    # 防止点击劫持
+    Header always set X-Frame-Options "SAMEORIGIN"
+    
+    # 防止 MIME 类型嗅探
+    Header always set X-Content-Type-Options "nosniff"
+    
+    # XSS 防护
+    Header always set X-XSS-Protection "1; mode=block"
+    
+    # Content Security Policy（内容安全策略）
+    # 注意：根据实际需求调整策略
+    # Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
+    
+    # Referrer 策略
+    Header always set Referrer-Policy "no-referrer-when-downgrade"
+    
+    # Permissions Policy（权限策略）
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+</IfModule>
+
+# vim: syntax=apache ts=4 sw=4 sts=4 sr noet

@@ -1,0 +1,187 @@
+---
+# ⚠️ 教学声明：本 playbook 主要用于学习 Apache2 配置管理，请在测试环境验证后再应用于生产。
+- name: Apache2 Web 服务器安装与配置
+  hosts: web_servers
+  become: yes
+  vars_files:
+    - vars/example_vars.yml
+
+  handlers:
+    - name: 重载 Apache 服务
+      ansible.builtin.service:
+        name: apache2
+        state: reloaded
+
+    - name: 重启 Apache 服务
+      ansible.builtin.service:
+        name: apache2
+        state: restarted
+
+    - name: 验证 Apache 配置语法
+      ansible.builtin.command: apache2ctl configtest
+      register: apache_test
+      changed_when: false
+      failed_when: apache_test.rc != 0
+
+  tasks:
+    - name: 更新 APT 包缓存（Debian/Ubuntu）
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: 安装 Apache2 及相关依赖
+      ansible.builtin.apt:
+        name:
+          - apache2
+          - apache2-utils
+          - libapache2-mod-wsgi-py3  # Python WSGI 支持
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: 启用 Apache 常用模块
+      ansible.builtin.apache2_module:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - rewrite  # URL 重写模块
+        - ssl  # SSL/TLS 支持
+        - proxy  # 反向代理基础模块
+        - proxy_http  # HTTP 代理支持
+        - headers  # 请求头操作
+        - deflate  # Gzip 压缩
+      notify:
+        - 验证 Apache 配置语法
+        - 重启 Apache 服务
+      when: ansible_os_family == "Debian"
+
+    - name: 创建 Apache 配置目录结构
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      loop:
+        - /etc/apache2/sites-available
+        - /etc/apache2/sites-enabled
+        - /etc/apache2/ssl
+        - "{{ apache_document_root }}"
+        - /var/log/apache2
+
+    - name: 部署 Apache 安全配置文件
+      ansible.builtin.template:
+        src: templates/security.conf.j2
+        dest: /etc/apache2/conf-available/security.conf
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      notify:
+        - 验证 Apache 配置语法
+        - 重载 Apache 服务
+
+    - name: 部署虚拟主机配置文件
+      ansible.builtin.template:
+        src: templates/apache.conf.j2
+        dest: "/etc/apache2/sites-available/{{ apache_server_name }}.conf"
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      notify:
+        - 验证 Apache 配置语法
+        - 重载 Apache 服务
+
+    - name: 启用虚拟主机配置
+      ansible.builtin.command:
+        cmd: "a2ensite {{ apache_server_name }}.conf"
+        creates: "/etc/apache2/sites-enabled/{{ apache_server_name }}.conf"
+      notify: 重载 Apache 服务
+
+    - name: 禁用默认虚拟主机（可选）
+      ansible.builtin.command:
+        cmd: "a2dissite 000-default.conf"
+        removes: "/etc/apache2/sites-enabled/000-default.conf"
+      when: apache_disable_default_site | default(false)
+      notify: 重载 Apache 服务
+
+    - name: 部署示例静态页面
+      ansible.builtin.copy:
+        dest: "{{ apache_document_root }}/index.html"
+        content: |
+          <!DOCTYPE html>
+          <html lang="zh-CN">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Apache2 测试页面</title>
+          </head>
+          <body>
+              <h1>Apache2 配置成功！</h1>
+              <p>这是由 Ansible 自动部署的测试页面。</p>
+              <p>服务器名称: {{ apache_server_name }}</p>
+              <p>文档根目录: {{ apache_document_root }}</p>
+          </body>
+          </html>
+        owner: www-data
+        group: www-data
+        mode: '0644'
+
+    - name: 配置防火墙规则（开放 HTTP 和 HTTPS 端口）
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - '80'
+        - '443'
+      when: ansible_os_family == "Debian"
+
+    - name: 启动 Apache 服务并设置开机自启
+      ansible.builtin.service:
+        name: apache2
+        state: started
+        enabled: yes
+
+    - name: 等待 Apache 端口监听就绪
+      ansible.builtin.wait_for:
+        port: 80
+        delay: 2
+        timeout: 30
+        state: started
+
+    - name: 验证 Apache HTTP 端点可访问
+      ansible.builtin.uri:
+        url: "http://localhost"
+        status_code: 200
+        return_content: yes
+      register: http_check
+      changed_when: false
+
+    - name: 输出 HTTP 健康检查结果
+      ansible.builtin.debug:
+        msg: "Apache 运行正常，HTTP 状态码: {{ http_check.status }}"
+
+    - name: 显示 Apache 服务状态信息
+      ansible.builtin.systemd:
+        name: apache2
+      register: apache_status
+
+    - name: 输出服务状态摘要
+      ansible.builtin.debug:
+        msg:
+          - "服务名称: {{ apache_status.name }}"
+          - "运行状态: {{ apache_status.status.ActiveState }}"
+          - "开机自启: {{ apache_status.status.UnitFileState }}"
+          - "访问地址: http://{{ apache_server_name }}"
+          - "日志路径: /var/log/apache2/{{ apache_server_name }}_access.log"
+
+    - name: 显示已启用的 Apache 模块
+      ansible.builtin.command: apache2ctl -M
+      register: apache_modules
+      changed_when: false
+
+    - name: 输出已启用模块列表
+      ansible.builtin.debug:
+        msg: "{{ apache_modules.stdout_lines }}"
