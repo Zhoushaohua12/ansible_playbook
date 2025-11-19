@@ -1,0 +1,137 @@
+# YUM 软件包管理示例变量配置（Red Hat 系列系统）
+
+# YUM 缓存配置
+yum_cache_retries: 3
+yum_cache_retry_delay: 10
+
+# 基础系统工具包
+base_system_packages:
+  - vim
+  - curl
+  - wget
+  - unzip
+  - tar
+  - htop
+  - lsof
+  - net-tools
+
+# EPEL 仓库配置
+install_epel: true
+
+# Web 服务器配置
+web_server_packages:
+  - nginx
+  - httpd
+web_server_state: "present"  # present, latest, absent
+web_server_repos: "epel"  # 启用的仓库列表
+manage_web_service: true
+web_server_service: "nginx"  # nginx, httpd
+
+# 数据库服务配置
+database_packages:
+  - postgresql-server
+  - postgresql-contrib
+  - mariadb-server
+  - mariadb
+install_database: false
+manage_database_service: true
+database_service: "postgresql"  # postgresql, mariadb
+database_exclude_packages: "kernel*"  # 排除的包
+
+# Python 开发环境
+python_packages:
+  - python3
+  - python3-pip
+  - python3-devel
+  - python3-virtualenv
+  - python3-setuptools
+install_python: true
+
+# 开发工具配置
+install_dev_tools: true
+
+# 版本锁定包（精确版本控制）
+install_version_locked: false
+version_locked_packages:
+  - name: "nginx"
+    version: "1.18.0-1.el8"
+  - name: "postgresql"
+    version: "12.7-1.el8"
+  - name: "redis"
+    version: "6.0.9-1.el8.remi"
+
+# 应用运行时依赖
+app_runtime_dependencies:
+  - redis
+  - git
+  - nodejs
+  - npm
+install_runtime_deps: true
+disable_gpg_for_deps: false
+
+# 安全更新配置
+install_security_updates: false
+
+# 监控工具
+monitoring_tools:
+  - htop
+  - iotop
+  - nethogs
+  - sysstat
+  - vmstat
+install_monitoring: true
+
+# 安全工具
+security_tools:
+  - fail2ban
+  - firewalld
+  - rkhunter
+  - chkrootkit
+  - aide
+install_security_tools: true
+
+# 需要移除的包
+packages_to_remove:
+  - telnet-server
+  - rsh-server
+  - ypserv
+remove_unwanted_packages: false
+autoremove_unwanted: true
+
+# 系统清理配置
+cleanup_system: false
+
+# YUM 自动更新配置
+configure_yum_cron: false
+
+# 安装验证配置
+verify_installation: true
+generate_report: true
+yum_report_path: "/tmp/yum_installation_report.txt"
+
+# 仓库配置示例
+additional_repos:
+  - name: "docker-ce-stable"
+    description: "Docker CE Stable"
+    baseurl: "https://download.docker.com/linux/centos/7/x86_64/stable"
+    gpgcheck: true
+    gpgkey: "https://download.docker.com/linux/centos/gpg"
+    enabled: false
+
+# 软件组管理
+development_groups:
+  - "@Development Tools"
+  - "@Web Server"
+  - "@Database Server"
+  - "@System Administration Tools"
+
+# 版本排除配置
+exclude_packages:
+  - "kernel*"
+  - "glibc*"
+
+# 重要：这些变量仅用于演示，生产环境请根据实际需求调整
+# ⚠️ 警告：软件包版本需要根据目标系统的仓库可用性进行调整
+# 🔒 安全提示：安装软件包前请验证仓库的可靠性和 GPG 密钥
+# 📝 注意：某些软件包可能需要启用额外的仓库（如 EPEL、REMI 等）
+# 🚀 性能提示：在大量安装操作前更新缓存可以提高安装速度

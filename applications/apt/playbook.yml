@@ -1,0 +1,266 @@
+---
+- name: APT 软件包管理示例演示（Debian 系列系统）
+  hosts: all
+  become: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    - name: 检查系统版本和发行版信息
+      ansible.builtin.debug:
+        msg: |
+          系统信息：
+          - 发行版: {{ ansible_distribution }}
+          - 版本: {{ ansible_distribution_version }}
+          - 代号: {{ ansible_distribution_release }}
+          - 架构: {{ ansible_architecture }}
+
+    - name: 更新 APT 缓存（提高安装速度）
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: "{{ apt_cache_valid_time }}"
+        update_cache_retries: "{{ apt_cache_retries }}"
+        update_cache_retry_max_delay: "{{ apt_cache_retry_delay }}"
+      notify: 
+        - apt cache updated
+
+    - name: 升级系统软件包（可选）
+      ansible.builtin.apt:
+        upgrade: dist
+        update_cache: false  # 缓存已更新
+        autoremove: true
+        autoclean: true
+      when: upgrade_system | bool
+      register: system_upgrade
+
+    - name: 安装基础系统工具包
+      ansible.builtin.apt:
+        name: "{{ base_system_packages }}"
+        state: present
+        install_recommends: "{{ install_recommends }}"
+      register: base_tools_install
+      notify: 
+        - base tools installed
+
+    - name: 添加必要的软件源仓库
+      ansible.builtin.apt_repository:
+        repo: "{{ item.repo }}"
+        state: present
+        update_cache: "{{ item.update_cache | default(false) }}"
+      loop: "{{ additional_repositories }}"
+      when: add_repositories | bool
+      register: repo_addition
+
+    - name: 添加第三方软件源（通过 deb 参数）
+      ansible.builtin.apt:
+        deb: "{{ item }}"
+        state: present
+      loop: "{{ deb_repositories }}"
+      when: add_deb_repositories | bool
+      register: deb_repo_addition
+
+    - name: 安装 Web 服务器软件
+      ansible.builtin.apt:
+        name: "{{ web_server_packages }}"
+        state: "{{ web_server_state }}"
+        default_release: "{{ web_server_release }}"
+        install_recommends: "{{ web_server_install_recommends }}"
+      register: web_server_install
+      notify: 
+        - web server installed
+
+    - name: 安装数据库服务软件
+      ansible.builtin.apt:
+        name: "{{ database_packages }}"
+        state: present
+        allow_unauthenticated: "{{ allow_unauthenticated_db }}"
+      when: install_database | bool
+      register: database_install
+      notify: 
+        - database installed
+
+    - name: 安装开发环境工具
+      ansible.builtin.apt:
+        name: "{{ development_packages }}"
+        state: present
+        install_recommends: "{{ dev_install_recommends }}"
+      when: install_dev_packages | bool
+
+    - name: 安装指定版本的软件包（版本锁定示例）
+      ansible.builtin.apt:
+        name: "{{ version_locked_packages }}"
+        state: present
+      when: install_version_locked | bool
+      register: version_locked_install
+
+    - name: 安装应用运行时依赖
+      ansible.builtin.apt:
+        name: "{{ app_runtime_dependencies }}"
+        state: present
+        install_recommends: false
+      when: install_runtime_deps | bool
+      register: runtime_deps_install
+
+    - name: 安装 Python 开发环境
+      ansible.builtin.apt:
+        name: "{{ python_packages }}"
+        state: present
+        install_recommends: false
+      when: install_python_packages | bool
+
+    - name: 安装 Node.js 开发环境
+      ansible.builtin.apt:
+        name: "{{ nodejs_packages }}"
+        state: present
+        install_recommends: false
+      when: install_nodejs_packages | bool
+
+    - name: 安装监控和系统管理工具
+      ansible.builtin.apt:
+        name: "{{ monitoring_tools }}"
+        state: present
+      when: install_monitoring | bool
+
+    - name: 安装安全工具
+      ansible.builtin.apt:
+        name: "{{ security_tools }}"
+        state: present
+      when: install_security_tools | bool
+
+    - name: 移除不需要的软件包
+      ansible.builtin.apt:
+        name: "{{ packages_to_remove }}"
+        state: absent
+        purge: "{{ purge_removed_packages }}"
+        autoremove: "{{ autoremove_unwanted }}"
+      when: remove_unwanted_packages | bool
+      register: package_removal
+
+    - name: 清理 APT 缓存和旧软件包
+      ansible.builtin.apt:
+        autoremove: true
+        autoclean: true
+      when: cleanup_system | bool
+      notify: 
+        - system cleaned
+
+    - name: 验证关键服务软件包安装状态
+      ansible.builtin.package_facts:
+        manager: auto
+      when: verify_installation | bool
+
+    - name: 显示已安装的关键包版本信息
+      ansible.builtin.debug:
+        msg: |
+          关键软件包安装状态：
+          {% for pkg in ['nginx', 'apache2', 'postgresql', 'python3', 'nodejs'] %}
+          {% if pkg in ansible_facts.packages %}
+          - {{ pkg }}: {{ ansible_facts.packages[pkg][0].version if ansible_facts.packages[pkg] is iterable else 'unknown' }}
+          {% else %}
+          - {{ pkg }}: 未安装
+          {% endif %}
+          {% endfor %}
+      when: 
+        - verify_installation | bool
+        - ansible_facts.packages is defined
+
+    - name: 创建软件包安装报告
+      ansible.builtin.copy:
+        dest: "{{ apt_report_path }}"
+        content: |
+          APT 软件包安装报告
+          ==================
+          生成时间: {{ ansible_date_time.iso8601 }}
+          目标主机: {{ ansible_hostname }}
+          操作系统: {{ ansible_distribution }} {{ ansible_distribution_version }} ({{ ansible_distribution_release }})
+          架构: {{ ansible_architecture }}
+
+          安装操作结果:
+          - 系统升级: {{ system_upgrade.changed | default(false) }}
+          - 基础工具: {{ base_tools_install.changed | default(false) }}
+          - 仓库添加: {{ repo_addition.changed | default(false) }}
+          - DEB 仓库: {{ deb_repo_addition.changed | default(false) }}
+          - Web 服务器: {{ web_server_install.changed | default(false) }}
+          - 数据库服务: {{ database_install.changed | default(false) }}
+          - 版本锁定包: {{ version_locked_install.changed | default(false) }}
+          - 运行时依赖: {{ runtime_deps_install.changed | default(false) }}
+          - 包移除: {{ package_removal.changed | default(false) }}
+
+          已安装的软件包数量: {{ ansible_facts.packages | length if ansible_facts.packages is defined else 'unknown' }}
+
+          操作摘要:
+          {% if system_upgrade.changed | default(false) %}
+          - 系统软件包已升级到最新版本
+          {% endif %}
+          {% if web_server_install.changed | default(false) %}
+          - 已安装 Web 服务器软件
+          {% endif %}
+          {% if database_install.changed | default(false) %}
+          - 已安装数据库服务软件
+          {% endif %}
+          {% if package_removal.changed | default(false) %}
+          - 已移除不需要的软件包
+          {% endif %}
+
+          仓库配置:
+          {% if add_repositories | default(false) %}
+          - 已添加自定义 APT 仓库
+          {% endif %}
+          {% if add_deb_repositories | default(false) %}
+          - 已添加第三方 DEB 仓库
+          {% endif %}
+        mode: '0644'
+      when: generate_report | bool
+
+    - name: 配置 APT 自动更新（可选）
+      ansible.builtin.lineinfile:
+        path: /etc/apt/apt.conf.d/50unattended-upgrades
+        regexp: "^//\\s*\"\\${distro_id}:${distro_codename}-updates\""
+        line: "\"${distro_id}:${distro_codename}-updates\";"
+        state: present
+      when: configure_auto_updates | bool
+      notify: 
+        - auto updates configured
+
+  handlers:
+    - name: apt cache updated
+      ansible.builtin.debug:
+        msg: "APT 缓存已更新"
+      listen: apt cache updated
+
+    - name: base tools installed
+      ansible.builtin.debug:
+        msg: "基础系统工具安装完成"
+      listen: base tools installed
+
+    - name: web server installed
+      ansible.builtin.service:
+        name: "{{ web_server_service }}"
+        state: started
+        enabled: true
+      when: 
+        - web_server_install.changed | default(false)
+        - manage_web_service | bool
+      listen: web server installed
+
+    - name: database installed
+      ansible.builtin.service:
+        name: "{{ database_service }}"
+        state: started
+        enabled: true
+      when: 
+        - database_install.changed | default(false)
+        - manage_database_service | bool
+      listen: database installed
+
+    - name: system cleaned
+      ansible.builtin.debug:
+        msg: "系统清理完成，已移除不需要的软件包和缓存"
+      listen: system cleaned
+
+    - name: auto updates configured
+      ansible.builtin.service:
+        name: unattended-upgrades
+        state: restarted
+        enabled: true
+      listen: auto updates configured

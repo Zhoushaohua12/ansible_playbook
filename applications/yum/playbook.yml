@@ -1,0 +1,241 @@
+---
+- name: YUM 软件包管理示例演示（Red Hat 系列系统）
+  hosts: all
+  become: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    - name: 检查系统版本和发行版信息
+      ansible.builtin.debug:
+        msg: |
+          系统信息：
+          - 发行版: {{ ansible_distribution }}
+          - 版本: {{ ansible_distribution_version }}
+          - 主版本: {{ ansible_distribution_major_version }}
+          - 架构: {{ ansible_architecture }}
+
+    - name: 更新 YUM 缓存（提高安装速度）
+      ansible.builtin.yum:
+        update_cache: true
+        update_cache_retries: "{{ yum_cache_retries }}"
+        update_cache_retry_max_delay: "{{ yum_cache_retry_delay }}"
+      notify: 
+        - yum cache updated
+
+    - name: 安装基础系统工具包
+      ansible.builtin.yum:
+        name: "{{ base_system_packages }}"
+        state: present
+      register: base_tools_install
+      notify: 
+        - base tools installed
+
+    - name: 安装 EPEL 仓库（扩展包源）
+      ansible.builtin.yum:
+        name: epel-release
+        state: present
+      when: install_epel | bool
+      register: epel_install
+
+    - name: 安装 Web 服务器软件
+      ansible.builtin.yum:
+        name: "{{ web_server_packages }}"
+        state: "{{ web_server_state }}"
+        enablerepo: "{{ web_server_repos }}"
+      register: web_server_install
+      notify: 
+        - web server installed
+
+    - name: 安装数据库服务软件
+      ansible.builtin.yum:
+        name: "{{ database_packages }}"
+        state: present
+        exclude: "{{ database_exclude_packages }}"
+      when: install_database | bool
+      register: database_install
+      notify: 
+        - database installed
+
+    - name: 安装开发工具组
+      ansible.builtin.yum:
+        name: "@Development Tools"
+        state: present
+      when: install_dev_tools | bool
+      register: dev_tools_install
+
+    - name: 安装 Python 开发环境
+      ansible.builtin.yum:
+        name: "{{ python_packages }}"
+        state: present
+      when: install_python | bool
+
+    - name: 安装指定版本的软件包（版本锁定示例）
+      ansible.builtin.yum:
+        name: "{{ item.name }}"
+        version: "{{ item.version }}"
+        state: present
+      loop: "{{ version_locked_packages }}"
+      when: install_version_locked | bool
+      register: version_locked_install
+
+    - name: 安装应用运行时依赖
+      ansible.builtin.yum:
+        name: "{{ app_runtime_dependencies }}"
+        state: present
+        disable_gpg_check: "{{ disable_gpg_for_deps }}"
+      when: install_runtime_deps | bool
+      register: runtime_deps_install
+
+    - name: 仅安装安全更新
+      ansible.builtin.yum:
+        name: "*"
+        state: latest
+        security: true
+      when: install_security_updates | bool
+      register: security_updates_install
+
+    - name: 安装监控和系统管理工具
+      ansible.builtin.yum:
+        name: "{{ monitoring_tools }}"
+        state: present
+      when: install_monitoring | bool
+
+    - name: 安装系统安全工具
+      ansible.builtin.yum:
+        name: "{{ security_tools }}"
+        state: present
+      when: install_security_tools | bool
+
+    - name: 移除不需要的软件包
+      ansible.builtin.yum:
+        name: "{{ packages_to_remove }}"
+        state: absent
+        autoremove: "{{ autoremove_unwanted }}"
+      when: remove_unwanted_packages | bool
+      register: package_removal
+
+    - name: 清理 YUM 缓存和旧软件包
+      ansible.builtin.yum:
+        name: "*"
+        state: latest
+        autoremove: true
+      when: cleanup_system | bool
+      notify: 
+        - system cleaned
+
+    - name: 验证关键服务软件包安装状态
+      ansible.builtin.package_facts:
+        manager: auto
+      when: verify_installation | bool
+
+    - name: 显示已安装的关键包版本信息
+      ansible.builtin.debug:
+        msg: |
+          关键软件包安装状态：
+          {% for pkg in ['nginx', 'postgresql', 'python3', 'git'] %}
+          {% if pkg in ansible_facts.packages %}
+          - {{ pkg }}: {{ ansible_facts.packages[pkg][0].version if ansible_facts.packages[pkg] is iterable else 'unknown' }}
+          {% else %}
+          - {{ pkg }}: 未安装
+          {% endif %}
+          {% endfor %}
+      when: 
+        - verify_installation | bool
+        - ansible_facts.packages is defined
+
+    - name: 创建软件包安装报告
+      ansible.builtin.copy:
+        dest: "{{ yum_report_path }}"
+        content: |
+          YUM 软件包安装报告
+          ==================
+          生成时间: {{ ansible_date_time.iso8601 }}
+          目标主机: {{ ansible_hostname }}
+          操作系统: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          架构: {{ ansible_architecture }}
+
+          安装操作结果:
+          - 基础工具: {{ base_tools_install.changed | default(false) }}
+          - EPEL 仓库: {{ epel_install.changed | default(false) }}
+          - Web 服务器: {{ web_server_install.changed | default(false) }}
+          - 数据库服务: {{ database_install.changed | default(false) }}
+          - 开发工具组: {{ dev_tools_install.changed | default(false) }}
+          - 版本锁定包: {{ version_locked_install.changed | default(false) }}
+          - 运行时依赖: {{ runtime_deps_install.changed | default(false) }}
+          - 安全更新: {{ security_updates_install.changed | default(false) }}
+          - 包移除: {{ package_removal.changed | default(false) }}
+
+          已安装的软件包数量: {{ ansible_facts.packages | length if ansible_facts.packages is defined else 'unknown' }}
+
+          操作摘要:
+          {% if base_tools_install.changed | default(false) %}
+          - 已安装基础系统工具包
+          {% endif %}
+          {% if web_server_install.changed | default(false) %}
+          - 已安装 Web 服务器软件
+          {% endif %}
+          {% if database_install.changed | default(false) %}
+          - 已安装数据库服务软件
+          {% endif %}
+          {% if dev_tools_install.changed | default(false) %}
+          - 已安装开发工具组
+          {% endif %}
+          {% if security_updates_install.changed | default(false) %}
+          - 已安装安全更新
+          {% endif %}
+        mode: '0644'
+      when: generate_report | bool
+
+    - name: 配置 YUM 自动更新（可选）
+      ansible.builtin.lineinfile:
+        path: /etc/yum/yum-cron.conf
+        regexp: "^apply_updates"
+        line: "apply_updates = yes"
+        state: present
+      when: configure_yum_cron | bool
+      notify: 
+        - yum cron configured
+
+  handlers:
+    - name: yum cache updated
+      ansible.builtin.debug:
+        msg: "YUM 缓存已更新"
+      listen: yum cache updated
+
+    - name: base tools installed
+      ansible.builtin.debug:
+        msg: "基础系统工具安装完成"
+      listen: base tools installed
+
+    - name: web server installed
+      ansible.builtin.service:
+        name: "{{ web_server_service }}"
+        state: started
+        enabled: true
+      when: 
+        - web_server_install.changed | default(false)
+        - manage_web_service | bool
+      listen: web server installed
+
+    - name: database installed
+      ansible.builtin.service:
+        name: "{{ database_service }}"
+        state: started
+        enabled: true
+      when: 
+        - database_install.changed | default(false)
+        - manage_database_service | bool
+      listen: database installed
+
+    - name: system cleaned
+      ansible.builtin.debug:
+        msg: "系统清理完成，已移除不需要的软件包和缓存"
+      listen: system cleaned
+
+    - name: yum cron configured
+      ansible.builtin.service:
+        name: yum-cron
+        state: restarted
+        enabled: true
+      listen: yum cron configured

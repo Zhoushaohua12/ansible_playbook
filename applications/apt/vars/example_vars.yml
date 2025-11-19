@@ -1,0 +1,188 @@
+# APT 软件包管理示例变量配置（Debian 系列系统）
+
+# APT 缓存配置
+apt_cache_valid_time: 3600  # 缓存有效时间（秒）
+apt_cache_retries: 3
+apt_cache_retry_delay: 10
+
+# 系统升级配置
+upgrade_system: false
+
+# 基础系统工具包
+base_system_packages:
+  - vim
+  - curl
+  - wget
+  - unzip
+  - tar
+  - htop
+  - lsof
+  - net-tools
+  - software-properties-common
+install_recommends: true
+
+# 仓库配置
+add_repositories: false
+additional_repositories:
+  - repo: "ppa:ondrej/php"
+    update_cache: true
+  - repo: "ppa:deadsnakes/ppa"
+    update_cache: false
+
+# DEB 仓库配置
+add_deb_repositories: false
+deb_repositories:
+  - "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
+  - "deb https://packages.microsoft.com/ubuntu/20.04/prod focal main"
+
+# Web 服务器配置
+web_server_packages:
+  - nginx
+  - apache2
+  - libapache2-mod-php
+web_server_state: "present"  # present, latest, absent
+web_server_release: ""  # 指定发行版，如 focal, bionic
+web_server_install_recommends: true
+manage_web_service: true
+web_server_service: "nginx"  # nginx, apache2
+
+# 数据库服务配置
+database_packages:
+  - postgresql
+  - postgresql-contrib
+  - postgresql-client
+  - mysql-server
+  - mysql-client
+install_database: false
+manage_database_service: true
+database_service: "postgresql"  # postgresql, mysql
+allow_unauthenticated_db: false
+
+# 开发环境配置
+development_packages:
+  - build-essential
+  - cmake
+  - git
+  - make
+  - gcc
+  - g++
+install_dev_packages: true
+dev_install_recommends: false
+
+# 版本锁定包（精确版本控制）
+install_version_locked: false
+version_locked_packages:
+  nginx: "1.18.0-0ubuntu1"
+  php7.4: "7.4.25-1ubuntu1.1"
+  postgresql: "12+238"
+
+# 应用运行时依赖
+app_runtime_dependencies:
+  - redis-server
+  - git
+  - nodejs
+  - npm
+  - supervisor
+install_runtime_deps: true
+
+# Python 开发环境
+python_packages:
+  - python3
+  - python3-pip
+  - python3-dev
+  - python3-venv
+  - python3-setuptools
+  - python3-wheel
+install_python_packages: true
+
+# Node.js 开发环境
+nodejs_packages:
+  - nodejs
+  - npm
+  - yarn
+install_nodejs_packages: false
+
+# 监控工具
+monitoring_tools:
+  - htop
+  - iotop
+  - nethogs
+  - sysstat
+  - vmstat
+  - iftop
+install_monitoring: true
+
+# 安全工具
+security_tools:
+  - fail2ban
+  - ufw
+  - rkhunter
+  - chkrootkit
+  - aide
+  - lynis
+install_security_tools: true
+
+# 需要移除的包
+packages_to_remove:
+  - telnetd
+  - rsh-server
+  - rsh-redone-server
+remove_unwanted_packages: false
+purge_removed_packages: true
+autoremove_unwanted: true
+
+# 系统清理配置
+cleanup_system: false
+
+# 自动更新配置
+configure_auto_updates: false
+
+# 安装验证配置
+verify_installation: true
+generate_report: true
+apt_report_path: "/tmp/apt_installation_report.txt"
+
+# 发行版特定配置
+ubuntu_packages:
+  "20.04":
+    - php7.4
+    - python3.8
+  "22.04":
+    - php8.1
+    - python3.10
+  "24.04":
+    - php8.3
+    - python3.12
+
+debian_packages:
+  "10":
+    - php7.3
+    - python3.7
+  "11":
+    - php7.4
+    - python3.9
+  "12":
+    - php8.2
+    - python3.11
+
+# 服务器角色配置
+server_roles:
+  web:
+    - nginx
+    - php8.1
+    - redis-server
+  database:
+    - postgresql
+    - postgresql-contrib
+  development:
+    - build-essential
+    - python3-dev
+    - nodejs
+    - npm
+
+# 重要：这些变量仅用于演示，生产环境请根据实际需求调整
+# ⚠️ 警告：软件包版本需要根据目标系统的仓库可用性进行调整
+# 🔒 安全提示：安装软件包前请验证仓库的可靠性和 GPG 密钥
+# 📝 注意：不同 Ubuntu/Debian 版本的包名称和版本可能存在差异
+# 🚀 性能提示：在大量安装操作前更新缓存可以提高安装速度
+# 🔄 更新提示：系统升级操作可能需要较长时间，建议在维护窗口期执行

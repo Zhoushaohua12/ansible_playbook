@@ -1,0 +1,188 @@
+# 跨平台软件包管理示例变量配置
+
+# 包管理基础配置
+cache_valid_time: 3600  # 缓存有效时间（秒）
+update_cache_for_deps: true  # 安装依赖时是否更新缓存
+verify_installation: true  # 是否验证安装状态
+generate_report: true  # 是否生成安装报告
+package_report_path: "/tmp/package_installation_report.txt"
+
+# 基础系统工具（跨平台）
+base_tools:
+  Debian:
+    - curl
+    - wget
+    - vim
+    - unzip
+    - tar
+  RedHat:
+    - curl
+    - wget
+    - vim
+    - unzip
+    - tar
+  Suse:
+    - curl
+    - wget
+    - vim
+    - unzip
+    - tar
+
+# Web 服务器软件包
+web_server_packages:
+  Debian:
+    - nginx
+    - apache2
+  RedHat:
+    - nginx
+    - httpd
+  Suse:
+    - nginx
+    - apache2
+web_server_state: "present"  # present, latest, absent
+manage_web_service: true
+web_server_service:
+  Debian: "nginx"
+  RedHat: "nginx"
+  Suse: "nginx"
+
+# 数据库软件包
+database_packages:
+  Debian:
+    - postgresql
+    - postgresql-contrib
+    - mysql-server
+    - mysql-client
+  RedHat:
+    - postgresql-server
+    - postgresql-contrib
+    - mariadb-server
+    - mariadb
+  Suse:
+    - postgresql-server
+    - postgresql
+    - mariadb
+    - mariadb-client
+install_database: false
+manage_database_service: true
+database_service:
+  Debian: "postgresql"
+  RedHat: "postgresql"
+  Suse: "postgresql"
+
+# 开发工具链
+development_tools:
+  Debian:
+    - build-essential
+    - python3-dev
+    - nodejs
+    - npm
+    - git
+  RedHat:
+    - "@development-tools"
+    - python3-devel
+    - nodejs
+    - npm
+    - git
+  Suse:
+    - pattern:devel_basis
+    - python3-devel
+    - nodejs
+    - npm
+    - git
+install_dev_tools: true
+
+# 监控工具（通用）
+monitoring_tools:
+  - htop
+  - iotop
+  - nethogs
+  - sysstat
+  - lsof
+install_monitoring: true
+
+# 安全工具
+security_tools:
+  Debian:
+    - fail2ban
+    - ufw
+    - rkhunter
+    - chkrootkit
+  RedHat:
+    - fail2ban
+    - firewalld
+    - rkhunter
+    - chkrootkit
+  Suse:
+    - fail2ban
+    - firewalld
+    - rkhunter
+    - chkrootkit
+install_security: true
+
+# 指定版本安装示例
+install_specific_version: false
+app_package_name: "nginx"
+app_package_version:
+  Debian: "1.18.0-0ubuntu1"
+  RedHat: "1.18.0-1.el8"
+  Suse: "1.18.0-1.1"
+
+# 关键包更新
+critical_packages:
+  - curl
+  - openssl
+  - openssh-server
+update_critical_packages: true
+
+# 需要移除的包
+packages_to_remove:
+  - telnet-server
+  - rsh-server
+remove_unwanted_packages: false
+
+# Python 应用相关包
+python_packages:
+  Debian:
+    - python3
+    - python3-pip
+    - python3-venv
+    - python3-dev
+  RedHat:
+    - python3
+    - python3-pip
+    - python3-virtualenv
+    - python3-devel
+  Suse:
+    - python3
+    - python3-pip
+    - python3-virtualenv
+    - python3-devel
+install_python_packages: true
+
+# Node.js 应用相关包
+nodejs_packages:
+  Debian:
+    - nodejs
+    - npm
+  RedHat:
+    - nodejs
+    - npm
+  Suse:
+    - nodejs
+    - npm
+install_nodejs_packages: false
+
+# 应用依赖包（批量安装示例）
+app_dependencies:
+  - redis-server
+  - git
+  - curl
+  - wget
+  - htop
+install_app_dependencies: true
+
+# 重要：这些变量仅用于演示，生产环境请根据实际需求调整
+# ⚠️ 警告：软件包版本需要根据目标系统的仓库可用性进行调整
+# 🔒 安全提示：移除软件包前请确认不会影响系统稳定性
+# 📝 注意：不同操作系统的包名称可能存在差异，请根据实际情况调整

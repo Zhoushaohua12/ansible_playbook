@@ -187,3 +187,60 @@ web:
       external_deps:
         - "nginx 或 apache2（根据配置选择）"
         - "SSL 证书文件"
+
+applications:
+  title: 应用管理
+  description: "涵盖软件包管理、容器部署、源码管理等应用生命周期管理的核心场景，支持从传统软件包到现代容器化应用的全自动化部署"
+  external_dependencies:
+    - "community.docker collection (docker_container 模块)"
+    - "Docker Engine (容器部署场景)"
+    - "Git 客户端 (源码部署场景)"
+    - "包管理器：yum/dnf (RHEL系) 或 apt (Debian系)"
+    - "系统管理员权限 (包管理操作)"
+  topics:
+    - id: docker_container
+      name: Docker 容器管理
+      doc: applications/docker_container/README.md
+      example: applications/docker_container/playbook.yml
+      summary: "Docker 容器生命周期管理，适用于微服务部署、容器化应用和持续部署场景"
+      external_deps:
+        - "community.docker collection"
+        - "Docker Engine 服务"
+        - "容器镜像仓库访问权限"
+    - id: git
+      name: Git 仓库管理
+      doc: applications/git/README.md
+      example: applications/git/playbook.yml
+      summary: "Git 仓库克隆、版本控制和源码部署，适用于持续集成和版本发布管理"
+      external_deps:
+        - "Git 客户端"
+        - "SSH 密钥或 HTTPS 访问权限"
+        - "代码仓库访问权限"
+    - id: package
+      name: 通用包管理
+      doc: applications/package/README.md
+      example: applications/package/playbook.yml
+      summary: "跨平台软件包管理，自动适配不同系统的包管理器，适用于多环境统一部署"
+      external_deps:
+        - "目标系统包管理器 (yum/apt/dnf/zypper)"
+        - "软件仓库访问权限"
+        - "系统管理员权限"
+    - id: yum
+      name: YUM 包管理
+      doc: applications/yum/README.md
+      example: applications/yum/playbook.yml
+      summary: "Red Hat 系统专用包管理，支持软件组、仓库管理和版本锁定，适用于 RHEL/CentOS/Fedora 环境"
+      external_deps:
+        - "YUM/DNF 包管理器"
+        - "软件仓库配置"
+        - "系统管理员权限"
+    - id: apt
+      name: APT 包管理
+      doc: applications/apt/README.md
+      example: applications/apt/playbook.yml
+      summary: "Debian 系统专用包管理，支持仓库源、GPG 验证和依赖管理，适用于 Ubuntu/Debian 环境"
+      external_deps:
+        - "APT 包管理器"
+        - "软件源配置"
+        - "GPG 密钥管理"
+        - "系统管理员权限"

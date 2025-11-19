@@ -1,0 +1,182 @@
+---
+- name: 跨平台软件包管理示例演示
+  hosts: all
+  become: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    - name: 更新包缓存（Debian/Ubuntu 系统）
+      ansible.builtin.package:
+        update_cache: true
+        cache_valid_time: "{{ cache_valid_time }}"
+      when: ansible_os_family == "Debian"
+      notify: 
+        - cache updated
+
+    - name: 安装基础系统工具（跨平台）
+      ansible.builtin.package:
+        name: "{{ base_tools[ansible_os_family] }}"
+        state: present
+      notify: 
+        - base tools installed
+
+    - name: 安装 Web 服务器软件
+      ansible.builtin.package:
+        name: "{{ web_server_packages[ansible_os_family] }}"
+        state: "{{ web_server_state }}"
+      register: web_server_install
+      notify: 
+        - web server installed
+
+    - name: 安装数据库服务包
+      ansible.builtin.package:
+        name: "{{ database_packages[ansible_os_family] }}"
+        state: present
+      when: install_database | bool
+      notify: 
+        - database installed
+
+    - name: 安装开发工具链
+      ansible.builtin.package:
+        name: "{{ development_tools[ansible_os_family] }}"
+        state: present
+      when: install_dev_tools | bool
+
+    - name: 安装监控和系统工具
+      ansible.builtin.package:
+        name: "{{ monitoring_tools }}"
+        state: present
+      when: install_monitoring | bool
+
+    - name: 安装安全工具
+      ansible.builtin.package:
+        name: "{{ security_tools[ansible_os_family] }}"
+        state: present
+      when: install_security | bool
+
+    - name: 安装指定版本的应用包（版本锁定示例）
+      ansible.builtin.package:
+        name: "{{ app_package_name }}"
+        version: "{{ app_package_version[ansible_os_family] }}"
+        state: present
+      when: 
+        - install_specific_version | bool
+        - app_package_version[ansible_os_family] is defined
+      register: specific_version_install
+
+    - name: 确保关键包为最新版本
+      ansible.builtin.package:
+        name: "{{ critical_packages }}"
+        state: latest
+      when: update_critical_packages | bool
+      register: critical_update
+
+    - name: 移除不需要的软件包
+      ansible.builtin.package:
+        name: "{{ packages_to_remove }}"
+        state: absent
+      when: remove_unwanted_packages | bool
+      register: package_removal
+
+    - name: 安装 Python 相关包（Python 应用部署）
+      ansible.builtin.package:
+        name: "{{ python_packages[ansible_os_family] }}"
+        state: present
+      when: install_python_packages | bool
+
+    - name: 安装 Node.js 相关包（Node.js 应用部署）
+      ansible.builtin.package:
+        name: "{{ nodejs_packages[ansible_os_family] }}"
+        state: present
+      when: install_nodejs_packages | bool
+
+    - name: 批量安装应用依赖包
+      ansible.builtin.package:
+        name: "{{ app_dependencies }}"
+        state: present
+        update_cache: "{{ update_cache_for_deps }}"
+      when: install_app_dependencies | bool
+      register: deps_installation
+
+    - name: 验证包安装状态
+      ansible.builtin.package_facts:
+        manager: auto
+      when: verify_installation | bool
+
+    - name: 显示已安装的关键包信息
+      ansible.builtin.debug:
+        msg: |
+          系统信息：{{ ansible_distribution }} {{ ansible_distribution_version }}
+          包管理器：{{ ansible_pkg_mgr }}
+          已安装的关键包：
+          {% for pkg in ['nginx', 'git', 'curl'] %}
+          {% if pkg in ansible_facts.packages %}
+          - {{ pkg }}: {{ ansible_facts.packages[pkg][0].version if ansible_facts.packages[pkg] is iterable else 'unknown' }}
+          {% endif %}
+          {% endfor %}
+      when: 
+        - verify_installation | bool
+        - ansible_facts.packages is defined
+
+    - name: 创建包安装报告
+      ansible.builtin.copy:
+        dest: "{{ package_report_path }}"
+        content: |
+          包安装报告
+          ==========
+          生成时间: {{ ansible_date_time.iso8601 }}
+          目标主机: {{ ansible_hostname }}
+          操作系统: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          包管理器: {{ ansible_pkg_mgr }}
+
+          安装操作结果:
+          - Web 服务器: {{ web_server_install.changed | default(false) }}
+          - 数据库: {{ database_packages is defined and install_database | bool }}
+          - 开发工具: {{ development_tools is defined and install_dev_tools | bool }}
+          - 监控工具: {{ install_monitoring | bool }}
+          - 安全工具: {{ security_tools is defined and install_security | bool }}
+          - 指定版本包: {{ specific_version_install.changed | default(false) }}
+          - 关键包更新: {{ critical_update.changed | default(false) }}
+          - 包移除: {{ package_removal.changed | default(false) }}
+          - 应用依赖: {{ deps_installation.changed | default(false) }}
+
+          安装的包列表:
+          {% if ansible_facts.packages is defined %}
+          {% for pkg_name, pkg_info in ansible_facts.packages.items() %}
+          - {{ pkg_name }}: {{ pkg_info[0].version if pkg_info is iterable else 'unknown' }}
+          {% endfor %}
+          {% endif %}
+        mode: '0644'
+      when: generate_report | bool
+
+  handlers:
+    - name: cache updated
+      ansible.builtin.debug:
+        msg: "包缓存已更新"
+      listen: cache updated
+
+    - name: base tools installed
+      ansible.builtin.debug:
+        msg: "基础工具安装完成"
+      listen: base tools installed
+
+    - name: web server installed
+      ansible.builtin.service:
+        name: "{{ web_server_service[ansible_os_family] }}"
+        state: started
+        enabled: true
+      when: 
+        - web_server_install.changed | default(false)
+        - manage_web_service | bool
+      listen: web server installed
+
+    - name: database installed
+      ansible.builtin.service:
+        name: "{{ database_service[ansible_os_family] }}"
+        state: started
+        enabled: true
+      when: 
+        - install_database | bool
+        - manage_database_service | bool
+      listen: database installed

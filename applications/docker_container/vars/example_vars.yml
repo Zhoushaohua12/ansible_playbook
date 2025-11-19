@@ -1,0 +1,67 @@
+# Docker 容器管理示例变量配置
+
+# Docker 服务管理
+docker_manage_service: true  # 是否管理 Docker 服务状态
+
+# 网络配置
+docker_network_name: "app_network"  # Docker 网络名称
+docker_create_network: true  # 是否创建网络
+
+# Nginx 容器配置
+nginx_container_name: "web_server"
+nginx_image: "nginx"
+nginx_version: "1.21-alpine"
+nginx_host_port: 8080  # 主机端口
+nginx_ssl_port: 8443   # 主机 SSL 端口
+nginx_restart_policy: "unless-stopped"
+nginx_memory_limit: "256m"
+nginx_server_name: "example.com"
+
+# Nginx 路径配置
+nginx_config_path: "/opt/nginx/conf.d"
+nginx_content_path: "/opt/nginx/html"
+nginx_log_path: "/opt/nginx/logs"
+
+# Redis 容器配置
+redis_container_name: "redis_cache"
+redis_image: "redis"
+redis_version: "6.2-alpine"
+redis_host_port: 6379
+redis_restart_policy: "unless-stopped"
+redis_memory_limit: "128m"
+redis_user: "redis"
+redis_password: "SecureRedisPassword123"  # 生产环境请使用 Ansible Vault
+
+# Redis 路径配置
+redis_data_path: "/opt/redis/data"
+
+# 应用容器配置（持续部署示例）
+app_container_name: "web_application"
+app_registry_url: "registry.example.com"
+app_image_name: "myapp"
+app_version: "v1.2.3"  # 应用版本标签
+app_host_port: 3000    # 主机端口
+app_container_port: 3000  # 容器内部端口
+app_restart_policy: "unless-stopped"
+app_memory_limit: "512m"
+app_cpu_limit: "0.5"
+
+# 应用环境配置
+app_environment: "production"
+app_database_url: "postgresql://user:pass@db.example.com:5432/myapp"
+app_secret_key: "SuperSecretKeyForApp12345"  # 生产环境请使用 Ansible Vault
+app_debug_mode: "false"
+
+# 应用路径配置
+app_log_path: "/opt/app/logs"
+app_upload_path: "/opt/app/uploads"
+
+# 部署开关
+deploy_nginx: true      # 是否部署 Nginx
+deploy_redis: true      # 是否部署 Redis
+deploy_app: true        # 是否部署应用
+
+# 重要：这些变量仅用于演示，生产环境请使用 Ansible Vault 或外部配置管理
+# ⚠️ 警告：示例中的密码和密钥需要替换为实际的安全值
+# 🔒 安全提示：端口映射需要根据实际网络环境调整，避免端口冲突
+# 📝 注意：容器镜像版本建议使用具体标签而非 latest
