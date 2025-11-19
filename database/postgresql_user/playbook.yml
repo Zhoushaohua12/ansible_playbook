@@ -1,0 +1,122 @@
+---
+- name: PostgreSQL 用户管理示例演示
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    - name: 创建应用数据库用户 - 带完整权限
+      community.postgresql.postgresql_user:
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        name: "{{ app_user_name }}"
+        password: "{{ app_user_password }}"
+        role_attr_flags: "{{ app_user_role_flags }}"
+        db: "{{ app_database }}"
+        priv: "{{ app_user_privileges }}"
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 创建只读用户 - 用于报表查询
+      community.postgresql.postgresql_user:
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        name: "{{ readonly_user_name }}"
+        password: "{{ readonly_user_password }}"
+        role_attr_flags: LOGIN,NOCREATEDB,NOCREATEROLE
+        db: "{{ app_database }}"
+        priv: SELECT
+        conn_limit: "{{ readonly_conn_limit }}"
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 创建复制用户 - 用于主从复制
+      community.postgresql.postgresql_user:
+        login_host: "{{ postgres_host }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        name: "{{ replication_user_name }}"
+        password: "{{ replication_user_password }}"
+        role_attr_flags: LOGIN,REPLICATION,NOCREATEDB,NOCREATEROLE
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 更新用户密码 - 定期密码轮换并设置过期时间
+      community.postgresql.postgresql_user:
+        login_host: "{{ postgres_host }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        name: "{{ app_user_name }}"
+        password: "{{ new_app_user_password }}"
+        expires: "{{ password_expiry_date }}"
+      check_mode: true
+      no_log: true
+      when: new_app_user_password is defined
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 创建备份用户 - 仅 SELECT 和连接限制
+      community.postgresql.postgresql_user:
+        login_host: "{{ postgres_host }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        name: "{{ backup_user_name }}"
+        password: "{{ backup_user_password }}"
+        role_attr_flags: LOGIN,NOCREATEDB,NOCREATEROLE
+        db: "{{ app_database }}"
+        priv: SELECT
+        conn_limit: 2
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 创建数据库管理用户 - 带 CREATEDB 权限
+      community.postgresql.postgresql_user:
+        login_host: "{{ postgres_host }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        name: "{{ dbadmin_user_name }}"
+        password: "{{ dbadmin_user_password }}"
+        role_attr_flags: LOGIN,CREATEDB,NOCREATEROLE,NOSUPERUSER
+        state: present
+      check_mode: true
+      no_log: true
+      when: create_dbadmin_user | default(false) | bool
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 删除测试用户 - 生产环境清理
+      community.postgresql.postgresql_user:
+        login_host: "{{ postgres_host }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        name: "{{ test_user_name }}"
+        state: absent
+      check_mode: true
+      no_log: true
+      when: cleanup_test_users | default(false) | bool
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 限制用户连接数 - 防止资源耗尽
+      community.postgresql.postgresql_user:
+        login_host: "{{ postgres_host }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        name: "{{ item.username }}"
+        conn_limit: "{{ item.limit }}"
+      check_mode: true
+      loop:
+        - { username: "{{ app_user_name }}", limit: 50 }
+        - { username: "{{ readonly_user_name }}", limit: 10 }
+      when: enforce_connection_limits | default(false) | bool
+      delegate_to: "{{ postgres_host }}"

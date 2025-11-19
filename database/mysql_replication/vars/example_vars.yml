@@ -1,0 +1,69 @@
+---
+# 主服务器连接配置
+master_host: "mysql-master.example.com"  # 主服务器地址
+master_port: 3306  # 主服务器端口
+master_admin_user: "root"  # 主服务器管理员用户名
+master_admin_password: "PLEASE_CHANGE_THIS_MASTER_PASSWORD"  # ⚠️ 主服务器管理员密码 - 请使用 ansible-vault 加密
+
+# 从服务器连接配置
+replica_host: "mysql-replica.example.com"  # 从服务器地址（可以是 slave 或 replica）
+replica_port: 3306  # 从服务器端口
+replica_admin_user: "root"  # 从服务器管理员用户名
+replica_admin_password: "PLEASE_CHANGE_THIS_REPLICA_PASSWORD"  # ⚠️ 从服务器管理员密码 - 请使用 ansible-vault 加密
+
+# 复制用户配置
+replication_user: "replicator"  # 复制用户名（在主服务器上创建，需要 REPLICATION SLAVE 权限）
+replication_password: "PLEASE_CHANGE_THIS_REPLICATION_PASSWORD"  # ⚠️ 复制用户密码 - 请使用 ansible-vault 加密
+master_connect_retry: 60  # 连接失败重试间隔（秒）
+
+# 传统 binlog 位置复制配置
+use_gtid_replication: false  # 是否使用 GTID 复制（true 推荐，false 使用传统位置复制）
+master_binlog_file: "mysql-bin.000001"  # 主服务器 binlog 文件名（传统复制需要）
+master_binlog_pos: 154  # 主服务器 binlog 位置（传统复制需要）
+
+# SSL 加密复制配置
+use_ssl_replication: false  # 是否使用 SSL 加密复制，生产环境建议设为 true
+ssl_ca_cert: "/etc/mysql/ssl/ca.pem"  # SSL CA 证书路径
+ssl_client_cert: "/etc/mysql/ssl/client-cert.pem"  # SSL 客户端证书路径
+ssl_client_key: "/etc/mysql/ssl/client-key.pem"  # SSL 客户端密钥路径
+
+# 延迟复制配置
+enable_delayed_replication: false  # 是否启用延迟复制
+replication_delay: 3600  # 延迟时间（秒），例如 3600 = 1 小时，用于时间点恢复
+
+# 复制操作控制
+start_replication: false  # 是否启动复制线程
+stop_replication: false  # 是否停止复制线程
+reset_replica_config: false  # 是否重置从服务器复制配置
+confirm_reset: false  # 重置确认标志（重置操作需要设为 true）
+verify_replication_status: false  # 是否验证复制状态
+
+# ⚠️ 安全提示：
+# 1. 所有密码字段都是占位符，请替换为真实密码
+# 2. 生产环境务必使用 ansible-vault encrypt 加密此文件
+# 3. 建议配合 vars_prompt 或外部密钥管理系统
+# 4. 复制用户仅需 REPLICATION SLAVE 权限，遵循最小权限原则
+# 5. 生产环境建议使用 GTID 复制（use_gtid_replication: true）
+# 6. 生产环境建议启用 SSL 加密复制（use_ssl_replication: true）
+# 7. 在主服务器防火墙限制从服务器访问来源
+# 8. 从服务器建议配置为只读（read_only=1）
+# 9. 定期监控复制状态和延迟（Seconds_Behind_Master）
+# 10. 配置半同步复制提高数据一致性
+
+# 复制拓扑说明：
+# - 单主单从：一个主服务器，一个从服务器
+# - 单主多从：一个主服务器，多个从服务器（读写分离）
+# - 级联复制：主服务器 -> 中间从服务器 -> 下级从服务器
+# - 双主复制：两个主服务器互为主从（需谨慎配置）
+
+# 故障切换注意事项：
+# - 提升从服务器为主服务器前，确保数据完全同步
+# - 使用 GTID 简化故障切换流程
+# - 配置监控和自动切换工具（如 MHA、Orchestrator）
+# - 故障切换后更新应用连接配置
+
+# 性能优化建议：
+# - 从服务器配置多线程复制（slave_parallel_workers）
+# - 优化网络带宽和延迟
+# - 主服务器优化慢查询
+# - 使用 binlog_format=ROW 提高一致性

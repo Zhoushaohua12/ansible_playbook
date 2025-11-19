@@ -500,12 +500,13 @@ version_control:
 
 database:
   title: 数据库管理
-  description: "提供主流数据库系统（MySQL、PostgreSQL、MongoDB）的自动化管理示例，涵盖用户管理、数据库创建、权限授予等常见运维场景"
+  description: "提供主流数据库系统（MySQL、PostgreSQL、MongoDB、Redis）的自动化管理示例，涵盖用户管理、数据库创建、权限授予、主从复制、缓存管理等常见运维场景"
   external_dependencies:
     - "community.mysql collection (MySQL 模块)"
     - "community.postgresql collection (PostgreSQL 模块)"
     - "community.mongodb collection (MongoDB 模块)"
-    - "Python libraries: PyMySQL/mysqlclient, psycopg2-binary, pymongo"
+    - "community.general collection (Redis 模块)"
+    - "Python libraries: PyMySQL/mysqlclient, psycopg2-binary, pymongo, redis"
     - "数据库服务器访问权限和管理员凭证"
   topics:
     - id: mysql_user
@@ -545,6 +546,43 @@ database:
         - "pymongo Python 库"
         - "MongoDB 启用认证配置"
         - "userAdmin 或 userAdminAnyDatabase 角色"
+    - id: postgresql_user
+      name: PostgreSQL 用户管理
+      doc: database/postgresql_user/README.md
+      example: database/postgresql_user/playbook.yml
+      summary: "PostgreSQL 用户（角色）管理，支持创建删除用户、设置密码、配置权限和连接限制"
+      external_deps:
+        - "community.postgresql collection"
+        - "psycopg2-binary Python 库"
+        - "SUPERUSER 或 CREATEROLE 权限"
+    - id: mongodb_db
+      name: MongoDB 数据库管理
+      doc: database/mongodb_db/README.md
+      example: database/mongodb_db/playbook.yml
+      summary: "MongoDB 数据库创建和删除，支持副本集环境、SSL 连接和批量操作"
+      external_deps:
+        - "community.mongodb collection"
+        - "pymongo Python 库"
+        - "dbAdminAnyDatabase 或 root 角色"
+    - id: redis
+      name: Redis 数据管理
+      doc: database/redis/README.md
+      example: database/redis/playbook.yml
+      summary: "Redis 键值对数据管理，支持设置过期时间、条件设置、TLS 连接和 ACL 用户"
+      external_deps:
+        - "community.general collection"
+        - "redis Python 库"
+        - "Redis 认证配置（requirepass）"
+    - id: mysql_replication
+      name: MySQL 主从复制管理
+      doc: database/mysql_replication/README.md
+      example: database/mysql_replication/playbook.yml
+      summary: "MySQL 主从复制配置和管理，支持传统 binlog 复制、GTID 复制、SSL 加密和复制监控"
+      external_deps:
+        - "community.mysql collection"
+        - "PyMySQL 或 mysqlclient Python 库"
+        - "主服务器 binlog 配置"
+        - "REPLICATION SLAVE 权限"
 
 system:
    title: 系统管理模块

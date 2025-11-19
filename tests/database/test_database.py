@@ -7,18 +7,27 @@ import re
 import pytest
 import yaml
 
-MODULES = ["mysql_user", "mysql_db", "postgresql_db", "mongodb_user"]
+MODULES = ["mysql_user", "mysql_db", "postgresql_db", "mongodb_user", 
+            "postgresql_user", "mongodb_db", "redis", "mysql_replication"]
 FQCN_EXPECTATIONS = {
     "mysql_user": "community.mysql.mysql_user",
     "mysql_db": "community.mysql.mysql_db",
     "postgresql_db": "community.postgresql.postgresql_db",
     "mongodb_user": "community.mongodb.mongodb_user",
+    "postgresql_user": "community.postgresql.postgresql_user",
+    "mongodb_db": "community.mongodb.mongodb_db",
+    "redis": "community.general.redis_data",
+    "mysql_replication": "community.mysql.mysql_replication",
 }
 COLLECTION_DEPENDENCIES = {
     "mysql_user": "community.mysql",
     "mysql_db": "community.mysql",
     "postgresql_db": "community.postgresql",
     "mongodb_user": "community.mongodb",
+    "postgresql_user": "community.postgresql",
+    "mongodb_db": "community.mongodb",
+    "redis": "community.general",
+    "mysql_replication": "community.mysql",
 }
 
 
@@ -100,6 +109,10 @@ class TestModuleDocumentation(TestDatabaseFixtures):
             "mysql_db": ["PyMySQL", "mysqlclient"],
             "postgresql_db": ["psycopg2"],
             "mongodb_user": ["pymongo"],
+            "postgresql_user": ["psycopg2"],
+            "mongodb_db": ["pymongo"],
+            "redis": ["redis"],
+            "mysql_replication": ["PyMySQL", "mysqlclient"],
         }
         for name, path in module_dirs.items():
             content = (path / "README.md").read_text(encoding="utf-8")
@@ -224,6 +237,10 @@ class TestVarsFiles(TestDatabaseFixtures):
             "mysql_db": ["mysql_host", "mysql_port", "mysql_admin"],
             "postgresql_db": ["postgres_host", "postgres_port", "postgres_admin"],
             "mongodb_user": ["mongodb_host", "mongodb_port", "mongodb_admin"],
+            "postgresql_user": ["postgres_host", "postgres_port", "postgres_admin"],
+            "mongodb_db": ["mongodb_host", "mongodb_port", "mongodb_admin"],
+            "redis": ["redis_host", "redis_port", "redis_password"],
+            "mysql_replication": ["master_host", "replica_host", "replication_user"],
         }
         for name, path in module_dirs.items():
             content = (path / "vars" / "example_vars.yml").read_text(encoding="utf-8")

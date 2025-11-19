@@ -1,0 +1,83 @@
+---
+# Redis 连接配置
+redis_host: "redis.example.com"  # Redis 服务器地址，可以是 localhost 或远程主机
+redis_port: 6379  # Redis 服务器端口
+redis_password: "PLEASE_CHANGE_THIS_REDIS_PASSWORD"  # ⚠️ Redis 认证密码 - 生产环境请使用 ansible-vault 加密
+
+# 单个配置参数示例
+config_key: "app:config:max_connections"  # 配置键名称
+config_value: "1000"  # 配置键值
+
+# 批量配置参数列表
+application_configs:
+  - key: "app:feature:new_ui"  # 功能开关：新版 UI
+    value: "enabled"
+  - key: "app:config:timeout"  # 超时设置（秒）
+    value: "30"
+  - key: "app:config:retry"  # 重试次数
+    value: "3"
+  - key: "app:config:api_version"  # API 版本
+    value: "v2"
+
+# 会话缓存配置
+session_id: "user123_session"  # 会话 ID
+session_data: '{"user_id": 123, "role": "admin"}'  # 会话数据（JSON 格式）
+session_expiration: 3600  # 会话过期时间（秒），1 小时
+
+# 分布式锁配置
+lock_key: "lock:deployment"  # 锁键名称
+lock_expiration: 300  # 锁过期时间（秒），5 分钟
+
+# 功能开关配置
+feature_flags:
+  - name: "new_ui"  # 新版 UI
+    enabled: "true"
+  - name: "beta_features"  # Beta 功能
+    enabled: "false"
+  - name: "maintenance_mode"  # 维护模式
+    enabled: "false"
+
+# 缓存预热配置
+preload_cache: false  # 是否预加载缓存
+cache_default_expiration: 7200  # 缓存默认过期时间（秒），2 小时
+cache_warmup_data:
+  - key: "popular_products"  # 热门商品列表
+    value: "[1, 2, 3, 4, 5]"
+  - key: "site_config"  # 站点配置
+    value: '{"site_name": "MyApp", "version": "1.0"}'
+
+# TLS 安全连接配置
+redis_use_tls: false  # 是否使用 TLS 连接，生产环境建议设为 true
+redis_tls_port: 6380  # Redis TLS 端口
+redis_validate_certs: true  # 是否验证 TLS 证书
+secure_api_key: "PLEASE_CHANGE_THIS_API_KEY"  # ⚠️ 安全 API 密钥
+
+# Redis ACL 用户配置（Redis 6.0+）
+redis_use_acl: false  # 是否使用 ACL 用户，Redis 6.0+ 支持
+redis_acl_user: "app_user"  # ACL 用户名
+redis_acl_password: "PLEASE_CHANGE_THIS_ACL_PASSWORD"  # ⚠️ ACL 用户密码
+
+# 限流配置
+enable_rate_limiting: false  # 是否启用限流
+client_ip: "192.168.1.100"  # 客户端 IP 地址
+api_endpoint: "/api/v1/users"  # API 端点
+
+# 测试数据清理配置
+cleanup_test_data: false  # 是否清理测试数据
+environment: "development"  # 环境标识：development、staging、production
+test_keys:  # 要删除的测试键列表
+  - "test:key1"
+  - "test:key2"
+  - "test:session:*"
+
+# ⚠️ 安全提示：
+# 1. 所有密码字段都是占位符，请替换为真实密码
+# 2. 生产环境务必使用 ansible-vault encrypt 加密此文件
+# 3. 建议配合 vars_prompt 或外部密钥管理系统
+# 4. Redis 生产环境必须启用认证（requirepass）
+# 5. 敏感数据存储到 Redis 前应先加密
+# 6. 使用 TLS/SSL 加密连接保护数据传输
+# 7. 配置 bind 和防火墙限制访问来源
+# 8. 临时数据应设置过期时间避免内存泄漏
+# 9. 禁用危险命令（FLUSHALL、KEYS 等）
+# 10. Redis 6.0+ 推荐使用 ACL 进行权限控制

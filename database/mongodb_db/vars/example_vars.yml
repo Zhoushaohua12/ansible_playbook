@@ -1,0 +1,51 @@
+---
+# MongoDB 连接配置
+mongodb_host: "mongo.example.com"  # MongoDB 服务器地址，可以是 localhost 或远程主机
+mongodb_port: 27017  # MongoDB 服务器端口
+mongodb_admin_user: "admin"  # 管理员用户名，需要 dbAdminAnyDatabase 或 root 角色
+mongodb_admin_password: "PLEASE_CHANGE_THIS_ADMIN_PASSWORD"  # ⚠️ 管理员密码 - 生产环境请使用 ansible-vault 加密
+mongodb_auth_database: "admin"  # 认证数据库，默认为 admin
+
+# 应用数据库配置
+app_database: "webapp_db"  # 应用数据库名称
+
+# 批量创建数据库列表
+application_databases:
+  - "webapp_db"  # Web 应用数据库
+  - "api_db"  # API 服务数据库
+  - "mobile_db"  # 移动应用数据库
+
+# 安全数据库配置（使用 SSL）
+secure_database: "secure_app_db"  # 安全应用数据库名称
+mongodb_use_ssl: false  # 是否使用 SSL 连接，生产环境建议设为 true
+mongodb_ssl_cert_reqs: "CERT_REQUIRED"  # SSL 证书验证要求（CERT_REQUIRED、CERT_OPTIONAL、CERT_NONE）
+
+# 副本集配置
+# mongodb_replica_set: "rs0"  # 副本集名称，如果使用副本集请取消注释
+replicated_database: "replicated_app_db"  # 副本集数据库名称
+
+# 专用数据库配置
+log_database: "app_logs"  # 日志数据库名称
+analytics_database: "analytics_db"  # 分析数据库名称
+create_analytics_db: false  # 是否创建分析数据库
+
+# 测试数据库清理配置
+test_database: "test_db"  # 测试数据库名称
+cleanup_test_databases: false  # 是否清理测试数据库，开发环境可设为 true
+environment: "development"  # 环境标识：development、staging、production
+
+# 废弃数据库清理配置
+deprecated_databases: []  # 要删除的废弃数据库列表
+  # - "old_app_db"
+  # - "legacy_system_db"
+confirm_deletion: false  # 删除确认标志，设为 true 才会执行删除操作
+
+# ⚠️ 安全提示：
+# 1. 所有密码字段都是占位符，请替换为真实密码
+# 2. 生产环境务必使用 ansible-vault encrypt 加密此文件
+# 3. 建议配合 vars_prompt 或外部密钥管理系统
+# 4. MongoDB 生产环境必须启用认证（--auth）
+# 5. 删除数据库前务必先备份数据
+# 6. 使用 SSL/TLS 加密连接保护数据传输
+# 7. 配置 bindIp 和防火墙限制访问来源
+# 8. 数据库创建后立即配置访问用户和权限
