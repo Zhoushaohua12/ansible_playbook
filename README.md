@@ -8,6 +8,7 @@
 - `commands/`：命令执行模块（shell、command、raw、script）的使用指南与安全实践。
 - `database/`：数据库管理模块（MySQL、PostgreSQL、MongoDB）的自动化运维示例。
 - `monitoring/`：主流监控系统的 Ansible 集成示例。
+- `network/`：网络配置与防火墙管理（firewalld、ufw、iptables、wait_for）的完整指南。
 - `storage/`：磁盘、LVM 与文件系统管理的演练场景。
 - `web/`：Web 服务器（Nginx、Apache）配置与管理示例。
 - `metadata/modules.yaml`：用于索引特性与文档的元数据。
@@ -19,6 +20,7 @@
 - [命令执行模块指南](commands/README.md)
 - [数据库管理实践指南](database/README.md)
 - [监控模块总览](monitoring/README.md)
+- [网络模块实践指南](network/README.md)
 - [存储模块实践指南](storage/README.md)
 - [Web 服务管理指南](web/README.md)
 
@@ -233,3 +235,152 @@ ansible-playbook database/mysql_user/playbook.yml -i hosts.ini
 - [MySQL 数据库管理](database/mysql_db/README.md) - MySQL 数据库生命周期管理
 - [PostgreSQL 数据库管理](database/postgresql_db/README.md) - PostgreSQL 数据库和备份管理
 - [MongoDB 用户管理](database/mongodb_user/README.md) - MongoDB 用户和角色管理
+
+## 网络模块章节
+
+### 模块概览
+`network/` 目录提供完整的网络配置与防火墙管理解决方案，涵盖以下场景：
+- **防火墙规则管理**：firewalld（RHEL 系统）、ufw（Debian 系统）、iptables（内核级防火墙）
+- **网络监控与协调**：wait_for 模块用于端口监控、服务就绪验证、集群初始化协调
+- **分层安全部署**：支持多层应用架构的网络隔离和安全加固
+- **容器网络支持**：为 Kubernetes/Docker 等容器平台提供宿主机级网络配置
+
+### 模块特性
+每个网络管理模块都包含完整的配置和监控示例：
+- **firewalld**：RHEL/CentOS 系统的动态防火墙，支持 zone、service、port 灵活配置
+- **ufw**：Ubuntu/Debian 系统的简化防火墙，快速配置 allow/deny 规则
+- **iptables**：内核级防火墙，支持 NAT、DNAT、SNAT 等高级功能
+- **wait_for**：端口/服务可用性监控，支持延时重试和日志内容匹配
+
+### 环境依赖
+
+#### 必需的 Ansible Collections
+```bash
+# 安装防火墙模块集合
+ansible-galaxy collection install community.general
+
+# wait_for 模块内置于 ansible.builtin，无需额外安装
+```
+
+#### 系统工具安装
+```bash
+# 在目标主机上安装对应防火墙工具
+
+# RHEL/CentOS/Fedora (firewalld)
+sudo yum install -y firewalld
+sudo systemctl enable firewalld
+sudo systemctl start firewalld
+
+# Ubuntu/Debian (ufw)
+sudo apt-get install -y ufw
+sudo ufw enable
+
+# 通用 (iptables)
+# 大多数系统已预装，如需安装：
+sudo yum install -y iptables        # RHEL/CentOS
+# 或
+sudo apt-get install -y iptables    # Debian/Ubuntu
+```
+
+### 使用建议
+
+#### 快速开始
+```bash
+# 1. 安装必要的集合和工具
+ansible-galaxy collection install community.general
+# 在目标主机上安装 firewalld、ufw 等工具
+
+# 2. 查看对应模块文档
+cd network/firewalld  # 或 ufw/iptables/wait_for
+cat README.md
+
+# 3. 配置变量
+# 编辑 vars/example_vars.yml，根据实际需求调整参数
+
+# 4. 测试执行
+ansible-playbook playbook.yml --syntax-check
+ansible-playbook playbook.yml -i hosts.ini --check
+
+# 5. 实际部署
+ansible-playbook playbook.yml -i hosts.ini
+```
+
+#### 分层部署示例
+```yaml
+# 1. Web 层防火墙配置
+- hosts: web_servers
+  tasks:
+    - import_playbook: network/firewalld/playbook.yml
+      vars:
+        firewalld_web_services: [http, https]
+        firewalld_web_zone: public
+
+# 2. 应用层防火墙配置
+- hosts: app_servers
+  tasks:
+    - import_playbook: network/firewalld/playbook.yml
+      vars:
+        firewalld_app_port: 8080
+        firewalld_app_zone: internal
+
+# 3. 验证服务可用性
+- hosts: localhost
+  tasks:
+    - import_playbook: network/wait_for/playbook.yml
+      vars:
+        wait_for_web_host: "{{ web_server_ip }}"
+        wait_for_web_port: 80
+```
+
+#### 安全最佳实践
+1. **测试环境验证**：先在测试环境验证防火墙规则，再部署到生产
+2. **保持管理端口畅通**：避免意外阻断 SSH（通常 22 端口）
+3. **规则备份**：修改前备份当前防火墙规则以便回滚
+4. **使用 zone 隔离**：firewalld 的 zone 功能有效实现网络分段
+5. **监控告警**：启用防火墙日志，配合监控系统及时发现异常
+
+### 快速参考
+
+| 场景 | 推荐模块 | 说明 |
+|------|----------|------|
+| RHEL/CentOS 防火墙管理 | firewalld | 支持动态更新、zone 隔离 |
+| Ubuntu/Debian 防火墙管理 | ufw | 规则简单、易于维护 |
+| 内核级防火墙 / NAT 配置 | iptables | 强大灵活，支持高级功能 |
+| 服务启动等待 | wait_for | 监控端口/文件，协调依赖 |
+| 检查日志消息 | wait_for + search_regex | 更精确的服务就绪判断 |
+
+### 故障排查
+
+#### 防火墙修改后 SSH 连接断开
+```bash
+# 在目标主机本地恢复访问
+sudo systemctl stop firewalld         # 临时关闭
+sudo iptables -I INPUT -p tcp --dport 22 -j ACCEPT  # 或添加 SSH 规则
+```
+
+#### wait_for 超时
+```bash
+# 检查目标端口是否真的开放
+nc -zv <host> <port>
+# 或
+telnet <host> <port>
+```
+
+#### 防火墙规则查看
+```bash
+# firewalld
+sudo firewall-cmd --list-all
+
+# ufw
+sudo ufw status verbose
+
+# iptables
+sudo iptables -L -n -v
+```
+
+### 相关链接
+- [Firewalld 防火墙管理](network/firewalld/README.md) - RHEL 系统动态防火墙
+- [UFW 防火墙管理](network/ufw/README.md) - Ubuntu/Debian 简化防火墙
+- [iptables 防火墙与 NAT 规则](network/iptables/README.md) - 内核级防火墙管理
+- [Wait For 端口/服务监控](network/wait_for/README.md) - 服务可用性监控
+- [网络模块总览](network/README.md) - 网络模块完整指南

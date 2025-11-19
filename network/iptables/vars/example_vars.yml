@@ -1,0 +1,66 @@
+# iptables 防火墙配置示例变量
+
+# ========== SSH 配置 ==========
+# SSH 监听端口
+iptables_ssh_port: 22
+
+# ========== Web 服务配置 ==========
+# 启用 HTTP
+iptables_enable_http: true
+
+# 启用 HTTPS
+iptables_enable_https: true
+
+# ========== 应用服务配置 ==========
+# 应用服务端口
+iptables_app_port: 8080
+
+# 允许访问应用服务的源 IP（可以是单个 IP 或 CIDR）
+iptables_app_source_ip: "192.168.1.0/24"
+
+# ========== ICMP 配置 ==========
+# 允许 ping（ICMP）
+iptables_allow_ping: true
+
+# ========== 端口转发（DNAT）配置 ==========
+# 启用端口转发
+iptables_enable_port_forwarding: false
+
+# 外部接收的端口
+iptables_external_port: 8080
+
+# 内部转发目标 IP:PORT
+iptables_internal_service: "192.168.1.10:8080"
+
+# ========== IP 伪装（MASQUERADE）配置 ==========
+# 启用 IP 伪装（用于 NAT 出站）
+iptables_enable_masquerade: false
+
+# 出站网卡
+iptables_out_interface: eth0
+
+# ========== IP 转发配置 ==========
+# 启用 IP 转发（必须为 NAT 功能启用）
+iptables_enable_ip_forward: false
+
+# ========== 安全策略配置 ==========
+# 设置默认 DROP 策略（安全加固，需谨慎）
+iptables_set_default_drop_policy: false
+
+# ========== 重要提示 ==========
+# ⚠️ 警告：这些变量仅用于演示，生产环境请根据实际需求调整
+# 1. iptables 规则直接操作内核，修改前务必备份：
+#    sudo iptables-save > /tmp/iptables_backup.txt
+# 2. 避免意外阻断 SSH 连接导致无法远程管理
+# 3. 使用 ctstate（连接状态）过滤提高安全性
+#    - NEW：新连接
+#    - ESTABLISHED：已建立连接
+#    - RELATED：相关连接（如 FTP DATA）
+#    - INVALID：无效连接
+# 4. 端口转发需要启用 IP 转发（ip_forward）
+# 5. IP 伪装需要配置 POSTROUTING 链规则
+# 6. 部署后建议安装 iptables-persistent 以持久化规则：
+#    - Debian/Ubuntu: sudo apt install iptables-persistent
+#    - RHEL/CentOS: sudo yum install iptables-services
+# 7. 规则顺序从上到下评估，先匹配的规则生效
+# 8. 使用 comment 参数为每条规则添加描述，便于维护

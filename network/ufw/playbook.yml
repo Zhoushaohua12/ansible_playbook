@@ -1,0 +1,97 @@
+---
+- name: ufw 防火墙规则管理示例
+  hosts: all
+  become: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 安装和启用 ufw ==========
+    - name: 安装 ufw
+      ansible.builtin.apt:
+        name: ufw
+        state: present
+        update_cache: true
+      when: ansible_os_family == "Debian"
+    
+    - name: 启用 ufw 并重新加载
+      community.general.ufw:
+        state: enabled
+      when: ansible_os_family == "Debian"
+    
+    - name: 配置 ufw 默认策略 - 入站阻止
+      community.general.ufw:
+        direction: in
+        policy: deny
+      when: ansible_os_family == "Debian"
+    
+    - name: 配置 ufw 默认策略 - 出站允许
+      community.general.ufw:
+        direction: out
+        policy: allow
+      when: ansible_os_family == "Debian"
+    
+    # ========== 开放 SSH 访问（保持管理畅通） ==========
+    - name: 允许 SSH 访问
+      community.general.ufw:
+        rule: allow
+        port: ssh
+        proto: tcp
+      when: ansible_os_family == "Debian"
+    
+    # ========== 开放 Web 服务端口 ==========
+    - name: 批量允许 Web 服务端口
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop: "{{ ufw_web_ports }}"
+      when: ansible_os_family == "Debian"
+    
+    # ========== 开放应用服务端口 ==========
+    - name: 允许应用服务端口
+      community.general.ufw:
+        rule: allow
+        port: "{{ ufw_app_port }}"
+        proto: "{{ ufw_app_protocol }}"
+      when: ansible_os_family == "Debian"
+    
+    # ========== 限制源 IP 访问数据库端口 ==========
+    - name: 允许特定 IP 访问数据库
+      community.general.ufw:
+        rule: allow
+        from_ip: "{{ ufw_app_server_ip }}"
+        to_port: "{{ ufw_db_port }}"
+        proto: tcp
+      when: ansible_os_family == "Debian" and ufw_app_server_ip != ""
+    
+    # ========== 配置日志级别 ==========
+    - name: 设置 ufw 日志级别为 medium
+      community.general.ufw:
+        logging: medium
+      when: ansible_os_family == "Debian"
+    
+    # ========== 验证 ufw 状态 ==========
+    - name: 获取 ufw 详细状态
+      ansible.builtin.command: ufw status verbose
+      register: ufw_status
+      changed_when: false
+      when: ansible_os_family == "Debian"
+    
+    - name: 显示 ufw 当前规则
+      ansible.builtin.debug:
+        msg: "{{ ufw_status.stdout_lines }}"
+      when: ansible_os_family == "Debian"
+    
+    # ========== 显示配置结果 ==========
+    - name: 显示规则配置完成
+      ansible.builtin.debug:
+        msg: |
+          UFW 防火墙规则配置完成！
+          已允许的服务：
+          - SSH (22/tcp)
+          - Web 服务: {{ ufw_web_ports | join(', ') }}
+          - 应用服务: {{ ufw_app_port }}/{{ ufw_app_protocol }}
+          - 数据库访问受限源 IP: {{ ufw_app_server_ip }}
+          日志级别: medium
+      when: ansible_os_family == "Debian"
