@@ -1,0 +1,131 @@
+---
+# ⚠️ 教学声明：本 playbook 主要用于学习 HAProxy 负载均衡配置，请在测试环境验证后再应用于生产。
+- name: HAProxy 负载均衡配置与部署
+  hosts: load_balancers
+  become: yes
+  vars_files:
+    - vars/example_vars.yml
+
+  handlers:
+    - name: 重载 HAProxy 服务
+      ansible.builtin.service:
+        name: haproxy
+        state: reloaded
+
+    - name: 重启 HAProxy 服务
+      ansible.builtin.service:
+        name: haproxy
+        state: restarted
+
+    - name: 验证 HAProxy 配置语法
+      ansible.builtin.command: haproxy -c -f /etc/haproxy/haproxy.cfg
+      register: haproxy_test
+      changed_when: false
+      failed_when: haproxy_test.rc != 0
+
+  tasks:
+    - name: 更新 APT 包缓存（Debian/Ubuntu）
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: 安装 HAProxy 及相关工具
+      ansible.builtin.package:
+        name:
+          - haproxy
+          - python3-openssl  # 用于 SSL 证书管理
+        state: present
+
+    - name: 创建 HAProxy 配置和证书目录
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      loop:
+        - /etc/haproxy
+        - /etc/haproxy/certs
+        - /var/log/haproxy
+
+    - name: 部署 HAProxy 主配置文件
+      ansible.builtin.template:
+        src: templates/haproxy.cfg.j2
+        dest: /etc/haproxy/haproxy.cfg
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+        validate: 'haproxy -c -f %s'
+      notify:
+        - 验证 HAProxy 配置语法
+        - 重载 HAProxy 服务
+
+    - name: 配置 rsyslog 用于 HAProxy 日志转发
+      ansible.builtin.template:
+        src: templates/rsyslog_haproxy.conf.j2
+        dest: /etc/rsyslog.d/49-haproxy.conf
+        owner: root
+        group: root
+        mode: '0644'
+      notify:
+        - 重启 rsyslog 服务
+      when: ansible_os_family == "Debian"
+
+    - name: 配置防火墙规则（开放 HTTP 和 HTTPS 端口）
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - '80'
+        - '443'
+        - '8404'  # HAProxy Stats 页面
+      when: ansible_os_family == "Debian"
+
+    - name: 启动 HAProxy 服务并设置开机自启
+      ansible.builtin.service:
+        name: haproxy
+        state: started
+        enabled: yes
+
+    - name: 等待 HAProxy 端口监听就绪
+      ansible.builtin.wait_for:
+        port: 80
+        delay: 2
+        timeout: 30
+        state: started
+
+    - name: 验证 HAProxy 健康状态（如果启用了管理界面）
+      ansible.builtin.uri:
+        url: "http://localhost:8404/stats"
+        status_code: 200
+        return_content: yes
+      register: stats_check
+      changed_when: false
+      ignore_errors: yes
+
+    - name: 输出 HAProxy 管理界面检查结果
+      ansible.builtin.debug:
+        msg: "HAProxy Stats 页面可访问（如配置启用），HTTP 状态码: {{ stats_check.status | default('N/A') }}"
+
+    - name: 显示 HAProxy 服务状态信息
+      ansible.builtin.systemd:
+        name: haproxy
+      register: haproxy_status
+
+    - name: 输出服务状态摘要
+      ansible.builtin.debug:
+        msg:
+          - "服务名称: {{ haproxy_status.name }}"
+          - "运行状态: {{ haproxy_status.status.ActiveState }}"
+          - "开机自启: {{ haproxy_status.status.UnitFileState }}"
+          - "监听地址: {{ haproxy_listen_address }}:{{ haproxy_listen_port }}"
+          - "日志路径: /var/log/haproxy/haproxy.log"
+
+  handlers:
+    - name: 重启 rsyslog 服务
+      ansible.builtin.service:
+        name: rsyslog
+        state: restarted

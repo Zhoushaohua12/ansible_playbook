@@ -1,0 +1,212 @@
+---
+# ⚠️ 教学声明：本 playbook 用于学习系统磁盘信息采集，仅供演示之用
+- name: 系统磁盘信息采集与分析
+  hosts: localhost
+  connection: local
+  gather_facts: yes  # 启用 facts 采集
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 输出磁盘信息采集步骤（演示 loop 用法）
+      ansible.builtin.debug:
+        msg:
+          - "{{ item }}"
+      loop:
+        - "采集步骤："
+        - "1. ansible.builtin.setup 采集系统硬件信息"
+        - "2. 使用 filter 参数选择性采集磁盘信息"
+        - "3. 分析 ansible_mounts 获取挂载点和容量"
+        - "4. 查询 ansible_lvm 获取 LVM 配置"
+        - "5. 生成容量报告和告警"
+      tags:
+        - always
+
+    - name: 采集全部硬件信息
+      ansible.builtin.setup:
+        gather_subset: hardware
+      register: hardware_facts
+      tags:
+        - facts_hardware
+
+    - name: 采集磁盘相关 facts
+      ansible.builtin.setup:
+        filter: ansible_*disk*
+      register: disk_facts
+      tags:
+        - facts_disk
+
+    - name: 采集挂载点信息
+      ansible.builtin.setup:
+        filter: ansible_mounts
+      register: mounts_facts
+      tags:
+        - facts_mounts
+
+    - name: 采集 LVM 信息
+      ansible.builtin.setup:
+        filter: ansible_lvm
+      register: lvm_facts
+      tags:
+        - facts_lvm
+      failed_when: false
+
+    - name: 输出系统基本信息
+      ansible.builtin.debug:
+        msg:
+          - "========== 系统硬件基本信息 =========="
+          - "主机名: {{ ansible_hostname }}"
+          - "操作系统: {{ ansible_os_family }} {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "内核版本: {{ ansible_kernel }}"
+          - "CPU 物理核心数: {{ ansible_processor_count }}"
+          - "CPU 逻辑核心数: {{ ansible_processor_vcpus }}"
+          - "总内存: {{ ansible_memtotal_mb | int / 1024 | round(2) }} GB"
+          - "可用内存: {{ ansible_memfree_mb | int / 1024 | round(2) }} GB"
+          - "当前模式: {{ 'Check Mode (--check 干跑)' if ansible_check_mode else '正常模式' }}"
+      tags:
+        - always
+
+    - name: 输出磁盘设备信息
+      ansible.builtin.debug:
+        msg:
+          - "========== 系统磁盘设备 =========="
+          - "{{ disk_facts.ansible_facts | to_nice_json }}"
+      tags:
+        - facts_disk
+
+    - name: 输出块设备列表
+      ansible.builtin.debug:
+        msg:
+          - "========== 块设备列表 =========="
+          - "可用块设备: {{ ansible_devices.keys() | list }}"
+      tags:
+        - facts_disk
+      when: ansible_devices is defined
+
+    - name: 输出详细块设备信息
+      ansible.builtin.debug:
+        msg:
+          - "设备: {{ item.key }}"
+          - "  型号: {{ item.value.model | default('N/A') }}"
+          - "  大小: {{ item.value.size | default('N/A') }}"
+          - "  分区: {{ item.value.partitions.keys() | list | default('无') }}"
+      loop: "{{ ansible_devices | dict2items }}"
+      tags:
+        - facts_disk_detail
+      when: ansible_devices is defined and ansible_devices | length > 0
+
+    - name: 输出挂载点信息
+      ansible.builtin.debug:
+        msg:
+          - "========== 文件系统挂载点 =========="
+          - "{{ mounts_facts.ansible_facts.ansible_mounts | to_nice_json }}"
+      tags:
+        - facts_mounts
+
+    - name: 输出挂载点列表摘要
+      ansible.builtin.debug:
+        msg:
+          - "挂载点: {{ item.mount }}"
+          - "  设备: {{ item.device }}"
+          - "  文件系统: {{ item.fstype }}"
+          - "  总容量: {{ item.size_total | int / 1024 / 1024 / 1024 | round(2) }} GB"
+          - "  已用: {{ item.size_used | int / 1024 / 1024 / 1024 | round(2) }} GB"
+          - "  可用: {{ item.size_available | int / 1024 / 1024 / 1024 | round(2) }} GB"
+          - "  使用率: {{ ((item.size_used | int / item.size_total | int) * 100) | round(2) }}%"
+      loop: "{{ ansible_mounts }}"
+      tags:
+        - facts_mounts_detail
+      when: ansible_mounts is defined and ansible_mounts | length > 0
+
+    - name: 检查是否安装了 LVM
+      ansible.builtin.debug:
+        msg: "{{ 'LVM 已安装' if (ansible_lvm is defined and ansible_lvm) else 'LVM 未安装或无卷组' }}"
+      tags:
+        - facts_lvm
+
+    - name: 输出 LVM 信息
+      ansible.builtin.debug:
+        msg:
+          - "========== LVM 信息 =========="
+          - "{{ ansible_lvm | to_nice_json }}"
+      tags:
+        - facts_lvm
+      when: ansible_lvm is defined and ansible_lvm
+
+    - name: 输出 LVM 卷组详情
+      ansible.builtin.debug:
+        msg:
+          - "卷组: {{ item.name }}"
+          - "  大小: {{ item.size_g }} GB"
+          - "  可用空间: {{ item.free_g }} GB"
+          - "  物理卷: {{ item.pvs | join(', ') }}"
+      loop: "{{ ansible_lvm.vgs }}"
+      tags:
+        - facts_lvm_detail
+      when: ansible_lvm is defined and ansible_lvm.vgs is defined and ansible_lvm.vgs | length > 0
+
+    - name: 输出 LVM 逻辑卷详情
+      ansible.builtin.debug:
+        msg:
+          - "逻辑卷: {{ item.name }}"
+          - "  卷组: {{ item.vg }}"
+          - "  大小: {{ item.size_g }} GB"
+      loop: "{{ ansible_lvm.lvs }}"
+      tags:
+        - facts_lvm_detail
+      when: ansible_lvm is defined and ansible_lvm.lvs is defined and ansible_lvm.lvs | length > 0
+
+    - name: 输出 LVM 物理卷详情
+      ansible.builtin.debug:
+        msg:
+          - "物理卷: {{ item.name }}"
+          - "  卷组: {{ item.vg }}"
+          - "  大小: {{ item.size_g }} GB"
+          - "  可用空间: {{ item.free_g }} GB"
+      loop: "{{ ansible_lvm.pvs }}"
+      tags:
+        - facts_lvm_detail
+      when: ansible_lvm is defined and ansible_lvm.pvs is defined and ansible_lvm.pvs | length > 0
+
+    - name: 生成磁盘容量报告
+      ansible.builtin.template:
+        src: disk_report.j2
+        dest: /tmp/disk_facts_report.txt
+      tags:
+        - facts_report
+
+    - name: 读取生成的报告
+      ansible.builtin.slurp:
+        src: /tmp/disk_facts_report.txt
+      register: report_content
+      tags:
+        - facts_report
+
+    - name: 输出磁盘容量报告
+      ansible.builtin.debug:
+        msg:
+          - "{{ report_content.content | b64decode }}"
+      tags:
+        - facts_report
+
+    - name: 显示采集信息总结
+      ansible.builtin.debug:
+        msg:
+          - "========== 磁盘信息采集总结 =========="
+          - "采集的 facts 变量："
+          - "  - ansible_devices: 块设备列表"
+          - "  - ansible_mounts: 挂载点信息"
+          - "  - ansible_processor_vcpus: CPU 核心数"
+          - "  - ansible_memtotal_mb: 总内存"
+          - "  - ansible_lvm: LVM 配置信息"
+          - ""
+          - "生成的报告："
+          - "  - /tmp/disk_facts_report.txt"
+          - ""
+          - "下一步建议："
+          - "1. 定期运行此 playbook 采集系统信息用于审计"
+          - "2. 使用采集的 facts 动态配置应用（如基于可用磁盘空间调整缓存）"
+          - "3. 结合 Zabbix/Prometheus 监控磁盘容量变化"
+          - "4. 根据磁盘使用率生成告警"
+      tags:
+        - always

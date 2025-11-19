@@ -1,0 +1,28 @@
+---
+# 磁盘信息采集（disk_facts）配置变量示例
+# ⚠️ 重要提示：这个模块主要用于信息采集，变量较少
+
+# 采集配置
+gather_subset: hardware  # 采集信息子集（all、hardware、network 等）
+gather_timeout: 30  # 采集超时时间（秒）
+
+# 输出配置
+report_format: text  # 报告格式（text、json、csv）
+report_path: /tmp/disk_facts_report.txt  # 报告文件路径
+
+# ⚠️ 安全提示：
+# 1. 本模块仅进行信息采集，不修改系统
+# 2. 采集的信息存储在 Ansible facts 变量中，可用于后续任务
+# 3. 常用的 facts 变量包括：
+#    - ansible_mounts: 挂载点列表
+#    - ansible_devices: 块设备列表
+#    - ansible_processor_vcpus: CPU 逻辑核心数
+#    - ansible_memtotal_mb: 总内存容量
+#    - ansible_lvm: LVM 配置（如果已安装）
+# 4. 在 playbook 中使用采集的 facts：
+#    - "{{ ansible_mounts }}" 获取挂载点列表
+#    - "{{ ansible_devices }}" 获取块设备信息
+#    - "{{ ansible_lvm }}" 获取 LVM 信息（可能为空）
+# 5. 采集所有信息可能较慢，建议使用 filter 参数精确采集
+# 6. 定期采集系统信息用于容量规划和审计
+# 7. 集成监控系统（Zabbix、Prometheus）进行趋势分析

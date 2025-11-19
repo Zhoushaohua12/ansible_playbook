@@ -1,0 +1,261 @@
+---
+# ⚠️ 教学声明：本 playbook 主要用于学习 SSL 证书自动化管理，请在测试环境验证后再应用于生产。
+- name: SSL 证书自动化获取、部署与续期管理
+  hosts: web_servers
+  become: yes
+  vars_files:
+    - vars/example_vars.yml
+
+  handlers:
+    - name: 重载 Nginx 服务
+      ansible.builtin.service:
+        name: nginx
+        state: reloaded
+
+    - name: 重启 Nginx 服务
+      ansible.builtin.service:
+        name: nginx
+        state: restarted
+
+    - name: 验证 Nginx 配置语法
+      ansible.builtin.command: nginx -t
+      register: nginx_test
+      changed_when: false
+      failed_when: nginx_test.rc != 0
+
+  tasks:
+    - name: 更新 APT 包缓存（Debian/Ubuntu）
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: 安装依赖包
+      ansible.builtin.package:
+        name:
+          - python3-openssl
+          - python3-cryptography
+          - openssl
+        state: present
+
+    - name: 创建证书存储目录
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      loop:
+        - /etc/pki
+        - /etc/pki/acme
+        - /etc/pki/tls
+        - /etc/pki/tls/private
+        - /etc/pki/tls/certs
+
+    - name: 生成 ACME 账户私钥
+      community.crypto.openssl_privatekey:
+        path: /etc/pki/acme/account.key
+        size: 4096
+        type: RSA
+        force: no
+      tags:
+        - cert_keys
+
+    - name: 生成服务器私钥
+      community.crypto.openssl_privatekey:
+        path: /etc/pki/tls/private/server.key
+        size: 4096
+        type: RSA
+        force: no
+      tags:
+        - cert_keys
+
+    - name: 生成证书签名请求（CSR）- 单域名
+      community.crypto.openssl_csr:
+        path: /etc/pki/tls/certs/server.csr
+        privatekey_path: /etc/pki/tls/private/server.key
+        common_name: "{{ cert_common_name }}"
+        country_name: "{{ cert_country_name }}"
+        state_or_province_name: "{{ cert_state_name }}"
+        locality_name: "{{ cert_locality_name }}"
+        organization_name: "{{ cert_organization_name }}"
+        force: no
+      tags:
+        - cert_csr
+      when: cert_san_domains is not defined or cert_san_domains | length == 0
+
+    - name: 生成证书签名请求（CSR）- 多域名
+      community.crypto.openssl_csr:
+        path: /etc/pki/tls/certs/server.csr
+        privatekey_path: /etc/pki/tls/private/server.key
+        common_name: "{{ cert_common_name }}"
+        subject_alt_name: "{{ cert_san_domains }}"
+        country_name: "{{ cert_country_name }}"
+        state_or_province_name: "{{ cert_state_name }}"
+        locality_name: "{{ cert_locality_name }}"
+        organization_name: "{{ cert_organization_name }}"
+        force: no
+      tags:
+        - cert_csr
+      when: cert_san_domains is defined and cert_san_domains | length > 0
+
+    - name: 申请 Let's Encrypt 证书
+      community.crypto.acme_certificate:
+        account_key_src: /etc/pki/acme/account.key
+        account_email: "{{ acme_account_email }}"
+        challenge: "{{ acme_challenge_type }}"
+        csr_src: /etc/pki/tls/certs/server.csr
+        dest: /etc/pki/tls/certs/server.crt
+        fullchain_dest: /etc/pki/tls/certs/fullchain.pem
+        chain_dest: /etc/pki/tls/certs/chain.pem
+        terms_agreed: yes
+        acme_directory: "{{ acme_directory_url }}"
+        acme_version: 2
+        state: present
+      register: cert_result
+      tags:
+        - cert_acme
+      when: cert_use_acme | default(true) | bool
+
+    - name: 输出证书申请结果
+      ansible.builtin.debug:
+        msg:
+          - "证书申请状态: {{ cert_result.status | default('N/A') }}"
+          - "证书文件: /etc/pki/tls/certs/server.crt"
+          - "私钥文件: /etc/pki/tls/private/server.key"
+          - "完整证书链: /etc/pki/tls/certs/fullchain.pem"
+      tags:
+        - cert_acme
+
+    - name: 修复证书文件权限
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        owner: "{{ item.owner }}"
+        group: "{{ item.group }}"
+        mode: "{{ item.mode }}"
+      loop:
+        - path: /etc/pki/tls/private/server.key
+          owner: root
+          group: root
+          mode: '0600'
+        - path: /etc/pki/tls/certs/server.crt
+          owner: root
+          group: root
+          mode: '0644'
+        - path: /etc/pki/tls/certs/fullchain.pem
+          owner: root
+          group: root
+          mode: '0644'
+      tags:
+        - cert_perms
+
+    - name: 验证证书有效期
+      ansible.builtin.shell:
+        cmd: openssl x509 -in /etc/pki/tls/certs/server.crt -noout -dates
+      register: cert_dates
+      changed_when: false
+      tags:
+        - cert_verify
+
+    - name: 输出证书有效期
+      ansible.builtin.debug:
+        msg: "{{ cert_dates.stdout_lines }}"
+      tags:
+        - cert_verify
+
+    - name: 部署 Nginx HTTPS 配置（如果启用）
+      ansible.builtin.template:
+        src: templates/nginx_https.conf.j2
+        dest: /etc/nginx/sites-available/https.conf
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      notify:
+        - 验证 Nginx 配置语法
+        - 重载 Nginx 服务
+      tags:
+        - cert_nginx
+      when: deploy_to_nginx | default(false) | bool
+
+    - name: 启用 HTTPS 虚拟主机配置
+      ansible.builtin.file:
+        src: /etc/nginx/sites-available/https.conf
+        dest: /etc/nginx/sites-enabled/https.conf
+        state: link
+      notify: 重载 Nginx 服务
+      tags:
+        - cert_nginx
+      when: deploy_to_nginx | default(false) | bool
+
+    - name: 创建证书续期脚本
+      ansible.builtin.copy:
+        dest: /usr/local/bin/renew_certificate.sh
+        content: |
+          #!/bin/bash
+          # Let's Encrypt 证书自动续期脚本
+          # 由 Ansible 自动生成
+          
+          ACCOUNT_KEY="/etc/pki/acme/account.key"
+          SERVER_KEY="/etc/pki/tls/private/server.key"
+          SERVER_CSR="/etc/pki/tls/certs/server.csr"
+          SERVER_CRT="/etc/pki/tls/certs/server.crt"
+          FULLCHAIN="/etc/pki/tls/certs/fullchain.pem"
+          LOG_FILE="/var/log/certificate_renewal.log"
+          
+          # 检查证书过期时间
+          EXPIRY=$(openssl x509 -in $SERVER_CRT -noout -dates | grep notAfter | cut -d= -f2)
+          EXPIRY_EPOCH=$(date -d "$EXPIRY" +%s)
+          CURRENT_EPOCH=$(date +%s)
+          DAYS_LEFT=$(( ($EXPIRY_EPOCH - $CURRENT_EPOCH) / 86400 ))
+          
+          echo "[$(date)]证书剩余天数: $DAYS_LEFT" >> $LOG_FILE
+          
+          # 如果剩余天数小于 30，则发送提醒或续期
+          if [ $DAYS_LEFT -lt 30 ]; then
+            echo "[$(date)] 证书即将过期（剩余 $DAYS_LEFT 天），需要手动或自动续期" >> $LOG_FILE
+            # 这里可以集成邮件提醒或自动续期逻辑
+            exit 0
+          fi
+          
+          exit 0
+        mode: '0755'
+      tags:
+        - cert_renewal
+
+    - name: 创建证书过期检查定时任务
+      ansible.builtin.cron:
+        name: 证书过期检查
+        minute: "0"
+        hour: "8"
+        job: "/usr/local/bin/renew_certificate.sh >> /var/log/certificate_renewal.log 2>&1"
+        state: present
+      tags:
+        - cert_renewal
+
+    - name: 创建证书续期日志文件
+      ansible.builtin.file:
+        path: /var/log/certificate_renewal.log
+        state: touch
+        owner: root
+        group: root
+        mode: '0644'
+      tags:
+        - cert_renewal
+
+    - name: 输出证书部署总结
+      ansible.builtin.debug:
+        msg:
+          - "========== SSL 证书部署完成 =========="
+          - "私钥位置: /etc/pki/tls/private/server.key (权限: 600)"
+          - "证书位置: /etc/pki/tls/certs/server.crt"
+          - "完整链位置: /etc/pki/tls/certs/fullchain.pem"
+          - "CSR 位置: /etc/pki/tls/certs/server.csr"
+          - "续期日志: /var/log/certificate_renewal.log"
+          - "下一步:"
+          - "1. 验证证书：openssl x509 -in /etc/pki/tls/certs/server.crt -noout -text"
+          - "2. 配置 Web 服务器使用证书"
+          - "3. 访问 https://{{ cert_common_name }} 验证配置"
+          - "4. 定期检查证书过期时间"
+      tags:
+        - always

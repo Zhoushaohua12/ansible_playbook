@@ -1,0 +1,144 @@
+---
+# ⚠️ 教学声明：本 playbook 主要用于学习 LVM 卷组管理，仅供演示之用，请勿直接在生产环境运行
+- name: LVM 卷组创建与管理演练
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 断言当前处于 check 模式或演练环境
+      ansible.builtin.assert:
+        that:
+          - ansible_check_mode | bool or demo_mode | default(true) | bool
+        fail_msg: "⚠️ 警告：为防止误改真实磁盘，建议使用 --check 模式或在演练环境中运行此 playbook"
+      tags:
+        - always
+
+    - name: 输出 Loopback 设备准备步骤（演示 loop 用法）
+      ansible.builtin.debug:
+        msg:
+          - "{{ item.step }}: {{ item.desc }}"
+      loop:
+        - step: "Step 1"
+          desc: "创建镜像文件: dd if=/dev/zero of=$HOME/.storage_lab/pv-demo.img bs=1M count=100"
+        - step: "Step 2"
+          desc: "绑定 loopback 设备: losetup --find --show $HOME/.storage_lab/pv-demo.img"
+        - step: "Step 3"
+          desc: "初始化物理卷: pvcreate /dev/loop0"
+        - step: "Step 4"
+          desc: "创建卷组: vgcreate {{ lvg_vg_name }} /dev/loop0"
+      tags:
+        - always
+
+    - name: 输出演练模式说明
+      ansible.builtin.debug:
+        msg:
+          - "========== LVM 卷组演练模式 =========="
+          - "当前模式: {{ 'Check Mode (干跑)' if ansible_check_mode else '演练模式' }}"
+          - "卷组名称: {{ lvg_vg_name }}"
+          - "物理卷列表: {{ lvg_pv_list }}"
+          - "物理范围大小: {{ lvg_pe_size }} MB"
+          - ""
+          - "本 playbook 使用 loopback 设备演练 LVM 卷组操作"
+          - "实际执行时需要 root 权限和 lvm2 软件包"
+          - "建议先使用 --check 模式查看计划操作"
+      tags:
+        - always
+
+    - name: 检查 lvm2 工具是否可用
+      ansible.builtin.command:
+        cmd: which vgs
+      register: vgs_check
+      failed_when: false
+      changed_when: false
+      tags:
+        - lvg_check
+
+    - name: 输出 lvm2 检查结果
+      ansible.builtin.debug:
+        msg: "{{ 'lvm2 已安装' if vgs_check.rc == 0 else '⚠️ lvm2 未安装，某些命令可能不可用' }}"
+      tags:
+        - lvg_check
+
+    - name: 查询现有卷组信息
+      ansible.builtin.command:
+        cmd: vgs --all --noheadings || echo "No LVM volume groups found"
+      register: existing_vgs
+      changed_when: false
+      failed_when: false
+      tags:
+        - lvg_list
+
+    - name: 输出现有卷组信息
+      ansible.builtin.debug:
+        msg:
+          - "现有 LVM 卷组："
+          - "{{ existing_vgs.stdout_lines }}"
+      tags:
+        - lvg_list
+
+    - name: 查询现有物理卷信息
+      ansible.builtin.command:
+        cmd: pvs --all --noheadings || echo "No LVM physical volumes found"
+      register: existing_pvs
+      changed_when: false
+      failed_when: false
+      tags:
+        - lvg_list
+
+    - name: 输出现有物理卷信息
+      ansible.builtin.debug:
+        msg:
+          - "现有 LVM 物理卷："
+          - "{{ existing_pvs.stdout_lines }}"
+      tags:
+        - lvg_list
+
+    - name: 创建 LVM 卷组（演练）
+      community.general.lvg:
+        vg_name: "{{ lvg_vg_name }}"
+        pvs: "{{ lvg_pv_list }}"
+        pesize: "{{ lvg_pe_size }}"
+        state: present
+      register: lvg_result
+      changed_when: false  # 演练模式下禁用 changed 标志
+      failed_when: false  # 失败时不中断 playbook
+      tags:
+        - lvg_create
+
+    - name: 输出卷组创建结果
+      ansible.builtin.debug:
+        msg:
+          - "卷组创建结果:"
+          - "  卷组名称: {{ lvg_result.vg_name | default('N/A') }}"
+          - "  物理卷数量: {{ lvg_result.pvs | length | default('N/A') }}"
+          - "  卷组大小: {{ lvg_result.vg_size | default('N/A') }}"
+          - "  可用大小: {{ lvg_result.vg_free | default('N/A') }}"
+          - "  物理范围大小: {{ lvg_result.vg_extent_size | default('N/A') }}"
+          - "  返回码: {{ lvg_result.rc | default('Success') }}"
+      tags:
+        - lvg_create
+
+    - name: 显示 LVM 卷组操作总结
+      ansible.builtin.debug:
+        msg:
+          - "========== LVM 卷组演练总结 =========="
+          - "操作类型: 卷组创建"
+          - "卷组名称: {{ lvg_vg_name }}"
+          - "物理卷数: {{ lvg_pv_list | length }}"
+          - ""
+          - "下一步建议："
+          - "1. 使用 lvs 命令查看卷组详情"
+          - "2. 使用 community.general.lvol 模块创建逻辑卷"
+          - "3. 使用 ansible.builtin.filesystem 模块格式化逻辑卷"
+          - "4. 使用 ansible.posix.mount 模块挂载文件系统"
+          - ""
+          - "清理资源："
+          - "1. 删除所有逻辑卷: lvremove -f /dev/{{ lvg_vg_name }}/*"
+          - "2. 删除卷组: vgremove {{ lvg_vg_name }}"
+          - "3. 删除物理卷标记: pvremove {{ lvg_pv_list | join(' ') }}"
+          - "4. 删除 loopback 设备: losetup -d /dev/loop*"
+      tags:
+        - always

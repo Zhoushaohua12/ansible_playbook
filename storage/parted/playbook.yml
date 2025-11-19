@@ -1,0 +1,216 @@
+---
+# ⚠️ 教学声明：本 playbook 主要用于学习磁盘分区管理，仅供演示之用，请勿直接在生产环境运行
+- name: Parted 磁盘分区操作演练
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 断言当前处于 check 模式或演练环境
+      ansible.builtin.assert:
+        that:
+          - ansible_check_mode | bool or demo_mode | default(true) | bool
+        fail_msg: "⚠️ 警告：为防止误改真实磁盘，建议使用 --check 模式或在演练环境中运行此 playbook"
+      tags:
+        - always
+
+    - name: 输出 Loopback 磁盘设备准备步骤（演示 loop 用法）
+      ansible.builtin.debug:
+        msg:
+          - "{{ item.step }}: {{ item.desc }}"
+      loop:
+        - step: "Step 1"
+          desc: "创建磁盘镜像: dd if=/dev/zero of=$HOME/.storage_lab/disk-demo.img bs=1M count=500"
+        - step: "Step 2"
+          desc: "绑定 loopback: losetup --find --show $HOME/.storage_lab/disk-demo.img"
+        - step: "Step 3"
+          desc: "创建分区表: parted /dev/loop0 mklabel {{ parted_label }}"
+        - step: "Step 4"
+          desc: "创建分区: parted /dev/loop0 mkpart primary 0% 100%"
+      tags:
+        - always
+
+    - name: 输出分区演练模式说明
+      ansible.builtin.debug:
+        msg:
+          - "========== Parted 磁盘分区演练模式 =========="
+          - "当前模式: {{ 'Check Mode (干跑)' if ansible_check_mode else '演练模式' }}"
+          - "目标设备: {{ parted_device }}"
+          - "分区表类型: {{ parted_label }}"
+          - "单位: {{ parted_unit }}"
+          - ""
+          - "本 playbook 使用 loopback 设备演练磁盘分区操作"
+          - "实际执行时需要 root 权限和 parted 软件包"
+          - "建议先使用 --check 模式查看计划操作"
+      tags:
+        - always
+
+    - name: 检查 parted 工具是否可用
+      ansible.builtin.command:
+        cmd: which parted
+      register: parted_check
+      failed_when: false
+      changed_when: false
+      tags:
+        - parted_check
+
+    - name: 输出 parted 检查结果
+      ansible.builtin.debug:
+        msg: "{{ 'parted 工具已安装' if parted_check.rc == 0 else '⚠️ parted 未安装' }}"
+      tags:
+        - parted_check
+
+    - name: 查询设备当前分区信息
+      ansible.builtin.command:
+        cmd: "parted -l {{ parted_device }} || echo 'Device not found or not accessible'"
+      register: parted_list
+      changed_when: false
+      failed_when: false
+      tags:
+        - parted_info
+
+    - name: 输出当前分区信息
+      ansible.builtin.debug:
+        msg:
+          - "设备 {{ parted_device }} 的当前分区："
+          - "{{ parted_list.stdout_lines }}"
+      tags:
+        - parted_info
+
+    - name: 创建分区表
+      community.general.parted:
+        device: "{{ parted_device }}"
+        label: "{{ parted_label }}"
+        state: present
+      register: parted_table_result
+      changed_when: false  # 演练模式下禁用 changed 标志
+      failed_when: false  # 失败时不中断 playbook
+      tags:
+        - parted_create_table
+
+    - name: 输出分区表创建结果
+      ansible.builtin.debug:
+        msg:
+          - "分区表创建结果："
+          - "  设备: {{ parted_table_result.disk | default('N/A') }}"
+          - "  分区表类型: {{ parted_table_result.table | default('N/A') }}"
+          - "  分区数: {{ parted_table_result.partitions | length | default('N/A') }}"
+      tags:
+        - parted_create_table
+
+    - name: 创建主分区（占用磁盘前 50%）
+      community.general.parted:
+        device: "{{ parted_device }}"
+        number: 1
+        state: present
+        part_start: "0%"
+        part_end: "50%"
+        part_type: primary
+        align: optimal
+      register: parted_part1_result
+      changed_when: false
+      failed_when: false
+      tags:
+        - parted_create_partitions
+
+    - name: 输出第一分区创建结果
+      ansible.builtin.debug:
+        msg:
+          - "第一分区创建结果："
+          - "  分区号: {{ parted_part1_result.partitions[0].number | default('N/A') }}"
+          - "  大小: {{ parted_part1_result.partitions[0].size | default('N/A') }}"
+          - "  类型: {{ parted_part1_result.partitions[0].type | default('N/A') }}"
+      failed_when: false
+      tags:
+        - parted_create_partitions
+
+    - name: 创建第二分区（占用磁盘后 50%）
+      community.general.parted:
+        device: "{{ parted_device }}"
+        number: 2
+        state: present
+        part_start: "50%"
+        part_end: "100%"
+        part_type: primary
+        align: optimal
+      register: parted_part2_result
+      changed_when: false
+      failed_when: false
+      tags:
+        - parted_create_partitions
+
+    - name: 输出第二分区创建结果
+      ansible.builtin.debug:
+        msg:
+          - "第二分区创建结果："
+          - "  分区号: {{ parted_part2_result.partitions[1].number | default('N/A') }}"
+          - "  大小: {{ parted_part2_result.partitions[1].size | default('N/A') }}"
+          - "  类型: {{ parted_part2_result.partitions[1].type | default('N/A') }}"
+      failed_when: false
+      tags:
+        - parted_create_partitions
+
+    - name: 标记第一分区为 LVM（可选）
+      community.general.parted:
+        device: "{{ parted_device }}"
+        number: 1
+        flags: [lvm]
+        state: present
+      register: parted_lvm_result
+      changed_when: false
+      failed_when: false
+      tags:
+        - parted_flags
+      when: enable_lvm_flag | default(false) | bool
+
+    - name: 输出标志设置结果
+      ansible.builtin.debug:
+        msg: "LVM 标志已设置到第一分区"
+      tags:
+        - parted_flags
+      when: enable_lvm_flag | default(false) | bool
+
+    - name: 查询最终分区信息
+      ansible.builtin.command:
+        cmd: "parted {{ parted_device }} print || echo 'Query failed'"
+      register: parted_final
+      changed_when: false
+      failed_when: false
+      tags:
+        - parted_verify
+
+    - name: 输出最终分区信息
+      ansible.builtin.debug:
+        msg:
+          - "最终磁盘分区布局："
+          - "{{ parted_final.stdout_lines }}"
+      tags:
+        - parted_verify
+
+    - name: 显示磁盘分区操作总结
+      ansible.builtin.debug:
+        msg:
+          - "========== 磁盘分区演练总结 =========="
+          - "操作类型: 分区创建和管理"
+          - "目标设备: {{ parted_device }}"
+          - "分区表类型: {{ parted_label }}"
+          - ""
+          - "创建的分区："
+          - "  - 分区 1: {{ parted_device }}1 (0% - 50%)"
+          - "  - 分区 2: {{ parted_device }}2 (50% - 100%)"
+          - ""
+          - "下一步建议："
+          - "1. 使用 community.general.parted 模块创建更多分区"
+          - "2. 使用 community.general.lvg 模块在 LVM 分区上创建卷组"
+          - "3. 使用 ansible.builtin.filesystem 模块格式化分区"
+          - "4. 使用 ansible.posix.mount 模块挂载分区"
+          - ""
+          - "清理资源："
+          - "1. 删除分区: parted {{ parted_device }} rm 1"
+          - "2. 删除分区表: parted {{ parted_device }} mklabel loop"
+          - "3. 删除 loopback: losetup -d {{ parted_device }}"
+          - "4. 删除镜像: rm $HOME/.storage_lab/disk-demo.img"
+      tags:
+        - always

@@ -1,0 +1,31 @@
+---
+# LVM 卷组（lvg）管理配置变量示例
+# ⚠️ 重要提示：这些变量为示例占位值，请根据实际环境修改后使用
+
+# 卷组配置
+lvg_vg_name: "demo_vg"  # 卷组名称
+lvg_pv_list:  # 组成卷组的物理卷列表
+  - "/dev/loop0"  # 占位符：实际应为真实块设备（如 /dev/sda1）或 loopback 设备
+  - "/dev/loop1"
+lvg_pe_size: "4"  # 物理范围大小（MB）
+
+# 演练模式标志
+demo_mode: true  # 是否为演练模式（推荐在测试环境启用）
+
+# ⚠️ 安全提示：
+# 1. 本 playbook 仅用于学习和测试，不建议直接在生产环境使用
+# 2. 请勿在真实磁盘上运行此 playbook，除非完全理解 LVM 操作
+# 3. 如需真实演练，建议使用 loopback 设备或虚拟磁盘：
+#    - dd if=/dev/zero of=$HOME/pv-demo.img bs=1M count=100
+#    - losetup --find --show $HOME/pv-demo.img
+# 4. 物理卷列表 (lvg_pv_list) 中的设备必须已初始化为 LVM 物理卷
+#    初始化方式：pvcreate /dev/loop0
+# 5. 删除卷组前必须先删除所有逻辑卷，否则会导致数据丢失
+# 6. 建议始终使用 --check 模式先预览操作
+# 7. 对于 loopback 设备，在删除卷组后需要清理：
+#    - losetup -d /dev/loop0
+#    - losetup -d /dev/loop1
+#    - rm $HOME/pv-demo*.img
+# 8. 如需查看现有卷组信息，使用命令：vgs
+# 9. 如需查看物理卷信息，使用命令：pvs
+# 10. 定期备份 LVM 配置：vgcfgbackup -f /backup/vg_backup

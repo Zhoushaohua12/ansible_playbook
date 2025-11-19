@@ -1,0 +1,43 @@
+---
+# Parted 磁盘分区管理配置变量示例
+# ⚠️ 重要提示：这些变量为示例占位值，请根据实际环境修改后使用
+
+# 分区设备配置
+parted_device: "/dev/loop0"  # 目标磁盘设备（占位符：实际应为真实设备或 loopback 设备）
+parted_label: "msdos"  # 分区表类型（msdos=MBR, gpt=GPT）
+parted_unit: "MiB"  # 位置单位（MiB、GiB、%、s 等）
+
+# 分区配置选项
+parted_align: "optimal"  # 对齐方式（optimal、minimal、none）
+enable_lvm_flag: false  # 是否为分区设置 LVM 标志
+
+# 演练模式标志
+demo_mode: true  # 是否为演练模式（推荐在测试环境启用）
+
+# ⚠️ 安全提示：
+# 1. 本 playbook 对磁盘的修改是破坏性的，务必确认目标设备
+# 2. 仅在测试环境或虚拟磁盘上运行此 playbook
+# 3. 执行前请备份分区表：parted -m {{ parted_device }} print > partition_backup.txt
+# 4. 建议使用 loopback 设备进行演练：
+#    - dd if=/dev/zero of=$HOME/disk-demo.img bs=1M count=500
+#    - losetup --find --show $HOME/disk-demo.img
+# 5. 使用 --check 模式预览操作，不实际修改磁盘：
+#    ansible-playbook playbook.yml --check
+# 6. parted_label 的选择：
+#    - msdos: 传统 MBR 分区表，最多 4 个主分区
+#    - gpt: 现代 GPT 分区表，支持更大磁盘和更多分区
+# 7. 对齐方式说明：
+#    - optimal: 根据磁盘类型自动选择最优对齐
+#    - minimal: 最小对齐（可能性能较差）
+#    - none: 不对齐
+# 8. 删除分区的完整流程：
+#    1. 确认分区上没有挂载的文件系统
+#    2. 使用 parted 删除分区
+#    3. 使用 parted 删除分区表
+#    4. 清理 loopback 设备
+# 9. 常用 parted 命令（手动操作）：
+#    - parted {{ parted_device }} print：查看分区表
+#    - parted {{ parted_device }} mklabel {{ parted_label }}：创建分区表
+#    - parted {{ parted_device }} mkpart primary 0% 50%：创建分区
+#    - parted {{ parted_device }} rm 1：删除分区 1
+# 10. 如需创建 GPT 分区表，可参考 UEFI 启动配置要求

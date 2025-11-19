@@ -1,0 +1,107 @@
+========== 系统磁盘信息报告 ==========
+生成时间: {{ ansible_date_time.iso8601 }}
+主机名: {{ ansible_hostname }}
+操作系统: {{ ansible_os_family }} {{ ansible_distribution }} {{ ansible_distribution_version }}
+
+========== 系统硬件概览 ==========
+CPU 物理核心数: {{ ansible_processor_count }}
+CPU 逻辑核心数: {{ ansible_processor_vcpus }}
+总内存: {{ (ansible_memtotal_mb | int / 1024) | round(2) }} GB
+可用内存: {{ (ansible_memfree_mb | int / 1024) | round(2) }} GB
+内存使用率: {{ ((ansible_memtotal_mb | int - ansible_memfree_mb | int) / ansible_memtotal_mb | int * 100) | round(2) }}%
+
+========== 块设备列表 ==========
+{% if ansible_devices is defined and ansible_devices | length > 0 %}
+{% for device, info in ansible_devices.items() %}
+设备名: {{ device }}
+  型号: {{ info.model | default('N/A') }}
+  大小: {{ info.size | default('N/A') }}
+  供应商: {{ info.vendor | default('N/A') }}
+  分区: {{ info.partitions.keys() | list | default('无') | join(', ') }}
+{% endfor %}
+{% else %}
+无块设备信息可用
+{% endif %}
+
+========== 文件系统挂载点 ==========
+{% if ansible_mounts is defined and ansible_mounts | length > 0 %}
+{% for mount in ansible_mounts %}
+挂载点: {{ mount.mount }}
+  设备: {{ mount.device }}
+  文件系统类型: {{ mount.fstype }}
+  总容量: {{ (mount.size_total | int / 1024 / 1024 / 1024) | round(2) }} GB
+  已用容量: {{ (mount.size_used | int / 1024 / 1024 / 1024) | round(2) }} GB
+  可用容量: {{ (mount.size_available | int / 1024 / 1024 / 1024) | round(2) }} GB
+  使用率: {{ ((mount.size_used | int / mount.size_total | int) * 100) | round(2) }}%
+  Inode 总数: {{ mount.inode_total | default('N/A') }}
+  Inode 可用: {{ mount.inode_available | default('N/A') }}
+  Inode 使用率: {{ ((mount.inode_used | int / mount.inode_total | int) * 100) | round(2) }}% (如果数据可用)
+
+{% endfor %}
+{% else %}
+无挂载点信息可用
+{% endif %}
+
+========== LVM 配置信息 ==========
+{% if ansible_lvm is defined and ansible_lvm %}
+### 卷组信息 ###
+{% if ansible_lvm.vgs is defined and ansible_lvm.vgs | length > 0 %}
+{% for vg in ansible_lvm.vgs %}
+卷组名: {{ vg.name }}
+  总大小: {{ vg.size_g }} GB
+  可用空间: {{ vg.free_g }} GB
+  物理卷: {{ vg.pvs | join(', ') }}
+
+{% endfor %}
+{% else %}
+无卷组信息
+{% endif %}
+
+### 逻辑卷信息 ###
+{% if ansible_lvm.lvs is defined and ansible_lvm.lvs | length > 0 %}
+{% for lv in ansible_lvm.lvs %}
+逻辑卷: {{ lv.name }} (卷组: {{ lv.vg }})
+  大小: {{ lv.size_g }} GB
+
+{% endfor %}
+{% else %}
+无逻辑卷信息
+{% endif %}
+
+### 物理卷信息 ###
+{% if ansible_lvm.pvs is defined and ansible_lvm.pvs | length > 0 %}
+{% for pv in ansible_lvm.pvs %}
+物理卷: {{ pv.name }} (卷组: {{ pv.vg }})
+  总大小: {{ pv.size_g }} GB
+  可用空间: {{ pv.free_g }} GB
+  已用空间: {{ pv.used_g }} GB
+
+{% endfor %}
+{% else %}
+无物理卷信息
+{% endif %}
+{% else %}
+LVM 未安装或无卷组配置
+{% endif %}
+
+========== 磁盘容量预警 ==========
+{% set disk_warning = [] %}
+{% for mount in ansible_mounts | default([]) %}
+{% set usage = (mount.size_used | int / mount.size_total | int) * 100 %}
+{% if usage > 90 %}
+{% set _ = disk_warning.append('警告: ' + mount.mount + ' 使用率超过 90% (' + (usage | round(2))|string + '%)') %}
+{% elif usage > 80 %}
+{% set _ = disk_warning.append('注意: ' + mount.mount + ' 使用率超过 80% (' + (usage | round(2))|string + '%)') %}
+{% endif %}
+{% endfor %}
+{% if disk_warning | length > 0 %}
+{% for warning in disk_warning %}
+{{ warning }}
+{% endfor %}
+{% else %}
+无磁盘容量预警（所有挂载点使用率均在安全范围内）
+{% endif %}
+
+========== 报告生成完成 ==========
+报告路径: /tmp/disk_facts_report.txt
+建议定期运行此采集脚本，用于系统审计和容量规划
