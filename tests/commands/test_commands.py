@@ -6,12 +6,13 @@ from typing import Dict
 import pytest
 import yaml
 
-MODULES = ["shell", "command", "raw", "script"]
+MODULES = ["shell", "command", "raw", "script", "expect"]
 FQCN_EXPECTATIONS = {
     "shell": "ansible.builtin.shell",
     "command": "ansible.builtin.command", 
     "raw": "ansible.builtin.raw",
     "script": "ansible.builtin.script",
+    "expect": "ansible.builtin.expect",
 }
 
 
@@ -40,6 +41,7 @@ class TestCommandsReadme(TestCommandsFixtures):
         assert "command" in content, "commands/README.md 应包含 command 模块说明"
         assert "raw" in content, "commands/README.md 应包含 raw 模块说明"
         assert "script" in content, "commands/README.md 应包含 script 模块说明"
+        assert "expect" in content, "commands/README.md 应包含 expect 模块说明"
         assert "安全风险" in content, "commands/README.md 应说明安全风险"
 
 

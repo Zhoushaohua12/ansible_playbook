@@ -1,0 +1,12 @@
+---
+# import_tasks 静态引入示例变量
+import_tasks_environment: "staging"
+import_task_services:
+  - name: api
+    config_template: api.j2
+  - name: worker
+    config_template: worker.j2
+  - name: scheduler
+    config_template: scheduler.j2
+import_tasks_apply_config: true
+import_tasks_cleanup_enabled: true

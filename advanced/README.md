@@ -32,6 +32,29 @@
 - **何时使用**：复用通用任务、依据条件加载子任务、保持主 Playbook 精简时。
 - **示例**：[include_tasks](include_tasks/README.md) 调用带中文注释的子任务文件，并传入变量定制行为。
 
+## Block / Rescue / Always（进阶）
+- **用途**：演示如何在同一 block 中结合回滚、日志和清理，并通过 `when` 控制整个原子步骤
+- **示例**：[block_always](block_always/README.md) 展示备份→变更→验证的组合，失败后自动回滚并在 always 段落清理
+
+## Import Playbook（Play 级复用）
+- **用途**：将部署流程拆分为多个 Playbook（准备、部署、校验），主入口通过 `import_playbook` 串联
+- **示例**：[import_playbook](import_playbook/README.md) 提供三阶段示例，突出固定执行顺序与变量复用
+
+## Import Tasks（任务级复用）
+- **用途**：静态引入任务文件，保证配置与清理步骤在多个 Play 中保持一致
+- **示例**：[import_tasks](import_tasks/README.md) 结合 `when` 与 `tags` 控制导入，任务内部使用 `loop` 处理多服务
+
+## 循环矩阵（Loop Matrix）
+- **用途**：利用 `product`/`subelements` 组合多维数据，批量执行区域×环境×端口的操作
+- **示例**：[loop_matrix](loop_matrix/README.md) 通过 `loop_control.loop_var` 输出可读标签，并用 `when` 过滤敏感环境
+
+## 高级特性最佳实践
+1. **错误处理**：使用 block/rescue 捕获异常，并在 always 中清理或记录状态；关键任务务必 `register` 输出供回滚判断
+2. **条件判断**：把 `when` 写在 block、include/import 入口处，可一次性跳过整组任务，避免重复条件
+3. **循环控制**：在复杂循环中指定 `loop_control.loop_var`，配合 `product` 或 `subelements` 构建多维矩阵
+4. **模块复用**：根据场景选择 `import_playbook`（Play 级固定流程）或 `import_tasks`（任务级复用），必要时与 `include_tasks` 动态组合
+
+
 ## 如何调试/常见错误
 1. **善用 `-vvv` 与 `--start-at-task`**：发现 block/rescue 逻辑问题时，直接从出错任务重新执行，观察 rescue 是否被正确触发。
 2. **检查变量作用域**：`set_fact` 默认保存在当前主机的 facts 中，跨 Play 使用时需配合 `cacheable` 或重新计算。

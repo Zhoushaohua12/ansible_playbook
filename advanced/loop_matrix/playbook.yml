@@ -1,0 +1,38 @@
+---
+- name: 循环矩阵示例 - 区域 × 环境 × 服务端口
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 遍历区域与环境组合（product 演示）
+      ansible.builtin.debug:
+        msg: "部署组合 => 区域: {{ combo.0 }}, 环境: {{ combo.1 }}"
+      loop: "{{ loop_matrix_regions | product(loop_matrix_environments) | list }}"
+      loop_control:
+        loop_var: combo
+        label: "{{ combo.0 }}@{{ combo.1 }}"
+      when: combo.1 != 'dev' or loop_matrix_enable_experimental_features
+
+    - name: 遍历服务与端口（subelements 演示）
+      ansible.builtin.debug:
+        msg: "为服务 {{ item.0.name }} 打开端口 {{ item.1 }}"
+      loop: "{{ loop_matrix_services | subelements('ports') }}"
+      loop_control:
+        loop_var: item
+        label: "{{ item.0.name }}:{{ item.1 }}"
+
+    - name: 组合再加工 - 每个区域选择首个端口
+      ansible.builtin.debug:
+        msg: |
+          在 {{ region }}-{{ env }} 中为 {{ svc.name }} 预留端口 {{ svc.ports[0] }}
+      vars:
+        svc: "{{ loop_matrix_services[0] }}"
+        region: "{{ region_env.0 }}"
+        env: "{{ region_env.1 }}"
+      loop: "{{ loop_matrix_regions | product(loop_matrix_environments) | list }}"
+      loop_control:
+        loop_var: region_env
+        label: "{{ region_env.0 }}-{{ region_env.1 }}"
+      when: env != 'production'

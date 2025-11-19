@@ -1,0 +1,14 @@
+---
+- name: 阶段3：验证与健康检查
+  hosts: all
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  tasks:
+    - name: 验证每个服务的健康检查端点
+      ansible.builtin.debug:
+        msg: "调用 {{ service_item }} -> {{ import_healthcheck_endpoints[service_item] }} (环境: {{ import_target_env }})"
+      loop: "{{ import_services }}"
+      loop_control:
+        loop_var: service_item
+      when: import_target_env != 'dev'

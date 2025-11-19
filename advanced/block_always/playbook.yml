@@ -1,0 +1,83 @@
+---
+- name: Block / Rescue / Always 综合示例 - 批量配置回滚演练
+  hosts: all
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 原子配置更新块（失败时回滚）
+      block:
+        - name: 为所有配置文件创建备份
+          ansible.builtin.copy:
+            src: "{{ config_item }}"
+            dest: "{{ config_item }}{{ backup_suffix }}"
+            remote_src: true
+          loop: "{{ config_files }}"
+          loop_control:
+            loop_var: config_item
+          register: backup_results
+
+        - name: 批量修改配置文件（模拟危险操作）
+          ansible.builtin.lineinfile:
+            path: "{{ config_item }}"
+            regexp: '^debug_mode='
+            line: "debug_mode=enabled"
+            create: true
+            mode: '0644'
+          loop: "{{ config_files }}"
+          loop_control:
+            loop_var: config_item
+          register: update_results
+
+        - name: 验证配置文件语法（可能会失败）
+          ansible.builtin.shell: |
+            if [ ! -s "{{ config_item }}" ]; then
+              echo "配置文件 {{ config_item }} 为空或不存在"
+              exit 1
+            fi
+          loop: "{{ config_files }}"
+          loop_control:
+            loop_var: config_item
+          changed_when: false
+
+      rescue:
+        - name: 记录失败原因并准备回滚
+          ansible.builtin.debug:
+            msg: |
+              ⚠ 配置更新失败：{{ ansible_failed_task.name }}
+              出错主机：{{ inventory_hostname }}
+              准备执行回滚...
+
+        - name: 回滚所有已修改的配置文件
+          ansible.builtin.copy:
+            src: "{{ config_item }}{{ backup_suffix }}"
+            dest: "{{ config_item }}"
+            remote_src: true
+          loop: "{{ config_files }}"
+          loop_control:
+            loop_var: config_item
+          when: backup_results is defined
+          ignore_errors: true  # 回滚时避免二次失败导致 play 中止
+
+        - name: 记录回滚日志
+          ansible.builtin.lineinfile:
+            path: "{{ rollback_log }}"
+            line: "[{{ lookup('pipe', 'date -Iseconds') }}] 回滚已执行：{{ ansible_failed_task.name }}"
+            create: true
+
+      always:
+        - name: 清理备份文件（无论成功或失败）
+          ansible.builtin.file:
+            path: "{{ config_item }}{{ backup_suffix }}"
+            state: absent
+          loop: "{{ config_files }}"
+          loop_control:
+            loop_var: config_item
+          when: cleanup_temp_files
+
+        - name: 记录任务完成状态
+          ansible.builtin.debug:
+            msg: "原子操作已完成，临时文件已清理"
+
+      when: enable_risky_operations

@@ -1,0 +1,13 @@
+---
+# 本文件通过 import_tasks 引入，用于批量配置服务
+- name: 遍历服务列表并创建配置文件（loop 演示）
+  ansible.builtin.debug:
+    msg: "正在为 {{ svc_item.name }} 应用配置模板 {{ svc_item.config_template }} (环境: {{ import_tasks_environment }})"
+  loop: "{{ import_task_services }}"
+  loop_control:
+    loop_var: svc_item
+  when: import_tasks_apply_config
+
+- name: 记录配置应用时间
+  ansible.builtin.debug:
+    msg: "配置已应用于所有服务，环境 = {{ import_tasks_environment }}"

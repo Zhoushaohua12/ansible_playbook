@@ -1,0 +1,29 @@
+---
+- name: import_tasks 示例 - 静态任务复用与编排
+  hosts: all
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 开始部署前置检查
+      ansible.builtin.debug:
+        msg: "部署环境: {{ import_tasks_environment }}, 服务数量: {{ import_task_services | length }}"
+
+    # 静态引入配置任务，支持条件判断与 tags
+    - name: 引入配置任务（静态解析）
+      ansible.builtin.import_tasks: tasks/configure.yml
+      when: import_tasks_apply_config
+      tags:
+        - config
+
+    # 静态引入清理任务，在配置完成后执行
+    - name: 引入清理任务（静态解析）
+      ansible.builtin.import_tasks: tasks/cleanup.yml
+      when: import_tasks_cleanup_enabled
+      tags:
+        - cleanup
+
+    - name: 最终输出
+      ansible.builtin.debug:
+        msg: "import_tasks 示例完成，所有任务已按解析顺序执行"

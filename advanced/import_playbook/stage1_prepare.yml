@@ -1,0 +1,16 @@
+---
+- name: 阶段1：准备基础环境
+  hosts: all
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  tasks:
+    - name: 创建部署临时目录
+      ansible.builtin.file:
+        path: /tmp/ansible_import_demo
+        state: directory
+        mode: '0755'
+
+    - name: 输出准备阶段信息
+      ansible.builtin.debug:
+        msg: "准备阶段完成 - 目标环境：{{ import_target_env | default('未指定') }}"
