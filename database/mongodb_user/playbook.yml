@@ -1,0 +1,150 @@
+---
+- name: MongoDB 用户管理示例演示
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    - name: 创建应用数据库用户 - 读写权限
+      community.mongodb.mongodb_user:
+        login_host: "{{ mongodb_host }}"
+        login_port: "{{ mongodb_port }}"
+        login_user: "{{ mongodb_admin_user }}"
+        login_password: "{{ mongodb_admin_password }}"
+        login_database: "{{ mongodb_auth_database }}"
+        name: "{{ app_user_name }}"
+        password: "{{ app_user_password }}"
+        database: "{{ app_database }}"
+        roles:
+          - db: "{{ app_database }}"
+            role: readWrite
+        state: present
+        update_password: on_create
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ mongodb_host }}"
+    
+    - name: 创建只读用户 - 用于报表查询和数据分析
+      community.mongodb.mongodb_user:
+        login_host: "{{ mongodb_host }}"
+        login_port: "{{ mongodb_port }}"
+        login_user: "{{ mongodb_admin_user }}"
+        login_password: "{{ mongodb_admin_password }}"
+        login_database: "{{ mongodb_auth_database }}"
+        name: "{{ readonly_user_name }}"
+        password: "{{ readonly_user_password }}"
+        database: "{{ app_database }}"
+        roles:
+          - db: "{{ app_database }}"
+            role: read
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ mongodb_host }}"
+    
+    - name: 创建跨数据库用户 - 多数据库访问权限
+      community.mongodb.mongodb_user:
+        login_host: "{{ mongodb_host }}"
+        login_user: "{{ mongodb_admin_user }}"
+        login_password: "{{ mongodb_admin_password }}"
+        login_database: "{{ mongodb_auth_database }}"
+        name: "{{ multi_db_user_name }}"
+        password: "{{ multi_db_user_password }}"
+        database: "{{ mongodb_auth_database }}"
+        roles:
+          - db: "{{ app_database }}"
+            role: readWrite
+          - db: "{{ log_database }}"
+            role: readWrite
+          - db: "{{ session_database }}"
+            role: readWrite
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ mongodb_host }}"
+    
+    - name: 创建数据库管理员 - 管理权限但不包含数据访问
+      community.mongodb.mongodb_user:
+        login_host: "{{ mongodb_host }}"
+        login_user: "{{ mongodb_admin_user }}"
+        login_password: "{{ mongodb_admin_password }}"
+        login_database: "{{ mongodb_auth_database }}"
+        name: "{{ db_admin_user_name }}"
+        password: "{{ db_admin_user_password }}"
+        database: "{{ app_database }}"
+        roles:
+          - db: "{{ app_database }}"
+            role: dbAdmin
+          - db: "{{ app_database }}"
+            role: userAdmin
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ mongodb_host }}"
+    
+    - name: 创建备份用户 - 仅备份和恢复权限
+      community.mongodb.mongodb_user:
+        login_host: "{{ mongodb_host }}"
+        login_user: "{{ mongodb_admin_user }}"
+        login_password: "{{ mongodb_admin_password }}"
+        login_database: "{{ mongodb_auth_database }}"
+        name: "{{ backup_user_name }}"
+        password: "{{ backup_user_password }}"
+        database: admin
+        roles:
+          - backup
+          - restore
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ mongodb_host }}"
+    
+    - name: 创建监控用户 - 集群监控权限
+      community.mongodb.mongodb_user:
+        login_host: "{{ mongodb_host }}"
+        login_user: "{{ mongodb_admin_user }}"
+        login_password: "{{ mongodb_admin_password }}"
+        login_database: "{{ mongodb_auth_database }}"
+        name: "{{ monitor_user_name }}"
+        password: "{{ monitor_user_password }}"
+        database: admin
+        roles:
+          - clusterMonitor
+        state: present
+      check_mode: true
+      no_log: true
+      when: create_monitor_user | default(false) | bool
+      delegate_to: "{{ mongodb_host }}"
+    
+    - name: 更新用户密码 - 定期密码轮换
+      community.mongodb.mongodb_user:
+        login_host: "{{ mongodb_host }}"
+        login_user: "{{ mongodb_admin_user }}"
+        login_password: "{{ mongodb_admin_password }}"
+        login_database: "{{ mongodb_auth_database }}"
+        name: "{{ app_user_name }}"
+        password: "{{ new_app_user_password }}"
+        database: "{{ app_database }}"
+        update_password: always
+      check_mode: true
+      no_log: true
+      when: new_app_user_password is defined
+      delegate_to: "{{ mongodb_host }}"
+    
+    - name: 删除测试用户 - 生产环境清理
+      community.mongodb.mongodb_user:
+        login_host: "{{ mongodb_host }}"
+        login_user: "{{ mongodb_admin_user }}"
+        login_password: "{{ mongodb_admin_password }}"
+        login_database: "{{ mongodb_auth_database }}"
+        name: "{{ item }}"
+        database: "{{ app_database }}"
+        state: absent
+      check_mode: true
+      no_log: true
+      loop: "{{ test_users_to_delete }}"
+      when: 
+        - cleanup_test_users | default(false) | bool
+        - test_users_to_delete is defined
+      delegate_to: "{{ mongodb_host }}"

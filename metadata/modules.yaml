@@ -244,3 +244,51 @@ applications:
         - "软件源配置"
         - "GPG 密钥管理"
         - "系统管理员权限"
+
+database:
+  title: 数据库管理
+  description: "提供主流数据库系统（MySQL、PostgreSQL、MongoDB）的自动化管理示例，涵盖用户管理、数据库创建、权限授予等常见运维场景"
+  external_dependencies:
+    - "community.mysql collection (MySQL 模块)"
+    - "community.postgresql collection (PostgreSQL 模块)"
+    - "community.mongodb collection (MongoDB 模块)"
+    - "Python libraries: PyMySQL/mysqlclient, psycopg2-binary, pymongo"
+    - "数据库服务器访问权限和管理员凭证"
+  topics:
+    - id: mysql_user
+      name: MySQL 用户管理
+      doc: database/mysql_user/README.md
+      example: database/mysql_user/playbook.yml
+      summary: "MySQL 和 MariaDB 用户账号管理，支持创建用户、授权、密码管理和权限撤销"
+      external_deps:
+        - "community.mysql collection"
+        - "PyMySQL 或 mysqlclient Python 库"
+        - "MySQL 管理员权限（GRANT 权限）"
+    - id: mysql_db
+      name: MySQL 数据库管理
+      doc: database/mysql_db/README.md
+      example: database/mysql_db/playbook.yml
+      summary: "MySQL 数据库生命周期管理，支持创建删除数据库、导入导出 SQL、字符集配置"
+      external_deps:
+        - "community.mysql collection"
+        - "PyMySQL 或 mysqlclient Python 库"
+        - "mysqldump 工具（导出操作）"
+    - id: postgresql_db
+      name: PostgreSQL 数据库管理
+      doc: database/postgresql_db/README.md
+      example: database/postgresql_db/playbook.yml
+      summary: "PostgreSQL 数据库管理，支持创建数据库、设置 owner、encoding、连接限制和备份恢复"
+      external_deps:
+        - "community.postgresql collection"
+        - "psycopg2-binary Python 库"
+        - "pg_dump 和 pg_restore 工具"
+    - id: mongodb_user
+      name: MongoDB 用户管理
+      doc: database/mongodb_user/README.md
+      example: database/mongodb_user/playbook.yml
+      summary: "MongoDB 用户和角色管理，支持创建用户、配置角色、权限管理和密码更新"
+      external_deps:
+        - "community.mongodb collection"
+        - "pymongo Python 库"
+        - "MongoDB 启用认证配置"
+        - "userAdmin 或 userAdminAnyDatabase 角色"

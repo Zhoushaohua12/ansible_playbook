@@ -1,0 +1,121 @@
+---
+- name: MySQL 数据库管理示例演示
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    - name: 创建应用数据库 - 使用 UTF8MB4 字符集
+      community.mysql.mysql_db:
+        login_host: "{{ mysql_host }}"
+        login_port: "{{ mysql_port }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+        name: "{{ app_database_name }}"
+        encoding: "{{ db_encoding }}"
+        collation: "{{ db_collation }}"
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ mysql_host }}"
+    
+    - name: 导入数据库初始结构 - schema.sql
+      community.mysql.mysql_db:
+        login_host: "{{ mysql_host }}"
+        login_port: "{{ mysql_port }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+        name: "{{ app_database_name }}"
+        state: import
+        target: "{{ schema_file_path }}"
+      check_mode: true
+      no_log: true
+      when: schema_file_path is defined
+      delegate_to: "{{ mysql_host }}"
+    
+    - name: 导入初始数据 - seed_data.sql
+      community.mysql.mysql_db:
+        login_host: "{{ mysql_host }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+        name: "{{ app_database_name }}"
+        state: import
+        target: "{{ seed_data_file_path }}"
+      check_mode: true
+      no_log: true
+      when: 
+        - seed_data_file_path is defined
+        - import_seed_data | default(false) | bool
+      delegate_to: "{{ mysql_host }}"
+    
+    - name: 导出数据库到备份文件 - 单事务一致性备份
+      community.mysql.mysql_db:
+        login_host: "{{ mysql_host }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+        name: "{{ app_database_name }}"
+        state: dump
+        target: "{{ backup_directory }}/{{ app_database_name }}_{{ ansible_date_time.iso8601_basic_short }}.sql"
+        single_transaction: true
+        quick: true
+      check_mode: true
+      no_log: true
+      when: perform_backup | default(false) | bool
+      delegate_to: "{{ mysql_host }}"
+    
+    - name: 批量创建测试环境数据库
+      community.mysql.mysql_db:
+        login_host: "{{ mysql_host }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+        name: "{{ item }}"
+        encoding: "{{ db_encoding }}"
+        collation: "{{ db_collation }}"
+        state: present
+      check_mode: true
+      no_log: true
+      loop: "{{ test_databases }}"
+      when: create_test_databases | default(false) | bool
+      delegate_to: "{{ mysql_host }}"
+    
+    - name: 创建日志数据库 - 独立存储日志数据
+      community.mysql.mysql_db:
+        login_host: "{{ mysql_host }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+        name: "{{ log_database_name }}"
+        encoding: "{{ db_encoding }}"
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ mysql_host }}"
+    
+    - name: 导出多个数据库到单个文件 - 完整备份
+      community.mysql.mysql_db:
+        login_host: "{{ mysql_host }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+        name: "{{ backup_databases }}"
+        state: dump
+        target: "{{ backup_directory }}/full_backup_{{ ansible_date_time.iso8601_basic_short }}.sql"
+        single_transaction: true
+      check_mode: true
+      no_log: true
+      when: perform_full_backup | default(false) | bool
+      delegate_to: "{{ mysql_host }}"
+    
+    - name: 删除废弃的测试数据库 - 清理环境
+      community.mysql.mysql_db:
+        login_host: "{{ mysql_host }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+        name: "{{ item }}"
+        state: absent
+      check_mode: true
+      no_log: true
+      loop: "{{ deprecated_databases }}"
+      when: 
+        - cleanup_deprecated_databases | default(false) | bool
+        - deprecated_databases is defined
+      delegate_to: "{{ mysql_host }}"

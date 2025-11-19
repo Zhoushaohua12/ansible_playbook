@@ -1,0 +1,127 @@
+---
+- name: PostgreSQL 数据库管理示例演示
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    - name: 创建应用数据库 - 使用 UTF8 编码和指定 owner
+      community.postgresql.postgresql_db:
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        name: "{{ app_database_name }}"
+        owner: "{{ app_database_owner }}"
+        encoding: "{{ db_encoding }}"
+        lc_collate: "{{ db_lc_collate }}"
+        lc_ctype: "{{ db_lc_ctype }}"
+        template: "{{ db_template }}"
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 创建多租户数据库 - 限制连接数防止资源耗尽
+      community.postgresql.postgresql_db:
+        login_host: "{{ postgres_host }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        name: "{{ item.name }}"
+        owner: "{{ item.owner }}"
+        encoding: "{{ db_encoding }}"
+        conn_limit: "{{ item.conn_limit }}"
+        state: present
+      check_mode: true
+      no_log: true
+      loop: "{{ tenant_databases }}"
+      when: create_tenant_databases | default(false) | bool
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 创建日志数据库 - 独立存储应用日志
+      community.postgresql.postgresql_db:
+        login_host: "{{ postgres_host }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        name: "{{ log_database_name }}"
+        owner: "{{ log_database_owner }}"
+        encoding: "{{ db_encoding }}"
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 创建测试数据库 - 使用干净的 template0
+      community.postgresql.postgresql_db:
+        login_host: "{{ postgres_host }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        name: "{{ test_database_name }}"
+        owner: "{{ app_database_owner }}"
+        encoding: "{{ db_encoding }}"
+        template: template0
+        state: present
+      check_mode: true
+      no_log: true
+      when: create_test_database | default(false) | bool
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 导出数据库到备份文件 - pg_dump 格式
+      community.postgresql.postgresql_db:
+        login_host: "{{ postgres_host }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        name: "{{ app_database_name }}"
+        state: dump
+        target: "{{ backup_directory }}/{{ app_database_name }}_{{ ansible_date_time.iso8601_basic_short }}.dump"
+      check_mode: true
+      no_log: true
+      when: perform_backup | default(false) | bool
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 从备份文件恢复数据库
+      community.postgresql.postgresql_db:
+        login_host: "{{ postgres_host }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        name: "{{ restore_database_name }}"
+        state: restore
+        target: "{{ restore_file_path }}"
+      check_mode: true
+      no_log: true
+      when: 
+        - perform_restore | default(false) | bool
+        - restore_file_path is defined
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 创建开发环境数据库 - 从生产模板克隆
+      community.postgresql.postgresql_db:
+        login_host: "{{ postgres_host }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        name: "{{ dev_database_name }}"
+        owner: "{{ dev_database_owner }}"
+        template: "{{ production_database_template }}"
+        state: present
+      check_mode: true
+      no_log: true
+      when: 
+        - create_dev_database | default(false) | bool
+        - production_database_template is defined
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 删除废弃的测试数据库 - 清理环境
+      community.postgresql.postgresql_db:
+        login_host: "{{ postgres_host }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        name: "{{ item }}"
+        state: absent
+      check_mode: true
+      no_log: true
+      loop: "{{ deprecated_databases }}"
+      when: 
+        - cleanup_deprecated_databases | default(false) | bool
+        - deprecated_databases is defined
+      delegate_to: "{{ postgres_host }}"

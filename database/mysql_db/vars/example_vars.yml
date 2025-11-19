@@ -1,0 +1,51 @@
+---
+# MySQL 连接配置
+mysql_host: "db.example.com"  # MySQL 服务器地址
+mysql_port: 3306  # MySQL 服务器端口
+mysql_admin_user: "root"  # 管理员用户名，需要 CREATE、DROP 权限
+mysql_admin_password: "PLEASE_CHANGE_THIS_ADMIN_PASSWORD"  # ⚠️ 管理员密码 - 生产环境请使用 ansible-vault 加密
+
+# 数据库配置
+app_database_name: "webapp_db"  # 应用数据库名称
+db_encoding: "utf8mb4"  # 数据库字符集，推荐使用 utf8mb4 支持完整 Unicode
+db_collation: "utf8mb4_unicode_ci"  # 排序规则，unicode_ci 支持多语言排序
+
+# 数据导入配置
+schema_file_path: "/path/to/schema.sql"  # 数据库结构 SQL 文件路径
+seed_data_file_path: "/path/to/seed_data.sql"  # 初始数据 SQL 文件路径
+import_seed_data: false  # 是否导入初始数据，开发环境可设为 true
+
+# 备份配置
+backup_directory: "/var/backups/mysql"  # 备份文件存储目录
+perform_backup: false  # 是否执行备份，设为 true 时导出数据库
+perform_full_backup: false  # 是否执行完整备份（多个数据库）
+
+# 备份数据库列表（完整备份时使用）
+backup_databases:
+  - "webapp_db"
+  - "app_logs"
+  - "user_sessions"
+
+# 测试数据库配置
+create_test_databases: false  # 是否创建测试数据库，测试环境设为 true
+test_databases:  # 测试数据库名称列表
+  - "test_webapp_db"
+  - "test_integration_db"
+  - "test_performance_db"
+
+# 日志数据库配置
+log_database_name: "app_logs"  # 日志数据库名称，独立存储应用日志
+
+# 清理配置
+cleanup_deprecated_databases: false  # 是否清理废弃数据库，谨慎操作
+deprecated_databases:  # 待删除的数据库列表
+  - "old_test_db"
+  - "deprecated_webapp_db_v1"
+
+# ⚠️ 安全提示：
+# 1. 管理员密码字段是占位符，请替换为真实密码
+# 2. 生产环境务必使用 ansible-vault encrypt 加密此文件
+# 3. 删除数据库前务必先执行备份操作
+# 4. SQL 文件路径必须在目标主机上可访问
+# 5. 备份目录需要足够的磁盘空间
+# 6. 导入大型 SQL 文件可能耗时较长，建议在业务低峰期操作

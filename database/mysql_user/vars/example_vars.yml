@@ -1,0 +1,43 @@
+---
+# MySQL 连接配置
+mysql_host: "db.example.com"  # MySQL 服务器地址，可以是 localhost 或远程主机
+mysql_port: 3306  # MySQL 服务器端口
+mysql_admin_user: "root"  # 管理员用户名，需要 GRANT 权限
+mysql_admin_password: "PLEASE_CHANGE_THIS_ADMIN_PASSWORD"  # ⚠️ 管理员密码 - 生产环境请使用 ansible-vault 加密
+
+# 应用用户配置
+app_user_name: "webapp_user"  # 应用数据库用户名
+app_user_password: "PLEASE_CHANGE_THIS_APP_PASSWORD"  # ⚠️ 应用用户密码 - 生产环境请使用 ansible-vault 加密
+app_user_host: "192.168.1.%"  # 允许连接的来源主机，% 表示通配符
+app_database: "webapp_db"  # 应用数据库名称
+app_user_privileges: "SELECT,INSERT,UPDATE,DELETE,CREATE,DROP,INDEX,ALTER"  # 应用用户权限列表
+
+# 只读用户配置
+readonly_user_name: "report_user"  # 只读用户名，用于报表和查询
+readonly_user_password: "PLEASE_CHANGE_THIS_READONLY_PASSWORD"  # ⚠️ 只读用户密码
+readonly_user_host: "10.0.%.%"  # 只读用户允许的来源网段
+
+# 日志库配置
+log_database: "app_logs"  # 日志数据库名称
+
+# 密码轮换配置（可选）
+# new_app_user_password: "NEW_PASSWORD_HERE"  # 新密码，用于定期密码轮换
+
+# 备份用户配置
+backup_user_name: "backup_user"  # 备份用户名
+backup_user_password: "PLEASE_CHANGE_THIS_BACKUP_PASSWORD"  # ⚠️ 备份用户密码
+backup_user_host: "backup.example.com"  # 备份服务器地址
+
+# 测试用户清理配置
+test_user_name: "test_user"  # 测试用户名
+cleanup_test_users: false  # 是否清理测试用户，生产环境设为 true
+
+# 安全加固配置
+harden_root_access: false  # 是否限制 root 用户仅本地访问，生产环境建议设为 true
+
+# ⚠️ 安全提示：
+# 1. 所有密码字段都是占位符，请替换为真实密码
+# 2. 生产环境务必使用 ansible-vault encrypt 加密此文件
+# 3. 建议配合 vars_prompt 或外部密钥管理系统
+# 4. 定期更新数据库用户密码，建立轮换机制
+# 5. 遵循最小权限原则，仅授予必要的权限
