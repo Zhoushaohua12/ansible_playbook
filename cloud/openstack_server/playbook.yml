@@ -1,0 +1,40 @@
+- name: OpenStack Server Dry Run 演练
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 显示 OpenStack Dry Run 概要
+      ansible.builtin.debug:
+        msg: |
+          即将使用 clouds.yaml 中的 {{ openstack_cloud_name }} 配置检查实例：
+          - 名称: {{ openstack_server_name }}
+          - 镜像/规格: {{ openstack_image }} / {{ openstack_flavor }}
+          - 网络: {{ openstack_network }} / 安全组 {{ openstack_security_groups | join(', ') }}
+          所有凭证请放入 clouds.yaml 或 Vault，切勿写入仓库。
+
+    - name: 使用 openstack.cloud.server Dry Run 定义云主机
+      openstack.cloud.server:
+        cloud: "{{ openstack_cloud_name }}"
+        name: "{{ openstack_server_name }}"
+        image: "{{ openstack_image }}"
+        flavor: "{{ openstack_flavor }}"
+        key_name: "{{ openstack_keypair }}"
+        network: "{{ openstack_network }}"
+        security_groups: {{ openstack_security_groups }}
+        auto_ip: {{ openstack_auto_ip }}
+        boot_from_volume: {{ openstack_boot_from_volume }}
+        volume_size: {{ openstack_volume_size }}
+        meta: {{ openstack_tags }}
+        state: present
+        wait: false
+      check_mode: true
+      no_log: true
+
+    - name: 提示 clouds.yaml 与 Vault 最佳实践
+      ansible.builtin.debug:
+        msg: |
+          Dry Run 完成。若需真实创建：
+          - 使用 ansible-vault encrypt ~/.config/openstack/clouds.yaml（如需提交）。
+          - 在测试项目中移除 check_mode 并观察配额使用情况。

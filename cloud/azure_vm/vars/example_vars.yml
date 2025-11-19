@@ -1,0 +1,36 @@
+# ⚠️ 切勿在仓库中写入真实 Service Principal 密钥，推荐：
+# ansible-vault encrypt cloud/azure_vm/vars/example_vars.yml
+# 或在 CI 中通过环境变量 AZURE_CLIENT_SECRET 注入。
+
+azure_subscription_id: "00000000-0000-0000-0000-000000000000"
+azure_tenant_id: "11111111-1111-1111-1111-111111111111"
+azure_client_id: "22222222-2222-2222-2222-222222222222"
+azure_client_secret: "REPLACE_WITH_VAULT_LOOKUP"  # 示例：{{ vault_azure_client_secret }}
+
+azure_resource_group: rg-ansible-lab
+azure_location: southeastasia
+azure_vm_name: vm-ansible-check
+azure_vm_size: Standard_B2ms
+azure_admin_username: ansible
+azure_admin_password: "REPLACE_USE_VAULT"  # 建议改为 SSH key 或 Vault 引用
+
+azure_image_publisher: Canonical
+azure_image_offer: UbuntuServer
+azure_image_sku: 22_04-lts
+azure_image_version: latest
+azure_os_disk_size: 64
+
+azure_nic_name: nic-ansible-check
+azure_virtual_network: vnet-hub
+azure_subnet_name: subnet-app
+azure_public_ip_allocation_method: Disabled  # Dry Run 避免创建公网资源
+
+azure_tags:
+  Env: demo
+  Owner: cloud-team
+  CostCenter: CC123
+
+# 📌 安全提示
+# - 请通过 `az ad sp create-for-rbac --sdk-auth` 生成 JSON，并用 Vault/Secret Manager 保存。
+# - 若要在命令行传入敏感值，可运行：
+#   ansible-playbook playbook.yml --check -e "azure_client_secret={{ lookup('env','AZURE_CLIENT_SECRET') }}"

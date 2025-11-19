@@ -1,0 +1,41 @@
+# ⚠️ 请勿在示例中写入真实 cloud-init 密钥/密码，建议：
+# ansible-vault encrypt virtualization/libvirt_domain/vars/example_vars.yml
+
+libvirt_uri: qemu:///system
+libvirt_domain_name: lab-vm-01
+libvirt_memory_mb: 4096
+libvirt_vcpus: 2
+libvirt_disk_image: /var/lib/libvirt/images/lab-vm-01.qcow2
+libvirt_network_name: default
+
+libvirt_domain_xml: |
+  <domain type='kvm'>
+    <name>{{ libvirt_domain_name }}</name>
+    <memory unit='MiB'>{{ libvirt_memory_mb }}</memory>
+    <vcpu>{{ libvirt_vcpus }}</vcpu>
+    <os>
+      <type arch='x86_64'>hvm</type>
+    </os>
+    <devices>
+      <disk type='file' device='disk'>
+        <driver name='qemu' type='qcow2'/>
+        <source file='{{ libvirt_disk_image }}'/>
+        <target dev='vda' bus='virtio'/>
+      </disk>
+      <interface type='network'>
+        <source network='{{ libvirt_network_name }}'/>
+        <model type='virtio'/>
+      </interface>
+      <console type='pty'/>
+    </devices>
+  </domain>
+
+libvirt_metadata:
+  env: lab
+  owner: sre
+  source: ansible-demo
+
+# 📌 安全提示
+# - 如果 XML 中需要嵌入 cloud-init/密码，请改用 {{ vault_libvirt_cloud_init }} 引用。
+# - 操作前先备份 /etc/libvirt/qemu/{{ libvirt_domain_name }}.xml，以及数据磁盘。
+# - Dry Run（check_mode: true）不会真正写入定义，但仍需在测试宿主机执行。

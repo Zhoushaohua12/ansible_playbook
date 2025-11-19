@@ -1,0 +1,29 @@
+# ⚠️ RAM AccessKey 必须使用 Vault/环境变量保护
+# 建议执行：ansible-vault encrypt cloud/aliyun_ecs/vars/example_vars.yml
+
+aliyun_access_key_id: REPLACE_WITH_ACCESS_KEY_ID
+aliyun_access_key_secret: REPLACE_WITH_SECRET_KEY  # 可改为 {{ lookup('env','ALIYUN_SECRET') }}
+aliyun_region: cn-hongkong
+
+aliyun_instance_name: ecs-ansible-dryrun
+aliyun_instance_type: ecs.g6.large
+aliyun_image_id: ubuntu_22_04_x64_20G_alibase_20230808.vhd
+aliyun_vswitch_id: vsw-0abc123456789def0
+aliyun_security_group_id: sg-0abc123456789def0
+
+aliyun_login_password: "REPLACE_USE_VAULT"  # 建议换成 SSH key
+aliyun_key_pair_name: demo-keypair
+aliyun_internet_charge_type: PayByTraffic
+aliyun_allocate_public_ip: false
+aliyun_system_disk_category: cloud_efficiency
+aliyun_system_disk_size: 40
+
+aliyun_tags:
+  Env: demo
+  Owner: sre
+  Project: hybrid-cloud
+
+# 📌 安全提示
+# - 若必须把 AccessKey 写入文件，请确保该文件被 Vault 加密，且在 gitignore 中排除其他明文副本。
+# - 生产环境应使用临时 STS Token 或 RAM 角色，避免长期凭证泄露。
+# - Dry Run 默认启用 check_mode: true；真实执行前请在沙箱账号验证费用与配额。

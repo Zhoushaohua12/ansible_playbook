@@ -5,6 +5,7 @@
 ## 仓库结构
 - `advanced/`：高级特性讲解与示例 Playbook。
 - `applications/`：应用管理模块（软件包/容器/源码部署）的实践指南。
+- `cloud/`：多云算力编排示例（AWS、Azure、GCP、OpenStack、阿里云），强调 Dry Run、认证与 Vault。
 - `commands/`：命令执行模块（shell、command、raw、script）的使用指南与安全实践。
 - `files/`：文件操作模块（copy、template、lineinfile、stat、file、find、synchronize）的中文文档与示例。
 - `database/`：数据库管理模块（MySQL、PostgreSQL、MongoDB）的自动化运维示例。
@@ -12,6 +13,7 @@
 - `network/`：网络配置与防火墙管理（firewalld、ufw、iptables、wait_for）的完整指南。
 - `storage/`：磁盘、LVM 与文件系统管理的演练场景。
 - `system/`：系统管理模块（user、group、service、systemd、firewalld、iptables、hostname）的完整指南。
+- `virtualization/`：本地/企业虚拟化（libvirt、VMware、qemu-img）演练，展示与云资源协同的最佳实践。
 - `web/`：Web 服务器（Nginx、Apache）配置与管理示例。
 - `metadata/modules.yaml`：用于索引特性与文档的元数据。
 - `tests/`：确保示例结构完整的 pytest 测试。
@@ -19,6 +21,7 @@
 ## 进阶章节
 - [高级特性总览](advanced/README.md)
 - [应用管理指南](applications/README.md)
+- [云资源管理指南](cloud/README.md)
 - [命令执行模块指南](commands/README.md)
 - [文件操作模块实践指南](files/README.md)
 - [数据库管理实践指南](database/README.md)
@@ -26,6 +29,7 @@
 - [网络模块实践指南](network/README.md)
 - [存储模块实践指南](storage/README.md)
 - [系统管理模块指南](system/README.md)
+- [虚拟化资源指南](virtualization/README.md)
 - [Web 服务管理指南](web/README.md)
 
 ## 如何学习
@@ -114,6 +118,61 @@
 - [Nagios 监控集成](monitoring/nagios/README.md) - 传统开源监控
 - [Datadog 云监控](monitoring/datadog/README.md) - 云原生监控平台  
 - [Zabbix 企业监控](monitoring/zabbix/README.md) - 企业级监控解决方案
+
+## 云资源章节
+
+### 覆盖范围
+`cloud/` 目录聚焦多云与私有云资源交付，包含 AWS EC2、Azure VM、GCP Compute、OpenStack Server、阿里云 ECS 等模块，帮助团队在 Dry Run 状态下验证算力、网络、标签和配额策略。所有 playbook 默认引用 `vars/example_vars.yml` 并在任务中设置 `check_mode: true` 与 `no_log: true`，方便在无真实凭证时练习。
+
+### 依赖安装与认证
+```bash
+ansible-galaxy collection install community.aws azure.azcollection google.cloud openstack.cloud alibaba.cloud
+pip install boto3 botocore azure-identity google-auth openstacksdk aliyun-python-sdk-core
+```
+- AWS 建议通过 `aws configure` 或 SSO profile，切勿把 Access Key 写入仓库。
+- Azure 使用 Service Principal (`az ad sp create-for-rbac --sdk-auth`)，密钥应放入 Vault。
+- GCP 采用 Service Account JSON，并结合 `env`/Vault 提供文件路径。
+- OpenStack 使用 `clouds.yaml` + Application Credential，文件加密后再共享。
+- 阿里云使用 RAM 临时凭证或最小权限 AccessKey，配合 `ansible-vault encrypt`。
+
+### 模拟运行步骤
+1. 进入对应模块目录并阅读 README，确认依赖与角色权限。
+2. 按照中文注释修改 `vars/example_vars.yml`，保留 `REPLACE_` 或 `{{ vault_* }}` 占位。
+3. 执行 `ansible-playbook playbook.yml --syntax-check`，再运行 `--check` 完成 Dry Run。
+4. 若需真实执行，移除 `check_mode: true`、在 Vault 中加密变量文件，并在沙箱账号验证。
+
+### 相关链接
+- [cloud/aws_ec2](cloud/aws_ec2/README.md)
+- [cloud/azure_vm](cloud/azure_vm/README.md)
+- [cloud/gcp_compute](cloud/gcp_compute/README.md)
+- [cloud/openstack_server](cloud/openstack_server/README.md)
+- [cloud/aliyun_ecs](cloud/aliyun_ecs/README.md)
+
+## 虚拟化章节
+
+### 为什么独立
+`virtualization/` 专注本地虚拟化（libvirt/qemu-img）与企业虚拟化（VMware vSphere）场景，既可在笔记本/实验室模拟，也能在生产级集群中 Dry Run 主机纳管流程。该章节强调“先在本地模板演练 → 再迁移到 cloud/ 章节”的混合云学习路径。
+
+### 依赖安装
+```bash
+ansible-galaxy collection install community.libvirt community.vmware community.general
+pip install libvirt-python lxml pyvmomi
+sudo apt/yum install -y libvirt-daemon qemu-kvm qemu-img
+```
+- libvirt 示例使用 `qemu:///system` 或 `qemu+ssh://` URI，需具备本地虚拟化权限。
+- VMware 示例需 vCenter API 账号与可信证书，可通过环境变量注入。
+- qemu-img 示例要求在非生产目录准备测试镜像，并在变量中写明占位路径。
+
+### 本地/企业虚拟化安全准则
+1. **凭证加密**：VMware 密码、libvirt 远程凭证须使用 Vault 或 Secret Manager。
+2. **执行前备份**：在操作 qemu-img、libvirt 之前备份 XML/镜像；若只是快速演练，可持续保持 `check_mode: true`。
+3. **环境隔离**：本地实验室建议使用独立用户与目录；企业集群需在维护窗口执行，并启用审计日志。
+4. **结合 cloud/**：在 virtualization 中验证模板后，可直接把磁盘导出至 cloud/ 章节的镜像或实例定义，实现同构管理。
+
+### 相关链接
+- [virtualization/libvirt_domain](virtualization/libvirt_domain/README.md)
+- [virtualization/vmware_host](virtualization/vmware_host/README.md)
+- [virtualization/qemu_img](virtualization/qemu_img/README.md)
 
 ## Web 服务章节
 

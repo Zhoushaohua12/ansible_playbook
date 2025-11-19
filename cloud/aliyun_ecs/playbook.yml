@@ -1,0 +1,44 @@
+- name: 阿里云 ECS Dry Run 演练
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 输出 Dry Run 计划（不会创建实例）
+      ansible.builtin.debug:
+        msg: |
+          计划在 {{ aliyun_region }} 区域检查 ECS：
+          - 名称: {{ aliyun_instance_name }}
+          - 规格: {{ aliyun_instance_type }}
+          - 安全组: {{ aliyun_security_group_id }} / 交换机 {{ aliyun_vswitch_id }}
+          请确认 AccessKey 来源于 Vault 或临时 STS，且具备最小权限。
+
+    - name: 使用 alibaba.cloud.ali_ecs 预演实例属性
+      alibaba.cloud.ali_ecs:
+        alicloud_access_key: "{{ aliyun_access_key_id }}"
+        alicloud_secret_key: "{{ aliyun_access_key_secret }}"
+        alicloud_region: "{{ aliyun_region }}"
+        instance_name: "{{ aliyun_instance_name }}"
+        instance_type: "{{ aliyun_instance_type }}"
+        image_id: "{{ aliyun_image_id }}"
+        vswitch_id: "{{ aliyun_vswitch_id }}"
+        security_group_id: "{{ aliyun_security_group_id }}"
+        password: "{{ aliyun_login_password }}"
+        key_pair_name: "{{ aliyun_key_pair_name }}"
+        internet_charge_type: "{{ aliyun_internet_charge_type }}"
+        allocate_public_ip: {{ aliyun_allocate_public_ip }}
+        system_disk_category: "{{ aliyun_system_disk_category }}"
+        system_disk_size: {{ aliyun_system_disk_size }}
+        tags: {{ aliyun_tags }}
+        state: present
+      check_mode: true
+      no_log: true
+
+    - name: 提示上线前的安全动作
+      ansible.builtin.debug:
+        msg: |
+          Dry Run 完成。请在真实执行前：
+          1. 通过 ansible-vault 加密 vars/example_vars.yml。
+          2. 在 RAM 中设置策略限制可操作的 Region/VPC。
+          3. 手动移除 playbook 中的 check_mode: true，再在沙箱账号执行。

@@ -1,0 +1,36 @@
+- name: libvirt_domain Dry Run 演练
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 汇总将在宿主机上定义的虚拟机参数
+      ansible.builtin.debug:
+        msg: |
+          将在 {{ libvirt_uri }} 检查/定义虚拟机:
+            - 名称: {{ libvirt_domain_name }}
+            - 内存/CPU: {{ libvirt_memory_mb }} MB / {{ libvirt_vcpus }} vCPU
+            - 磁盘: {{ libvirt_disk_image }}
+            - 网络: {{ libvirt_network_name }}
+          所有密码或 cloud-init 信息请使用 Vault 加密。
+
+    - name: 使用 community.libvirt.libvirt_domain 预演定义
+      community.libvirt.libvirt_domain:
+        uri: "{{ libvirt_uri }}"
+        name: "{{ libvirt_domain_name }}"
+        state: present
+        autostart: true
+        memory: {{ libvirt_memory_mb }}
+        vcpu: {{ libvirt_vcpus }}
+        xml: "{{ libvirt_domain_xml }}"
+        metadata: {{ libvirt_metadata }}
+      check_mode: true
+      no_log: true
+
+    - name: 输出后续执行提醒
+      ansible.builtin.debug:
+        msg: |
+          Dry Run 已完成：
+          - 若需真实定义，移除 check_mode: true 并在隔离宿主机执行。
+          - 运行前请先备份 {{ libvirt_disk_image }}，避免覆盖现有镜像。

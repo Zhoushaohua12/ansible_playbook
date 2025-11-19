@@ -1,0 +1,25 @@
+# ⚠️ 生产 clouds.yaml/密码请使用 Vault 或 OS_CLOUD 环境变量提供
+#   ansible-vault encrypt ~/.config/openstack/clouds.yaml
+#   export OS_CLOUD=training-cloud
+
+openstack_cloud_name: training-cloud
+openstack_server_name: demo-openstack-app
+openstack_image: Ubuntu-22.04
+openstack_flavor: m1.small
+openstack_keypair: training-key
+openstack_network: tenant-net
+openstack_security_groups:
+  - default
+  - web
+openstack_auto_ip: false
+openstack_boot_from_volume: true
+openstack_volume_size: 40
+openstack_tags:
+  env: staging
+  owner: sre
+  backup_policy: daily
+
+# 📌 安全提示
+# - clouds.yaml 中的 `password`、`auth_url` 等字段切勿提交至源码仓库。
+# - 若需要在 vars 文件中引用，使用 {{ vault_openstack_password }} 的方式并加密该文件。
+# - Dry Run 默认启用 check_mode: true，真实创建前请在独立项目验证配额。
