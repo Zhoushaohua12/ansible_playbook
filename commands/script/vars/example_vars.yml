@@ -1,0 +1,36 @@
+# script 模块示例变量配置
+
+# 脚本执行参数
+script_working_directory: "/tmp/ansible_script_demo"
+script_log_file: "{{ script_working_directory }}/deployment.log"
+
+# 应用配置参数
+app_name: "demo_app"
+app_version: "3.0.0"
+app_port: "9000"
+app_user: "appuser"
+
+# 数据库配置
+db_host: "localhost"
+db_port: "5432"
+db_name: "demo_db"
+
+# 备份配置
+backup_directory: "{{ script_working_directory }}/backups"
+backup_retention_days: "7"
+
+# 系统服务配置
+service_name: "{{ app_name }}"
+service_config_file: "/etc/{{ app_name }}/config.yml"
+
+# 脚本执行环境
+script_environment: "development"  # 可选: development, staging, production
+script_debug_mode: "true"
+
+# 网络配置
+server_ip: "0.0.0.0"
+server_domain: "demo.example.com"
+
+# 重要：这些变量仅用于演示，生产环境请使用 Ansible Vault 或外部配置管理
+# ⚠️ 警告：脚本内容需要经过安全审查，避免执行恶意代码
+# 📝 注意：脚本文件应包含中文注释，便于理解和维护

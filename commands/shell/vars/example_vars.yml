@@ -1,0 +1,32 @@
+# shell 模块示例变量配置
+
+# 示例工作目录 - 确保目标主机存在此目录
+shell_working_directory: "/tmp/ansible_shell_demo"
+
+# 示例日志文件路径
+shell_log_file: "{{ shell_working_directory }}/setup.log"
+
+# 示例配置文件路径
+shell_config_file: "{{ shell_working_directory }}/app.conf"
+shell_backup_file: "{{ shell_working_directory }}/app.conf.bak"
+
+# 示例输出文件
+shell_output_file: "{{ shell_working_directory }}/result.txt"
+
+# 多行命令示例参数
+app_name: "demo_app"
+app_version: "1.2.3"
+config_key: "database_url"
+config_value: "postgresql://localhost:5432/mydb"
+
+# 管道命令示例参数
+log_file_path: "/var/log/syslog"
+error_keyword: "ERROR"
+warning_keyword: "WARNING"
+
+# 环境变量示例
+custom_env_var: "production"
+debug_level: "info"
+
+# 重要：这些变量仅用于演示，生产环境请使用 Ansible Vault 或外部配置管理
+# ⚠️ 警告：示例中的文件路径和参数需要根据实际环境调整

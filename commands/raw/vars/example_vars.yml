@@ -1,0 +1,31 @@
+# raw 模块示例变量配置
+
+# 系统包管理器类型（根据目标系统选择）
+raw_package_manager: "apt"  # 可选: apt, yum, dnf, zypper
+
+# Python 安装包名
+raw_python_package: "python3"
+raw_python_pip: "python3-pip"
+
+# 基础系统工具包
+raw_basic_packages:
+  - "curl"
+  - "wget"
+  - "unzip"
+  - "tar"
+
+# 系统服务管理命令
+raw_service_manager: "systemctl"  # 可选: systemctl, service, rc-service
+
+# 网络接口名称
+raw_network_interface: "eth0"
+
+# 临时工作目录
+raw_temp_directory: "/tmp/ansible_raw_demo"
+
+# 系统版本检查命令
+raw_os_release_file: "/etc/os-release"
+
+# 重要：这些变量仅用于演示，生产环境请使用 Ansible Vault 或外部配置管理
+# ⚠️ 警告：raw 模块绕过 Ansible 安全机制，仅在无 Python 环境时使用
+# 🚨 高风险：使用前请确保了解 raw 模块的安全影响
