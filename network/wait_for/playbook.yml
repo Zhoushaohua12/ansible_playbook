@@ -1,0 +1,184 @@
+---
+- name: wait_for 模块端口监控示例
+  hosts: all
+  become: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 启动示例 Web 服务 ==========
+    - name: 创建临时 HTTP 服务（仅用于演示）
+      ansible.builtin.shell: |
+        # 使用 Python 启动简单 HTTP 服务
+        nohup python3 -m http.server {{ wait_for_app_port }} \
+          --bind 127.0.0.1 > /tmp/http_server.log 2>&1 &
+        echo $! > /tmp/http_server.pid
+      args:
+        creates: /tmp/http_server.pid
+      when: wait_for_demo_mode
+    
+    # ========== 等待 Web 服务端口 ==========
+    - name: 等待 Web 服务启动
+      ansible.builtin.wait_for:
+        host: "{{ wait_for_web_host }}"
+        port: "{{ wait_for_web_port }}"
+        state: started
+        delay: "{{ wait_for_web_delay }}"
+        timeout: "{{ wait_for_web_timeout }}"
+      register: web_service_ready
+      when: wait_for_check_web
+    
+    - name: 显示 Web 服务等待结果
+      ansible.builtin.debug:
+        msg: |
+          Web 服务等待完成
+          状态: {{ web_service_ready.state }}
+          耗时: {{ web_service_ready.elapsed }} 秒
+      when: wait_for_check_web
+    
+    # ========== 等待数据库服务 ==========
+    - name: 等待数据库服务启动（MySQL）
+      ansible.builtin.wait_for:
+        host: "{{ wait_for_db_host }}"
+        port: "{{ wait_for_db_port }}"
+        state: started
+        delay: "{{ wait_for_db_delay }}"
+        timeout: "{{ wait_for_db_timeout }}"
+        connect_timeout: 5
+      register: db_service_ready
+      when: wait_for_check_db
+      ignore_errors: true
+    
+    - name: 显示数据库服务等待结果
+      ansible.builtin.debug:
+        msg: |
+          数据库服务等待完成
+          状态: {{ db_service_ready.state }}
+          耗时: {{ db_service_ready.elapsed }} 秒
+      when: wait_for_check_db
+    
+    # ========== 等待文件存在 ==========
+    - name: 创建初始化标记文件（仅用于演示）
+      ansible.builtin.file:
+        path: "{{ wait_for_init_flag }}"
+        state: touch
+        mode: '0644'
+    
+    - name: 等待初始化完成（检查标记文件）
+      ansible.builtin.wait_for:
+        path: "{{ wait_for_init_flag }}"
+        state: present
+        timeout: 10
+      register: init_flag_ready
+      when: wait_for_check_file
+    
+    - name: 显示初始化标记文件等待结果
+      ansible.builtin.debug:
+        msg: |
+          初始化标记文件等待完成
+          状态: {{ init_flag_ready.state }}
+          文件: {{ wait_for_init_flag }}
+      when: wait_for_check_file
+    
+    # ========== 等待文件内容匹配 ==========
+    - name: 创建应用日志文件
+      ansible.builtin.copy:
+        content: |
+          2024-01-15 10:00:00 INFO Starting application...
+          2024-01-15 10:00:05 INFO Loading configuration...
+          2024-01-15 10:00:10 INFO Application started successfully
+          2024-01-15 10:00:15 INFO Ready to accept requests
+        dest: "{{ wait_for_log_file }}"
+        mode: '0644'
+    
+    - name: 等待应用就绪日志消息
+      ansible.builtin.wait_for:
+        path: "{{ wait_for_log_file }}"
+        search_regex: "Ready to accept requests"
+        state: present
+        timeout: 30
+      register: app_ready_log
+      when: wait_for_check_log
+    
+    - name: 显示应用就绪日志等待结果
+      ansible.builtin.debug:
+        msg: |
+          应用就绪日志等待完成
+          状态: {{ app_ready_log.state }}
+          耗时: {{ app_ready_log.elapsed }} 秒
+      when: wait_for_check_log
+    
+    # ========== 多个服务依赖协调 ==========
+    - name: 并行等待多个服务（使用 async）
+      block:
+        - name: 异步等待 Web 服务（不阻塞）
+          ansible.builtin.wait_for:
+            host: "{{ wait_for_web_host }}"
+            port: 80
+            state: started
+            timeout: 20
+          register: web_async
+          async: 30
+          poll: 0
+          when: wait_for_demo_mode
+        
+        - name: 检查异步任务状态
+          ansible.builtin.async_status:
+            jid: "{{ web_async.ansible_job_id }}"
+          register: web_result
+          until: web_result.finished
+          retries: 10
+          delay: 1
+          when: wait_for_demo_mode
+    
+    # ========== 等待端口关闭 ==========
+    - name: 等待停止前的准备时间
+      ansible.builtin.pause:
+        seconds: 2
+      when: wait_for_demo_mode
+    
+    - name: 停止演示 HTTP 服务
+      ansible.builtin.shell: |
+        if [ -f /tmp/http_server.pid ]; then
+          kill $(cat /tmp/http_server.pid) 2>/dev/null || true
+          rm -f /tmp/http_server.pid
+        fi
+      when: wait_for_demo_mode
+    
+    - name: 等待服务端口关闭
+      ansible.builtin.wait_for:
+        host: "{{ wait_for_web_host }}"
+        port: "{{ wait_for_web_port }}"
+        state: stopped
+        delay: 1
+        timeout: 10
+      register: web_service_stopped
+      when: wait_for_demo_mode
+      ignore_errors: true
+    
+    - name: 显示端口关闭等待结果
+      ansible.builtin.debug:
+        msg: |
+          服务停止等待完成
+          状态: {{ web_service_stopped.state }}
+      when: wait_for_demo_mode
+    
+    # ========== 总结 ==========
+    - name: 显示 wait_for 演示完成
+      ansible.builtin.debug:
+        msg: |
+          wait_for 模块演示完成！
+          
+          已验证的检查项：
+          {% if wait_for_check_web %}
+          ✓ Web 服务端口监控 ({{ wait_for_web_host }}:{{ wait_for_web_port }})
+          {% endif %}
+          {% if wait_for_check_db %}
+          ✓ 数据库端口监控 ({{ wait_for_db_host }}:{{ wait_for_db_port }})
+          {% endif %}
+          {% if wait_for_check_file %}
+          ✓ 文件存在性检查 ({{ wait_for_init_flag }})
+          {% endif %}
+          {% if wait_for_check_log %}
+          ✓ 日志内容匹配 ({{ wait_for_log_file }})
+          {% endif %}

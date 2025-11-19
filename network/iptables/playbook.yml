@@ -1,0 +1,176 @@
+---
+- name: iptables 防火墙和 NAT 规则管理示例
+  hosts: all
+  become: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 安装 iptables ==========
+    - name: 安装 iptables
+      ansible.builtin.package:
+        name: iptables
+        state: present
+    
+    # ========== 基础入站规则 ==========
+    - name: 允许已建立和关联连接的入站流量
+      community.general.iptables:
+        chain: INPUT
+        protocol: tcp
+        ctstate:
+          - ESTABLISHED
+          - RELATED
+        jump: ACCEPT
+        comment: "Allow established/related connections"
+    
+    - name: 允许 SSH 访问
+      community.general.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: "{{ iptables_ssh_port }}"
+        ctstate:
+          - NEW
+          - ESTABLISHED
+        jump: ACCEPT
+        comment: "Allow SSH connections"
+    
+    # ========== Web 服务规则 ==========
+    - name: 允许 HTTP 访问
+      community.general.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: 80
+        ctstate:
+          - NEW
+          - ESTABLISHED
+        jump: ACCEPT
+        comment: "Allow HTTP"
+      when: iptables_enable_http
+    
+    - name: 允许 HTTPS 访问
+      community.general.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: 443
+        ctstate:
+          - NEW
+          - ESTABLISHED
+        jump: ACCEPT
+        comment: "Allow HTTPS"
+      when: iptables_enable_https
+    
+    # ========== 应用服务规则 ==========
+    - name: 限制源 IP 允许应用服务访问
+      community.general.iptables:
+        chain: INPUT
+        protocol: tcp
+        source: "{{ iptables_app_source_ip }}"
+        destination_port: "{{ iptables_app_port }}"
+        ctstate:
+          - NEW
+          - ESTABLISHED
+        jump: ACCEPT
+        comment: "Allow application traffic from specific IP"
+    
+    # ========== ICMP 和 localhost 规则 ==========
+    - name: 允许 ICMP（ping）
+      community.general.iptables:
+        chain: INPUT
+        protocol: icmp
+        jump: ACCEPT
+        comment: "Allow ICMP (ping)"
+      when: iptables_allow_ping
+    
+    - name: 允许 localhost 回环接口
+      community.general.iptables:
+        chain: INPUT
+        in_interface: lo
+        jump: ACCEPT
+        comment: "Allow localhost"
+    
+    # ========== PORT FORWARDING (DNAT) ==========
+    # 将外部流量转发到内部服务的示例
+    - name: 配置 NAT 表 PREROUTING 规则 - 端口转发
+      community.general.iptables:
+        table: nat
+        chain: PREROUTING
+        protocol: tcp
+        destination_port: "{{ iptables_external_port }}"
+        to_destination: "{{ iptables_internal_service }}"
+        jump: DNAT
+        comment: "Port forwarding for internal service"
+      when: iptables_enable_port_forwarding
+    
+    # ========== IP MASQUERADING (SNAT) ==========
+    # IP 伪装用于 NAT 出站流量
+    - name: 配置 NAT 表 POSTROUTING 规则 - IP 伪装
+      community.general.iptables:
+        table: nat
+        chain: POSTROUTING
+        out_interface: "{{ iptables_out_interface }}"
+        jump: MASQUERADE
+        comment: "Masquerade outgoing traffic"
+      when: iptables_enable_masquerade
+    
+    # ========== 启用 IP 转发 ==========
+    - name: 启用 IP 转发
+      ansible.builtin.sysctl:
+        name: net.ipv4.ip_forward
+        value: '1'
+        state: present
+        sysctl_set: true
+      when: iptables_enable_ip_forward
+    
+    # ========== 设置默认 INPUT 策略 ==========
+    - name: 设置 INPUT 链默认策略为 DROP（安全加固）
+      community.general.iptables:
+        chain: INPUT
+        policy: DROP
+        comment: "Set default INPUT policy"
+      when: iptables_set_default_drop_policy
+    
+    # ========== 设置默认 OUTPUT 和 FORWARD 策略 ==========
+    - name: 设置 OUTPUT 链默认策略为 ACCEPT
+      community.general.iptables:
+        chain: OUTPUT
+        policy: ACCEPT
+        comment: "Set default OUTPUT policy"
+      when: iptables_set_default_drop_policy
+    
+    - name: 设置 FORWARD 链默认策略为 DROP
+      community.general.iptables:
+        chain: FORWARD
+        policy: DROP
+        comment: "Set default FORWARD policy"
+      when: iptables_set_default_drop_policy
+    
+    # ========== 验证规则 ==========
+    - name: 获取当前 filter 表规则
+      ansible.builtin.command: iptables -L -n -v
+      register: iptables_filter_rules
+      changed_when: false
+    
+    - name: 显示 filter 表规则
+      ansible.builtin.debug:
+        msg: "{{ iptables_filter_rules.stdout_lines }}"
+    
+    - name: 获取当前 nat 表规则
+      ansible.builtin.command: iptables -t nat -L -n -v
+      register: iptables_nat_rules
+      changed_when: false
+    
+    - name: 显示 nat 表规则
+      ansible.builtin.debug:
+        msg: "{{ iptables_nat_rules.stdout_lines }}"
+    
+    # ========== 保存规则 ==========
+    - name: 备份当前规则
+      ansible.builtin.command: iptables-save
+      register: iptables_backup
+      changed_when: false
+    
+    - name: 将规则保存到备份文件
+      ansible.builtin.copy:
+        content: "{{ iptables_backup.stdout }}"
+        dest: "/tmp/iptables_rules_backup.txt"
+        mode: '0644'

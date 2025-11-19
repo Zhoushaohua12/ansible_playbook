@@ -1,0 +1,70 @@
+# wait_for 模块监控示例变量
+
+# ========== 演示模式 ==========
+# 启用演示模式（启动临时 HTTP 服务）
+wait_for_demo_mode: true
+
+# ========== Web 服务监控 ==========
+# 启用 Web 服务监控检查
+wait_for_check_web: true
+
+# Web 服务主机地址
+wait_for_web_host: "127.0.0.1"
+
+# Web 服务端口
+wait_for_web_port: 8000
+
+# 开始检查前的延迟秒数
+wait_for_web_delay: 1
+
+# 最大等待秒数
+wait_for_web_timeout: 30
+
+# ========== 数据库服务监控 ==========
+# 启用数据库监控检查
+wait_for_check_db: false
+
+# 数据库主机地址（通常是远程主机）
+wait_for_db_host: "127.0.0.1"
+
+# 数据库端口（MySQL 3306，PostgreSQL 5432）
+wait_for_db_port: 3306
+
+# 开始检查前的延迟秒数
+wait_for_db_delay: 2
+
+# 最大等待秒数
+wait_for_db_timeout: 60
+
+# ========== 文件存在性监控 ==========
+# 启用文件存在性检查
+wait_for_check_file: true
+
+# 初始化标记文件路径
+wait_for_init_flag: "/tmp/app_initialized.flag"
+
+# ========== 日志内容监控 ==========
+# 启用日志内容检查
+wait_for_check_log: true
+
+# 应用日志文件路径
+wait_for_log_file: "/tmp/app_startup.log"
+
+# ========== 重要提示 ==========
+# ⚠️ 警告：这些变量仅用于演示，生产环境请根据实际需求调整
+# 1. 超时时间设置：
+#    - 快速服务（Nginx、Redis）: 5-10 秒
+#    - 中等服务（应用服务器）: 30-60 秒
+#    - 重度服务（数据库、大应用）: 60-120 秒
+# 2. delay 参数用于给服务充足的启动时间
+# 3. search_regex 参数可用于更准确地判断服务就绪
+#    格式为正则表达式，如 "Ready|Started|OK"
+# 4. connect_timeout 参数控制单次连接尝试的超时
+# 5. state 参数可为：
+#    - started: 端口已打开（服务已启动）
+#    - stopped: 端口已关闭（服务已停止）
+#    - present: 文件存在
+#    - absent: 文件不存在
+# 6. wait_for 在等待时会不断重试，直到超时或条件满足
+# 7. 对于远程主机检查，可使用 delegate_to: localhost
+# 8. 在滚动更新场景中，确保每个主机都通过检查才继续下一批

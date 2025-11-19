@@ -1,0 +1,51 @@
+# firewalld 防火墙配置示例变量
+
+# ========== Web 服务配置 ==========
+# 在此 zone 开放 Web 服务
+firewalld_web_zone: "public"
+
+# 批量开放的服务列表
+firewalld_web_services:
+  - http
+  - https
+
+# ========== 应用服务配置 ==========
+# 应用服务所在 zone
+firewalld_app_zone: "internal"
+
+# 应用服务端口（如：8080）
+firewalld_app_port: 8080
+
+# 应用服务协议（tcp 或 udp）
+firewalld_app_protocol: tcp
+
+# ========== 数据库配置 ==========
+# 数据库所在 zone
+firewalld_db_zone: "internal"
+
+# 数据库端口（MySQL 默认 3306，PostgreSQL 默认 5432）
+firewalld_db_port: 3306
+
+# ========== SSH 配置 ==========
+# SSH 所在 zone
+firewalld_ssh_zone: "internal"
+
+# ========== DNS 配置 ==========
+# 是否启用 DNS 服务
+firewalld_enable_dns: false
+
+# DNS 所在 zone
+firewalld_dns_zone: "public"
+
+# ========== 重要提示 ==========
+# ⚠️ 警告：这些变量仅用于演示，生产环境请根据实际需求调整
+# 1. zone 的选择应根据网络架构和安全需求决定
+#    - public：面向外部，通常用于 Web 服务
+#    - internal：面向内部，通常用于应用和数据库
+#    - dmz：隔离区，用于不完全信任的网络
+#    - trusted：完全信任，允许所有流量
+#    - drop：完全阻止，仅允许出站连接
+# 2. permanent: true 表示规则永久保存，重启后保留
+# 3. immediate: true 表示规则立即生效，无需重启 firewalld
+# 4. 修改规则前务必备份当前配置，确保能够回滚
+# 5. 避免意外关闭 SSH 端口导致无法远程管理
