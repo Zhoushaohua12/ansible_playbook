@@ -1,0 +1,43 @@
+---
+# 展示 handler notify 链路
+- name: Handler 示例
+  hosts: cache_servers
+  gather_facts: true
+  vars:
+    # service_name 统一控制需要重启的服务
+    service_name: memcached
+    # config_template 指向配置模板
+    config_template: templates/memcached.conf.j2
+
+  tasks:
+    - name: 渲染配置并通知 handler
+      ansible.builtin.template:
+        src: "{{ config_template }}"
+        dest: /etc/memcached.conf
+        mode: "0644"
+      notify:
+        - 重启缓存服务
+        - 发送立即审计
+
+    - name: 标记配置版本
+      ansible.builtin.copy:
+        dest: /etc/memcached.version
+        content: "{{ ansible_date_time.iso8601 }}"
+      notify:
+        - 重启缓存服务
+
+  handlers:
+    - name: 重启缓存服务
+      ansible.builtin.service:
+        name: "{{ service_name }}"
+        state: restarted
+      notify:
+        - 记录重启日志
+
+    - name: 发送立即审计
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} 已触发 handler 审计"
+
+    - name: 记录重启日志
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} 完成 {{ service_name }} 重启"

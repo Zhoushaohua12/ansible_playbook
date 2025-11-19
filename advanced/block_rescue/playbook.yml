@@ -1,0 +1,43 @@
+---
+# 演示如何使用 block/rescue/always 统一处理多步升级与失败回滚
+- name: Block Rescue 示例
+  hosts: app_servers
+  gather_facts: false
+  vars:
+    # target_state 表示希望服务达到的目标状态
+    target_state: "started"
+    # rollback_version 用于在 rescue 中标记回滚到的版本
+    rollback_version: "v1.9.3"
+
+  tasks:
+    - name: 带回滚能力的升级流程
+      block:
+        - name: 执行服务升级
+          ansible.builtin.command:
+            cmd: "/usr/local/bin/deploy_app --state {{ target_state }}"
+          register: upgrade_result
+
+        - name: 校验版本文件
+          ansible.builtin.shell: "cat /etc/app/version"
+          register: version_file
+
+        - name: 将最新版本写入日志
+          ansible.builtin.copy:
+            dest: /var/log/app_version.log
+            content: "{{ version_file.stdout }}"
+          when: upgrade_result.rc == 0
+
+      rescue:
+        - name: 升级失败后尝试回滚
+          ansible.builtin.command:
+            cmd: "/usr/local/bin/deploy_app --rollback {{ rollback_version }}"
+
+        - name: 标记报警事件
+          ansible.builtin.debug:
+            msg: "已回滚到 {{ rollback_version }}，请人工检查升级脚本"
+
+      always:
+        - name: 输出最终状态
+          # 这里确保无论成功失败都能获取到 upgrade_result 中的 rc，便于调试
+          ansible.builtin.debug:
+            msg: "Block 已完成，最近一次 rc={{ upgrade_result.rc | default('未知') }}"

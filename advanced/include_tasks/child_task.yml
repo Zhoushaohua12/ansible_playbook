@@ -1,0 +1,12 @@
+---
+# 子任务：根据 current_action 执行不同的维护步骤
+- name: 当动作为 restart_service 时重启组件
+  ansible.builtin.service:
+    name: analytics-agent
+    state: restarted
+  when: current_action == 'restart_service'
+
+- name: 当动作为 sync_config 时拉取配置
+  ansible.builtin.command:
+    cmd: /usr/local/bin/sync_analytics_config
+  when: current_action == 'sync_config'
