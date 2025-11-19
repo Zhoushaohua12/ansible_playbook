@@ -1,0 +1,155 @@
+---
+# RabbitMQ 用户管理配置变量示例文件
+# 
+# 重要提示：
+# 1. 这是示例文件，包含占位符值
+# 2. 生产使用时请复制并填写真实值
+# 3. 不要将包含真实凭证的文件提交到版本控制系统
+# 4. 建议使用 Ansible Vault 加密所有密码
+
+# =============================================================================
+# RabbitMQ 连接配置
+# =============================================================================
+
+# RabbitMQ Management API 地址
+rabbitmq_management_url: "http://localhost:15672"
+rabbitmq_node_name: "rabbit@localhost"
+
+# RabbitMQ 管理员凭证（必须加密）
+rabbitmq_admin_user: "{{ vault_rabbitmq_admin_user }}"
+rabbitmq_admin_password: "{{ vault_rabbitmq_admin_password }}"
+
+# =============================================================================
+# 虚拟主机配置
+# =============================================================================
+
+# 虚拟主机列表
+rabbitmq_vhosts:
+  # 应用虚拟主机
+  - name: "/app"
+    state: present
+    tracing: false
+  
+  # 开发环境虚拟主机
+  - name: "/dev"
+    state: present
+    tracing: true
+  
+  # 测试环境虚拟主机
+  - name: "/test"
+    state: present
+    tracing: false
+
+# =============================================================================
+# 用户配置
+# =============================================================================
+
+# RabbitMQ 用户列表
+rabbitmq_users:
+  # 应用用户
+  - name: "app_user"
+    password: "{{ vault_rabbitmq_app_user_password }}"
+    tags: ""
+    state: present
+    update_password: "on_create"
+  
+  # 监控用户
+  - name: "monitor_user"
+    password: "{{ vault_rabbitmq_monitor_password }}"
+    tags: "monitoring"
+    state: present
+    update_password: "on_create"
+  
+  # 开发用户
+  - name: "dev_user"
+    password: "{{ vault_rabbitmq_dev_password }}"
+    tags: ""
+    state: present
+    update_password: "on_create"
+
+# =============================================================================
+# 权限配置
+# =============================================================================
+
+# 用户权限列表
+rabbitmq_permissions:
+  # 应用用户权限 - 只能访问 app 前缀的资源
+  - user: "app_user"
+    vhost: "/app"
+    configure_priv: "^app_.*"
+    write_priv: "^app_.*"
+    read_priv: "^app_.*"
+  
+  # 监控用户权限 - 只读所有资源
+  - user: "monitor_user"
+    vhost: "/"
+    configure_priv: "^$"
+    write_priv: "^$"
+    read_priv: ".*"
+  
+  - user: "monitor_user"
+    vhost: "/app"
+    configure_priv: "^$"
+    write_priv: "^$"
+    read_priv: ".*"
+  
+  # 开发用户权限 - 开发环境完全访问
+  - user: "dev_user"
+    vhost: "/dev"
+    configure_priv: ".*"
+    write_priv: ".*"
+    read_priv: ".*"
+
+# =============================================================================
+# 安全配置
+# =============================================================================
+
+# 是否删除默认 guest 用户
+rabbitmq_remove_guest_user: true
+
+# 密码策略
+rabbitmq_password_policy:
+  min_length: 12
+  require_uppercase: true
+  require_lowercase: true
+  require_digits: true
+  require_special_chars: true
+
+# =============================================================================
+# 使用说明
+# =============================================================================
+
+# 1. 安装依赖：
+#    ansible-galaxy collection install community.rabbitmq
+#    pip install requests
+#
+# 2. 安装 RabbitMQ：
+#    # Ubuntu/Debian
+#    apt-get install rabbitmq-server
+#    
+#    # RHEL/CentOS
+#    yum install rabbitmq-server
+#    
+#    # 启用 Management Plugin
+#    rabbitmq-plugins enable rabbitmq_management
+#
+# 3. 创建初始管理员：
+#    rabbitmqctl add_user admin changeme
+#    rabbitmqctl set_user_tags admin administrator
+#    rabbitmqctl set_permissions -p / admin ".*" ".*" ".*"
+#
+# 4. 加密敏感变量：
+#    ansible-vault encrypt_string 'admin' --name 'vault_rabbitmq_admin_user'
+#    ansible-vault encrypt_string 'changeme' --name 'vault_rabbitmq_admin_password'
+#    ansible-vault encrypt_string 'app_pass123' --name 'vault_rabbitmq_app_user_password'
+#    ansible-vault encrypt_string 'monitor_pass123' --name 'vault_rabbitmq_monitor_password'
+#    ansible-vault encrypt_string 'dev_pass123' --name 'vault_rabbitmq_dev_password'
+#
+# 5. 运行 playbook：
+#    ansible-playbook -i inventory playbook.yml --ask-vault-pass
+#
+# 6. 验证配置：
+#    rabbitmqctl list_users
+#    rabbitmqctl list_vhosts
+#    rabbitmqctl list_permissions -p /app
+#    curl -u admin:password http://localhost:15672/api/users

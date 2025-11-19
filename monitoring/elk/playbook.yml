@@ -1,0 +1,353 @@
+---
+# ELK Stack 日志聚合配置示例 Playbook
+# 用于演示如何安全地配置 Filebeat、Logstash 和 Elasticsearch 日志收集
+
+- name: 配置 ELK Stack 日志聚合
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # 预检查：验证 Elasticsearch 集群健康
+    - name: 检查 Elasticsearch 集群健康状态
+      ansible.builtin.uri:
+        url: "{{ elasticsearch_url }}/_cluster/health"
+        method: GET
+        user: "{{ elasticsearch_username }}"
+        password: "{{ elasticsearch_password }}"
+        force_basic_auth: yes
+        validate_certs: "{{ elasticsearch_verify_ssl }}"
+        return_content: yes
+      register: elasticsearch_health_check
+      no_log: true  # 保护认证信息
+      failed_when: false
+      check_mode: yes
+
+    - name: 显示 Elasticsearch 集群状态
+      ansible.builtin.debug:
+        msg: "Elasticsearch 集群状态: {{ elasticsearch_health_check.json.status if elasticsearch_health_check.json is defined else '无法连接' }}"
+      when: elasticsearch_health_check is defined
+
+    # 配置 Filebeat
+    - name: 生成 Filebeat 配置文件
+      ansible.builtin.template:
+        src: filebeat.yml.j2
+        dest: "{{ filebeat_config_file }}"
+        owner: root
+        group: root
+        mode: '0600'
+        backup: yes
+        validate: "filebeat test config -c %s"
+      no_log: true  # 保护 Elasticsearch 凭证
+      register: filebeat_config_result
+
+    # 配置 Filebeat 输入
+    - name: 配置 Filebeat 日志输入
+      ansible.builtin.copy:
+        content: |
+          # Filebeat 日志输入配置
+          filebeat.inputs:
+          {% for input in filebeat_inputs %}
+            - type: {{ input.type }}
+              enabled: {{ input.enabled | default(true) }}
+              paths:
+              {% for path in input.paths %}
+                - {{ path }}
+              {% endfor %}
+              {% if input.fields is defined %}
+              fields:
+              {% for key, value in input.fields.items() %}
+                {{ key }}: {{ value }}
+              {% endfor %}
+              {% endif %}
+              {% if input.multiline is defined %}
+              multiline:
+                pattern: '{{ input.multiline.pattern }}'
+                negate: {{ input.multiline.negate | default(false) }}
+                match: {{ input.multiline.match | default('after') }}
+              {% endif %}
+          
+          {% endfor %}
+          
+          # 输出配置
+          {% if filebeat_output_type == 'elasticsearch' %}
+          output.elasticsearch:
+            hosts: {{ elasticsearch_hosts | to_json }}
+            username: "${ELASTICSEARCH_USERNAME}"
+            password: "${ELASTICSEARCH_PASSWORD}"
+            index: "{{ filebeat_index_name }}-%{+yyyy.MM.dd}"
+          {% elif filebeat_output_type == 'logstash' %}
+          output.logstash:
+            hosts: {{ logstash_hosts | to_json }}
+            loadbalance: true
+          {% endif %}
+        dest: "{{ filebeat_config_dir }}/filebeat-inputs.yml"
+        owner: root
+        group: root
+        mode: '0600'
+        backup: yes
+      no_log: true
+      register: filebeat_inputs_result
+
+    # 启用 Filebeat 模块
+    - name: 启用 Filebeat 模块
+      ansible.builtin.command:
+        cmd: "filebeat modules enable {{ item }}"
+      loop: "{{ filebeat_modules }}"
+      register: filebeat_modules_result
+      changed_when: "'Enabled' in filebeat_modules_result.stdout"
+      when: filebeat_modules is defined
+
+    # 配置 Logstash Pipeline
+    - name: 创建 Logstash Pipeline 目录
+      ansible.builtin.file:
+        path: "{{ logstash_pipeline_dir }}"
+        state: directory
+        owner: logstash
+        group: logstash
+        mode: '0755'
+
+    - name: 配置 Logstash Pipeline - 输入
+      ansible.builtin.copy:
+        content: |
+          # Logstash 输入配置
+          input {
+            beats {
+              port => {{ logstash_input_beats_port }}
+              ssl => {{ logstash_ssl_enabled | lower }}
+              {% if logstash_ssl_enabled %}
+              ssl_certificate => "{{ logstash_ssl_cert }}"
+              ssl_key => "{{ logstash_ssl_key }}"
+              ssl_verify_mode => "{{ logstash_ssl_verify_mode }}"
+              {% endif %}
+            }
+          }
+        dest: "{{ logstash_pipeline_dir }}/01-input.conf"
+        owner: logstash
+        group: logstash
+        mode: '0644'
+        backup: yes
+      register: logstash_input_result
+
+    - name: 配置 Logstash Pipeline - 过滤器
+      ansible.builtin.copy:
+        content: |
+          # Logstash 过滤器配置
+          filter {
+            # 解析 JSON 日志
+            if [fields][log_format] == "json" {
+              json {
+                source => "message"
+              }
+            }
+            
+            # 解析 Nginx 访问日志
+            if [fields][log_type] == "nginx_access" {
+              grok {
+                match => { "message" => "%{COMBINEDAPACHELOG}" }
+              }
+              date {
+                match => [ "timestamp", "dd/MMM/yyyy:HH:mm:ss Z" ]
+              }
+              geoip {
+                source => "clientip"
+              }
+            }
+            
+            # 数据脱敏
+            mutate {
+              gsub => [
+                "message", "(password|passwd|pwd)=[^\s&]+", "\1=***MASKED***",
+                "message", "(token|api_key):\s*\"[^\"]+\"", "\1: \"***MASKED***\"",
+                "message", "\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b", "****-****-****-****"
+              ]
+            }
+            
+            # 删除敏感字段
+            mutate {
+              remove_field => ["password", "secret", "api_key", "token"]
+            }
+            
+            # 添加标签
+            mutate {
+              add_field => {
+                "[@metadata][index_prefix]" => "{{ elasticsearch_index_prefix }}"
+              }
+            }
+          }
+        dest: "{{ logstash_pipeline_dir }}/02-filter.conf"
+        owner: logstash
+        group: logstash
+        mode: '0644'
+        backup: yes
+      register: logstash_filter_result
+
+    - name: 配置 Logstash Pipeline - 输出
+      ansible.builtin.copy:
+        content: |
+          # Logstash 输出配置
+          output {
+            elasticsearch {
+              hosts => {{ elasticsearch_hosts | to_json }}
+              user => "${ELASTICSEARCH_USERNAME}"
+              password => "${ELASTICSEARCH_PASSWORD}"
+              {% if elasticsearch_ssl_enabled %}
+              ssl => true
+              cacert => "{{ elasticsearch_ca_cert }}"
+              ssl_certificate_verification => {{ elasticsearch_ssl_verify }}
+              {% endif %}
+              index => "%{[@metadata][index_prefix]}-%{+YYYY.MM.dd}"
+              manage_template => true
+              template_name => "{{ elasticsearch_template_name }}"
+              template_pattern => "{{ elasticsearch_index_prefix }}-*"
+            }
+            
+            {% if logstash_debug_output %}
+            # 调试输出
+            stdout {
+              codec => rubydebug
+            }
+            {% endif %}
+          }
+        dest: "{{ logstash_pipeline_dir }}/03-output.conf"
+        owner: logstash
+        group: logstash
+        mode: '0640'
+        backup: yes
+      no_log: true  # 保护 Elasticsearch 凭证
+      register: logstash_output_result
+
+    # 创建 Elasticsearch 索引模板
+    - name: 创建 Elasticsearch 索引模板
+      ansible.builtin.uri:
+        url: "{{ elasticsearch_url }}/_index_template/{{ elasticsearch_template_name }}"
+        method: PUT
+        user: "{{ elasticsearch_username }}"
+        password: "{{ elasticsearch_password }}"
+        force_basic_auth: yes
+        validate_certs: "{{ elasticsearch_verify_ssl }}"
+        body_format: json
+        body:
+          index_patterns: ["{{ elasticsearch_index_prefix }}-*"]
+          template:
+            settings:
+              number_of_shards: "{{ elasticsearch_shards }}"
+              number_of_replicas: "{{ elasticsearch_replicas }}"
+              index.refresh_interval: "{{ elasticsearch_refresh_interval }}"
+            mappings:
+              properties:
+                "@timestamp":
+                  type: "date"
+                message:
+                  type: "text"
+                level:
+                  type: "keyword"
+                host:
+                  type: "keyword"
+                source:
+                  type: "keyword"
+        status_code: [200, 201]
+      no_log: true  # 保护凭证
+      register: elasticsearch_template_result
+      when: elasticsearch_health_check.status == 200
+
+    # 配置索引生命周期策略
+    - name: 创建 ILM 策略
+      ansible.builtin.uri:
+        url: "{{ elasticsearch_url }}/_ilm/policy/{{ elasticsearch_ilm_policy_name }}"
+        method: PUT
+        user: "{{ elasticsearch_username }}"
+        password: "{{ elasticsearch_password }}"
+        force_basic_auth: yes
+        validate_certs: "{{ elasticsearch_verify_ssl }}"
+        body_format: json
+        body:
+          policy:
+            phases:
+              hot:
+                actions:
+                  rollover:
+                    max_size: "{{ elasticsearch_ilm_max_size }}"
+                    max_age: "{{ elasticsearch_ilm_max_age }}"
+              warm:
+                min_age: "{{ elasticsearch_ilm_warm_age }}"
+                actions:
+                  forcemerge:
+                    max_num_segments: 1
+                  shrink:
+                    number_of_shards: 1
+              delete:
+                min_age: "{{ elasticsearch_ilm_delete_age }}"
+                actions:
+                  delete: {}
+        status_code: [200, 201]
+      no_log: true
+      register: elasticsearch_ilm_result
+      when: 
+        - elasticsearch_health_check.status == 200
+        - elasticsearch_ilm_enabled | default(true)
+
+    # 验证配置
+    - name: 验证 Filebeat 配置
+      ansible.builtin.command:
+        cmd: "filebeat test config -c {{ filebeat_config_file }}"
+      register: filebeat_test_result
+      changed_when: false
+      failed_when: filebeat_test_result.rc != 0
+      check_mode: yes
+
+    - name: 测试 Filebeat 输出连接
+      ansible.builtin.command:
+        cmd: "filebeat test output -c {{ filebeat_config_file }}"
+      register: filebeat_output_test_result
+      changed_when: false
+      failed_when: false
+      check_mode: yes
+
+    # 重启服务
+    - name: 重启 Filebeat 服务
+      ansible.builtin.systemd:
+        name: filebeat
+        state: restarted
+        enabled: yes
+      when: 
+        - filebeat_config_result.changed or filebeat_inputs_result.changed
+        - not ansible_check_mode
+
+    - name: 重启 Logstash 服务
+      ansible.builtin.systemd:
+        name: logstash
+        state: restarted
+        enabled: yes
+      when: 
+        - logstash_input_result.changed or logstash_filter_result.changed or logstash_output_result.changed
+        - not ansible_check_mode
+
+    # 输出配置摘要
+    - name: 显示配置变更摘要
+      ansible.builtin.debug:
+        msg: |
+          ELK Stack 配置完成摘要:
+          - Elasticsearch 集群状态: {{ elasticsearch_health_check.json.status if elasticsearch_health_check.json is defined else '未知' }}
+          - Filebeat 配置: {{ '更新' if filebeat_config_result.changed else '无变更' }}
+          - Filebeat 输入: {{ '更新' if filebeat_inputs_result.changed else '无变更' }}
+          - Filebeat 模块: {{ '已启用' if filebeat_modules_result.changed else '无变更' }}
+          - Logstash Pipeline: {{ '更新' if logstash_input_result.changed or logstash_filter_result.changed else '无变更' }}
+          - Elasticsearch 模板: {{ '创建成功' if elasticsearch_template_result.changed else '已存在' }}
+          - ILM 策略: {{ '创建成功' if elasticsearch_ilm_result.changed else '已存在或未启用' }}
+          - Filebeat 配置验证: {{ '通过' if filebeat_test_result.rc == 0 else '失败' }}
+          - Filebeat 输出测试: {{ '通过' if filebeat_output_test_result.rc == 0 else '失败' }}
+
+  handlers:
+    - name: 重启 Filebeat
+      ansible.builtin.systemd:
+        name: filebeat
+        state: restarted
+      listen: "restart filebeat"
+
+    - name: 重启 Logstash
+      ansible.builtin.systemd:
+        name: logstash
+        state: restarted
+      listen: "restart logstash"

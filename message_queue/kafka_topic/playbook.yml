@@ -1,0 +1,54 @@
+---
+# Kafka Topic 管理示例 Playbook
+# 用于演示如何创建和管理 Kafka Topic、配置分区和保留策略
+
+- name: 管理 Kafka Topic
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # 创建 Kafka Topic
+    - name: 创建应用 Topic
+      community.general.kafka_topic:
+        name: "{{ item.name }}"
+        partitions: "{{ item.partitions }}"
+        replication_factor: "{{ item.replication_factor }}"
+        options: "{{ item.options | default({}) }}"
+        bootstrap_servers: "{{ kafka_bootstrap_servers }}"
+        api_version: "{{ kafka_api_version }}"
+        state: "{{ item.state | default('present') }}"
+      loop: "{{ kafka_topics }}"
+      no_log: false
+      register: topic_result
+
+    # 验证 Topic 配置
+    - name: 列出所有 Topic
+      ansible.builtin.command:
+        cmd: "{{ kafka_home }}/bin/kafka-topics.sh --bootstrap-server {{ kafka_bootstrap_servers | first }} --list"
+      register: topic_list_result
+      changed_when: false
+      check_mode: yes
+
+    - name: 显示 Topic 列表
+      ansible.builtin.debug:
+        msg: "当前 Topic: {{ topic_list_result.stdout_lines }}"
+      when: topic_list_result.stdout_lines is defined
+
+    # 查询 Topic 详情
+    - name: 查询 Topic 详细信息
+      ansible.builtin.command:
+        cmd: "{{ kafka_home }}/bin/kafka-topics.sh --bootstrap-server {{ kafka_bootstrap_servers | first }} --describe --topic {{ item.name }}"
+      loop: "{{ kafka_topics }}"
+      register: topic_describe_result
+      changed_when: false
+      check_mode: yes
+
+    # 输出配置摘要
+    - name: 显示配置变更摘要
+      ansible.builtin.debug:
+        msg: |
+          Kafka Topic 管理完成摘要:
+          - Topic 创建/更新: {{ '成功' if topic_result.changed else '无变更' }}
+          - 当前 Topic 数量: {{ topic_list_result.stdout_lines | length if topic_list_result.stdout_lines is defined else '未知' }}

@@ -1,0 +1,326 @@
+---
+# Prometheus 监控配置示例 Playbook
+# 用于演示如何安全地配置 Prometheus 指标抓取、告警规则和远程存储
+
+- name: 配置 Prometheus 监控系统
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # 预检查：验证 Prometheus 服务状态
+    - name: 检查 Prometheus 服务是否运行
+      ansible.builtin.uri:
+        url: "{{ prometheus_url }}/-/healthy"
+        method: GET
+        status_code: [200]
+      register: prometheus_health_check
+      failed_when: false
+      check_mode: yes
+
+    - name: 显示 Prometheus 健康状态
+      ansible.builtin.debug:
+        msg: "Prometheus 健康状态: {{ '正常' if prometheus_health_check.status == 200 else '异常' }}"
+      when: prometheus_health_check is defined
+
+    # 配置 Prometheus 主配置文件
+    - name: 生成 Prometheus 配置文件
+      ansible.builtin.template:
+        src: prometheus.yml.j2
+        dest: "{{ prometheus_config_file }}"
+        owner: prometheus
+        group: prometheus
+        mode: '0640'
+        backup: yes
+        validate: "promtool check config %s"
+      no_log: true  # 保护配置中的认证信息
+      register: prometheus_config_result
+      when: prometheus_health_check.status == 200
+
+    # 配置静态监控目标
+    - name: 配置 Node Exporter 监控目标
+      ansible.builtin.copy:
+        content: |
+          # Node Exporter 监控目标配置
+          - targets:
+            {% for target in prometheus_node_targets %}
+              - "{{ target }}"
+            {% endfor %}
+            labels:
+              job: "node"
+              env: "{{ prometheus_environment }}"
+              datacenter: "{{ prometheus_datacenter }}"
+        dest: "{{ prometheus_config_dir }}/targets/node_targets.yml"
+        owner: prometheus
+        group: prometheus
+        mode: '0644'
+        backup: yes
+      register: node_targets_result
+
+    - name: 配置应用监控目标
+      ansible.builtin.copy:
+        content: |
+          # 应用监控目标配置
+          - targets:
+            {% for app in prometheus_application_targets %}
+              - "{{ app.host }}:{{ app.port }}"
+            {% endfor %}
+            labels:
+              job: "application"
+              env: "{{ prometheus_environment }}"
+        dest: "{{ prometheus_config_dir }}/targets/app_targets.yml"
+        owner: prometheus
+        group: prometheus
+        mode: '0644'
+        backup: yes
+      register: app_targets_result
+
+    # 配置告警规则
+    - name: 创建告警规则目录
+      ansible.builtin.file:
+        path: "{{ prometheus_rules_dir }}"
+        state: directory
+        owner: prometheus
+        group: prometheus
+        mode: '0755'
+
+    - name: 配置基础设施告警规则
+      ansible.builtin.copy:
+        content: |
+          groups:
+            - name: infrastructure_alerts
+              interval: 30s
+              rules:
+                # 节点离线告警
+                - alert: NodeDown
+                  expr: up{job="node"} == 0
+                  for: 5m
+                  labels:
+                    severity: critical
+                    team: ops
+                  annotations:
+                    summary: "节点 {{ $labels.instance }} 不可达"
+                    description: "节点已离线超过 5 分钟，请立即检查"
+
+                # CPU 使用率告警
+                - alert: HighCPUUsage
+                  expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > {{ prometheus_alert_thresholds.cpu.critical }}
+                  for: 10m
+                  labels:
+                    severity: warning
+                    team: ops
+                  annotations:
+                    summary: "节点 {{ $labels.instance }} CPU 使用率过高"
+                    description: "CPU 使用率为 {{ $value | humanizePercentage }}，已持续超过 10 分钟"
+
+                # 内存使用率告警
+                - alert: HighMemoryUsage
+                  expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > {{ prometheus_alert_thresholds.memory.critical }}
+                  for: 10m
+                  labels:
+                    severity: warning
+                    team: ops
+                  annotations:
+                    summary: "节点 {{ $labels.instance }} 内存使用率过高"
+                    description: "内存使用率为 {{ $value | humanizePercentage }}，请检查内存泄漏"
+
+                # 磁盘空间告警
+                - alert: DiskSpaceLow
+                  expr: (1 - (node_filesystem_avail_bytes{fstype=~"ext4|xfs"} / node_filesystem_size_bytes)) * 100 > {{ prometheus_alert_thresholds.disk.warning }}
+                  for: 15m
+                  labels:
+                    severity: warning
+                    team: ops
+                  annotations:
+                    summary: "节点 {{ $labels.instance }} 磁盘空间不足"
+                    description: "挂载点 {{ $labels.mountpoint }} 使用率为 {{ $value | humanizePercentage }}"
+
+                # 磁盘空间严重告警
+                - alert: DiskSpaceCritical
+                  expr: (1 - (node_filesystem_avail_bytes{fstype=~"ext4|xfs"} / node_filesystem_size_bytes)) * 100 > {{ prometheus_alert_thresholds.disk.critical }}
+                  for: 5m
+                  labels:
+                    severity: critical
+                    team: ops
+                  annotations:
+                    summary: "节点 {{ $labels.instance }} 磁盘空间严重不足"
+                    description: "挂载点 {{ $labels.mountpoint }} 使用率为 {{ $value | humanizePercentage }}，请立即清理"
+        dest: "{{ prometheus_rules_dir }}/infrastructure_alerts.yml"
+        owner: prometheus
+        group: prometheus
+        mode: '0644'
+        backup: yes
+        validate: "promtool check rules %s"
+      register: infra_rules_result
+
+    - name: 配置应用告警规则
+      ansible.builtin.copy:
+        content: |
+          groups:
+            - name: application_alerts
+              interval: 30s
+              rules:
+                # 应用服务不可用
+                - alert: ApplicationDown
+                  expr: up{job="application"} == 0
+                  for: 3m
+                  labels:
+                    severity: critical
+                    team: dev
+                  annotations:
+                    summary: "应用 {{ $labels.instance }} 不可用"
+                    description: "应用服务已离线超过 3 分钟"
+
+                # HTTP 请求错误率告警
+                - alert: HighHTTPErrorRate
+                  expr: sum(rate(http_requests_total{status=~"5.."}[5m])) by (instance) / sum(rate(http_requests_total[5m])) by (instance) * 100 > 5
+                  for: 5m
+                  labels:
+                    severity: warning
+                    team: dev
+                  annotations:
+                    summary: "应用 {{ $labels.instance }} HTTP 错误率过高"
+                    description: "5xx 错误率为 {{ $value | humanizePercentage }}"
+
+                # 响应时间告警
+                - alert: HighResponseTime
+                  expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, instance)) > 2
+                  for: 10m
+                  labels:
+                    severity: warning
+                    team: dev
+                  annotations:
+                    summary: "应用 {{ $labels.instance }} 响应时间过长"
+                    description: "P95 响应时间为 {{ $value }} 秒"
+        dest: "{{ prometheus_rules_dir }}/application_alerts.yml"
+        owner: prometheus
+        group: prometheus
+        mode: '0644'
+        backup: yes
+        validate: "promtool check rules %s"
+      register: app_rules_result
+
+    # 配置 Alertmanager 集成
+    - name: 配置 Alertmanager 通知
+      ansible.builtin.copy:
+        content: |
+          # Alertmanager 配置
+          alerting:
+            alertmanagers:
+              - static_configs:
+                  - targets:
+                    {% for target in prometheus_alertmanager_urls %}
+                      - "{{ target }}"
+                    {% endfor %}
+                timeout: 10s
+                api_version: v2
+        dest: "{{ prometheus_config_dir }}/alertmanager.yml"
+        owner: prometheus
+        group: prometheus
+        mode: '0644'
+        backup: yes
+      no_log: true
+      register: alertmanager_config_result
+      when: prometheus_alertmanager_urls | length > 0
+
+    # 配置远程存储（如果启用）
+    - name: 配置远程写入存储
+      ansible.builtin.blockinfile:
+        path: "{{ prometheus_config_file }}"
+        marker: "# {mark} ANSIBLE MANAGED - Remote Write"
+        block: |
+          remote_write:
+            - url: "{{ prometheus_remote_write_url }}"
+              basic_auth:
+                username: "{{ prometheus_remote_write_user }}"
+                password: "{{ prometheus_remote_write_password }}"
+              queue_config:
+                capacity: 10000
+                max_samples_per_send: 500
+                batch_send_deadline: 5s
+              write_relabel_configs:
+                - source_labels: [__name__]
+                  regex: "go_.*"
+                  action: drop
+        backup: yes
+      no_log: true  # 保护远程存储凭证
+      register: remote_write_result
+      when: 
+        - enable_remote_write | default(false)
+        - prometheus_remote_write_url is defined
+
+    # 验证配置文件
+    - name: 验证 Prometheus 配置文件
+      ansible.builtin.command:
+        cmd: "promtool check config {{ prometheus_config_file }}"
+      register: config_validation_result
+      changed_when: false
+      failed_when: config_validation_result.rc != 0
+      check_mode: yes
+
+    - name: 显示配置验证结果
+      ansible.builtin.debug:
+        msg: "配置验证: {{ '通过' if config_validation_result.rc == 0 else '失败' }}"
+      when: config_validation_result is defined
+
+    # 重载 Prometheus 配置
+    - name: 重载 Prometheus 配置
+      ansible.builtin.uri:
+        url: "{{ prometheus_url }}/-/reload"
+        method: POST
+        status_code: [200]
+      register: reload_result
+      when: 
+        - prometheus_config_result.changed or node_targets_result.changed or app_targets_result.changed
+        - not ansible_check_mode
+
+    - name: 等待 Prometheus 重载完成
+      ansible.builtin.pause:
+        seconds: 5
+      when: reload_result.changed
+
+    # 验证监控目标状态
+    - name: 查询监控目标状态
+      ansible.builtin.uri:
+        url: "{{ prometheus_url }}/api/v1/targets"
+        method: GET
+        return_content: yes
+      register: targets_status_result
+      check_mode: yes
+
+    - name: 显示监控目标状态摘要
+      ansible.builtin.debug:
+        msg: |
+          监控目标状态:
+          - 总数: {{ targets_status_result.json.data.activeTargets | length }}
+          - 健康: {{ targets_status_result.json.data.activeTargets | selectattr('health', 'equalto', 'up') | list | length }}
+          - 异常: {{ targets_status_result.json.data.activeTargets | selectattr('health', 'equalto', 'down') | list | length }}
+      when: targets_status_result.json is defined
+
+    # 输出配置摘要
+    - name: 显示配置变更摘要
+      ansible.builtin.debug:
+        msg: |
+          Prometheus 配置完成摘要:
+          - 主配置文件: {{ '更新' if prometheus_config_result.changed else '无变更' }}
+          - Node Exporter 目标: {{ '更新' if node_targets_result.changed else '无变更' }}
+          - 应用监控目标: {{ '更新' if app_targets_result.changed else '无变更' }}
+          - 基础设施告警规则: {{ '更新' if infra_rules_result.changed else '无变更' }}
+          - 应用告警规则: {{ '更新' if app_rules_result.changed else '无变更' }}
+          - Alertmanager 配置: {{ '更新' if alertmanager_config_result.changed else '未配置' }}
+          - 远程存储: {{ '配置成功' if remote_write_result.changed else '未启用' }}
+          - 配置验证: {{ '通过' if config_validation_result.rc == 0 else '失败' }}
+
+  handlers:
+    - name: 重启 Prometheus 服务
+      ansible.builtin.systemd:
+        name: prometheus
+        state: restarted
+      listen: "restart prometheus"
+
+    - name: 重载 Prometheus 配置
+      ansible.builtin.uri:
+        url: "{{ prometheus_url }}/-/reload"
+        method: POST
+      listen: "reload prometheus"

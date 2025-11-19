@@ -1,0 +1,283 @@
+---
+# Prometheus 监控配置变量示例文件
+# 
+# 重要提示：
+# 1. 这是示例文件，包含占位符值
+# 2. 生产使用时请复制并填写真实值
+# 3. 不要将包含真实凭证的文件提交到版本控制系统
+# 4. 建议使用 Ansible Vault 加密敏感信息
+
+# =============================================================================
+# Prometheus 服务配置
+# =============================================================================
+
+# Prometheus API 端点
+prometheus_url: "http://localhost:9090"
+prometheus_api_url: "{{ prometheus_url }}/api/v1"
+
+# Prometheus 配置文件路径
+prometheus_config_file: "/etc/prometheus/prometheus.yml"
+prometheus_config_dir: "/etc/prometheus"
+prometheus_rules_dir: "/etc/prometheus/rules"
+prometheus_storage_path: "/var/lib/prometheus"
+
+# 数据保留策略
+prometheus_retention_time: "15d"  # 保留 15 天
+prometheus_retention_size: "50GB"  # 最大 50GB
+
+# API 认证配置（可选）
+# 注意：如果 Prometheus 启用了认证，需要配置以下凭证
+prometheus_basic_auth_user: "{{ vault_prometheus_user | default('') }}"
+prometheus_basic_auth_password: "{{ vault_prometheus_password | default('') }}"
+prometheus_api_token: "{{ vault_prometheus_api_token | default('') }}"
+
+# =============================================================================
+# 抓取配置
+# =============================================================================
+
+# 全局抓取配置
+prometheus_scrape_interval: "15s"  # 每 15 秒抓取一次
+prometheus_scrape_timeout: "10s"   # 抓取超时时间
+prometheus_evaluation_interval: "15s"  # 规则评估间隔
+
+# 外部标签（用于联邦和远程存储）
+prometheus_external_labels:
+  cluster: "production"
+  region: "us-east-1"
+  datacenter: "dc1"
+
+# 环境配置
+prometheus_environment: "production"  # production, staging, development
+prometheus_datacenter: "dc1"
+
+# =============================================================================
+# 监控目标配置
+# =============================================================================
+
+# Node Exporter 监控目标
+prometheus_node_targets:
+  - "server1.example.com:9100"
+  - "server2.example.com:9100"
+  - "server3.example.com:9100"
+
+# 应用监控目标
+prometheus_application_targets:
+  - host: "app1.example.com"
+    port: 8080
+  - host: "app2.example.com"
+    port: 8080
+  - host: "api.example.com"
+    port: 9090
+
+# Prometheus 自监控
+prometheus_self_monitoring:
+  enabled: true
+  target: "localhost:9090"
+
+# =============================================================================
+# 告警配置
+# =============================================================================
+
+# Alertmanager 端点列表
+prometheus_alertmanager_urls:
+  - "alertmanager1.example.com:9093"
+  - "alertmanager2.example.com:9093"
+
+# 告警阈值配置
+prometheus_alert_thresholds:
+  cpu:
+    warning: 70
+    critical: 90
+  memory:
+    warning: 80
+    critical: 95
+  disk:
+    warning: 85
+    critical: 95
+  network:
+    warning: 1000  # Mbps
+    critical: 2000
+
+# 告警通知配置
+prometheus_alert_notification:
+  email_enabled: true
+  slack_enabled: false
+  pagerduty_enabled: false
+  webhook_enabled: false
+
+# =============================================================================
+# 服务发现配置
+# =============================================================================
+
+# 文件服务发现配置
+prometheus_file_sd_configs:
+  - files:
+      - "{{ prometheus_config_dir }}/targets/*.yml"
+    refresh_interval: "5m"
+
+# Kubernetes 服务发现（示例，需要相应权限）
+prometheus_kubernetes_sd_config:
+  enabled: false
+  role: "pod"
+  namespaces:
+    names:
+      - "production"
+      - "staging"
+
+# Consul 服务发现（示例）
+prometheus_consul_sd_config:
+  enabled: false
+  server: "consul.example.com:8500"
+  datacenter: "dc1"
+  services:
+    - "web"
+    - "api"
+    - "database"
+
+# =============================================================================
+# 远程存储配置
+# =============================================================================
+
+# 远程写入存储开关
+enable_remote_write: false
+
+# 远程写入配置
+prometheus_remote_write_url: "https://remote-storage.example.com/api/v1/write"
+prometheus_remote_write_user: "{{ vault_prometheus_remote_user }}"
+prometheus_remote_write_password: "{{ vault_prometheus_remote_password }}"
+
+# 远程读取配置
+enable_remote_read: false
+prometheus_remote_read_url: "https://remote-storage.example.com/api/v1/read"
+
+# 队列配置
+prometheus_queue_config:
+  capacity: 10000
+  max_samples_per_send: 500
+  batch_send_deadline: "5s"
+  max_shards: 10
+  min_shards: 1
+
+# =============================================================================
+# 联邦配置
+# =============================================================================
+
+# Prometheus 联邦配置
+prometheus_federation:
+  enabled: false
+  federate_targets:
+    - "prometheus-shard1.example.com:9090"
+    - "prometheus-shard2.example.com:9090"
+  match_rules:
+    - '{job="prometheus"}'
+    - '{__name__=~"job:.*"}'
+
+# =============================================================================
+# 性能优化配置
+# =============================================================================
+
+# 查询配置
+prometheus_query_config:
+  timeout: "2m"
+  max_concurrency: 20
+  max_samples: 50000000
+
+# 存储配置
+prometheus_storage_config:
+  wal_compression: true
+  min_block_duration: "2h"
+  max_block_duration: "36h"
+
+# =============================================================================
+# 安全配置
+# =============================================================================
+
+# TLS 配置（如果启用）
+prometheus_tls_config:
+  enabled: false
+  cert_file: "/etc/prometheus/tls/server.crt"
+  key_file: "/etc/prometheus/tls/server.key"
+  client_ca_file: "/etc/prometheus/tls/ca.crt"
+
+# 基本认证配置
+prometheus_basic_auth:
+  enabled: false
+  users:
+    - username: "admin"
+      password: "{{ vault_prometheus_admin_password }}"
+    - username: "readonly"
+      password: "{{ vault_prometheus_readonly_password }}"
+
+# 网络访问控制
+prometheus_allowed_ips:
+  - "10.0.0.0/8"
+  - "172.16.0.0/12"
+  - "192.168.0.0/16"
+
+# =============================================================================
+# 规则文件配置
+# =============================================================================
+
+# 告警规则文件列表
+prometheus_rule_files:
+  - "{{ prometheus_rules_dir }}/infrastructure_alerts.yml"
+  - "{{ prometheus_rules_dir }}/application_alerts.yml"
+  - "{{ prometheus_rules_dir }}/custom_alerts.yml"
+
+# 记录规则配置（用于预聚合）
+prometheus_recording_rules:
+  enabled: true
+  interval: "30s"
+
+# =============================================================================
+# 集成配置
+# =============================================================================
+
+# Grafana 集成
+prometheus_grafana_integration:
+  enabled: true
+  datasource_url: "{{ prometheus_url }}"
+  dashboard_provider: true
+
+# 服务网格集成
+prometheus_service_mesh:
+  enabled: false
+  type: "istio"  # istio, linkerd, consul-connect
+
+# =============================================================================
+# 使用说明
+# =============================================================================
+
+# 1. 安装依赖：
+#    ansible-galaxy collection install community.prometheus  # 如可用
+#    pip install requests pyyaml
+#
+# 2. 安装 Prometheus：
+#    # Ubuntu/Debian
+#    apt-get install prometheus prometheus-node-exporter
+#    
+#    # RHEL/CentOS
+#    wget https://github.com/prometheus/prometheus/releases/download/v2.x.x/prometheus-2.x.x.linux-amd64.tar.gz
+#
+# 3. 加密敏感变量：
+#    ansible-vault encrypt_string 'your_password' --name 'vault_prometheus_password'
+#    ansible-vault encrypt_string 'your_api_token' --name 'vault_prometheus_api_token'
+#    ansible-vault encrypt_string 'remote_user' --name 'vault_prometheus_remote_user'
+#    ansible-vault encrypt_string 'remote_password' --name 'vault_prometheus_remote_password'
+#
+# 4. 运行 playbook：
+#    ansible-playbook -i inventory playbook.yml --ask-vault-pass
+#
+# 5. 检查模式运行：
+#    ansible-playbook -i inventory playbook.yml --check --ask-vault-pass
+#
+# 6. 验证配置：
+#    promtool check config /etc/prometheus/prometheus.yml
+#    promtool check rules /etc/prometheus/rules/*.yml
+#
+# 7. 查看服务状态：
+#    systemctl status prometheus
+#    curl http://localhost:9090/-/healthy
+#
+# 8. 访问 Web UI：
+#    浏览器访问 http://prometheus-server:9090

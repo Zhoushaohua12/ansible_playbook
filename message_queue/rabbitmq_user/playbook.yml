@@ -1,0 +1,127 @@
+---
+# RabbitMQ 用户管理示例 Playbook
+# 用于演示如何安全地管理 RabbitMQ 用户、虚拟主机和权限
+
+- name: 管理 RabbitMQ 用户和权限
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # 预检查：验证 RabbitMQ Management API
+    - name: 检查 RabbitMQ Management API 可用性
+      ansible.builtin.uri:
+        url: "{{ rabbitmq_management_url }}/api/whoami"
+        method: GET
+        user: "{{ rabbitmq_admin_user }}"
+        password: "{{ rabbitmq_admin_password }}"
+        force_basic_auth: yes
+        status_code: [200]
+      register: rabbitmq_api_check
+      no_log: true  # 保护管理员凭证
+      failed_when: false
+      check_mode: yes
+
+    - name: 显示 RabbitMQ API 状态
+      ansible.builtin.debug:
+        msg: "RabbitMQ Management API: {{ '可用' if rabbitmq_api_check.status == 200 else '不可用' }}"
+
+    # 创建虚拟主机
+    - name: 创建应用虚拟主机
+      community.rabbitmq.rabbitmq_vhost:
+        name: "{{ item.name }}"
+        state: "{{ item.state | default('present') }}"
+        tracing: "{{ item.tracing | default(false) }}"
+        node: "{{ rabbitmq_node_name }}"
+      loop: "{{ rabbitmq_vhosts }}"
+      register: vhost_result
+      when: rabbitmq_api_check.status == 200
+
+    # 创建用户
+    - name: 创建 RabbitMQ 用户
+      community.rabbitmq.rabbitmq_user:
+        user: "{{ item.name }}"
+        password: "{{ item.password }}"
+        tags: "{{ item.tags | default('') }}"
+        state: "{{ item.state | default('present') }}"
+        update_password: "{{ item.update_password | default('on_create') }}"
+        node: "{{ rabbitmq_node_name }}"
+      loop: "{{ rabbitmq_users }}"
+      no_log: true  # 保护用户密码
+      register: user_result
+      when: rabbitmq_api_check.status == 200
+
+    # 配置用户权限
+    - name: 配置用户权限
+      community.rabbitmq.rabbitmq_user:
+        user: "{{ item.user }}"
+        vhost: "{{ item.vhost }}"
+        configure_priv: "{{ item.configure_priv | default('^$') }}"
+        write_priv: "{{ item.write_priv | default('^$') }}"
+        read_priv: "{{ item.read_priv | default('^$') }}"
+        state: present
+        node: "{{ rabbitmq_node_name }}"
+      loop: "{{ rabbitmq_permissions }}"
+      register: permission_result
+      when: rabbitmq_api_check.status == 200
+
+    # 删除默认 guest 用户（安全加固）
+    - name: 删除默认 guest 用户
+      community.rabbitmq.rabbitmq_user:
+        user: guest
+        state: absent
+        node: "{{ rabbitmq_node_name }}"
+      register: guest_delete_result
+      when: 
+        - rabbitmq_remove_guest_user | default(true)
+        - rabbitmq_api_check.status == 200
+
+    # 验证用户配置
+    - name: 列出所有用户
+      ansible.builtin.uri:
+        url: "{{ rabbitmq_management_url }}/api/users"
+        method: GET
+        user: "{{ rabbitmq_admin_user }}"
+        password: "{{ rabbitmq_admin_password }}"
+        force_basic_auth: yes
+        return_content: yes
+      register: users_list_result
+      no_log: true
+      check_mode: yes
+
+    - name: 显示用户列表
+      ansible.builtin.debug:
+        msg: "当前用户: {{ users_list_result.json | map(attribute='name') | list }}"
+      when: users_list_result.json is defined
+
+    # 列出虚拟主机
+    - name: 列出所有虚拟主机
+      ansible.builtin.uri:
+        url: "{{ rabbitmq_management_url }}/api/vhosts"
+        method: GET
+        user: "{{ rabbitmq_admin_user }}"
+        password: "{{ rabbitmq_admin_password }}"
+        force_basic_auth: yes
+        return_content: yes
+      register: vhosts_list_result
+      no_log: true
+      check_mode: yes
+
+    - name: 显示虚拟主机列表
+      ansible.builtin.debug:
+        msg: "当前虚拟主机: {{ vhosts_list_result.json | map(attribute='name') | list }}"
+      when: vhosts_list_result.json is defined
+
+    # 输出配置摘要
+    - name: 显示配置变更摘要
+      ansible.builtin.debug:
+        msg: |
+          RabbitMQ 用户管理完成摘要:
+          - API 状态: {{ '正常' if rabbitmq_api_check.status == 200 else '异常' }}
+          - 虚拟主机: {{ '创建/更新' if vhost_result.changed else '无变更' }}
+          - 用户创建: {{ '成功' if user_result.changed else '无变更' }}
+          - 权限配置: {{ '更新' if permission_result.changed else '无变更' }}
+          - Guest 用户: {{ '已删除' if guest_delete_result.changed else '保留或已删除' }}
+          - 当前用户数: {{ users_list_result.json | length if users_list_result.json is defined else '未知' }}
+          - 当前虚拟主机数: {{ vhosts_list_result.json | length if vhosts_list_result.json is defined else '未知' }}

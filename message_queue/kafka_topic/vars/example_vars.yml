@@ -1,0 +1,112 @@
+---
+# Kafka Topic 管理配置变量示例文件
+#
+# 重要提示：
+# 1. 这是示例文件，包含占位符值
+# 2. 生产使用时请复制并填写真实值
+# 3. 不要将包含真实凭证的文件提交到版本控制系统
+# 4. 建议使用 Ansible Vault 加密 SASL 凭证
+
+# =============================================================================
+# Kafka 连接配置
+# =============================================================================
+
+# Kafka Broker 地址列表
+kafka_bootstrap_servers:
+  - "kafka1.example.com:9092"
+  - "kafka2.example.com:9092"
+  - "kafka3.example.com:9092"
+
+# Kafka API 版本
+kafka_api_version: "auto"
+
+# Kafka 安装目录
+kafka_home: "/opt/kafka"
+
+# =============================================================================
+# SASL 认证配置（如果启用）
+# =============================================================================
+
+# SASL 配置
+kafka_sasl_enabled: false
+kafka_sasl_mechanism: "PLAIN"
+kafka_sasl_username: "{{ vault_kafka_sasl_username }}"
+kafka_sasl_password: "{{ vault_kafka_sasl_password }}"
+kafka_security_protocol: "SASL_PLAINTEXT"
+
+# =============================================================================
+# Topic 配置
+# =============================================================================
+
+kafka_topics:
+  # 应用日志 Topic
+  - name: "app-logs"
+    partitions: 6
+    replication_factor: 3
+    options:
+      retention.ms: 604800000  # 7 天
+      compression.type: "lz4"
+      min.insync.replicas: 2
+    state: present
+  
+  # 用户事件 Topic
+  - name: "user-events"
+    partitions: 12
+    replication_factor: 3
+    options:
+      retention.ms: 2592000000  # 30 天
+      compression.type: "snappy"
+      cleanup.policy: "delete"
+      min.insync.replicas: 2
+    state: present
+  
+  # 系统指标 Topic
+  - name: "system-metrics"
+    partitions: 3
+    replication_factor: 3
+    options:
+      retention.ms: 86400000  # 1 天
+      retention.bytes: 10737418240  # 10GB per partition
+      compression.type: "gzip"
+    state: present
+  
+  # 用户状态 Topic（日志压缩）
+  - name: "user-status"
+    partitions: 6
+    replication_factor: 3
+    options:
+      cleanup.policy: "compact"
+      compression.type: "lz4"
+      min.cleanable.dirty.ratio: 0.5
+      segment.ms: 3600000  # 1 小时
+    state: present
+
+# =============================================================================
+# 使用说明
+# =============================================================================
+
+# 1. 安装依赖：
+#    ansible-galaxy collection install community.general
+#    pip install kafka-python
+#
+# 2. 安装 Kafka：
+#    wget https://downloads.apache.org/kafka/3.x.x/kafka_2.13-3.x.x.tgz
+#    tar -xzf kafka_2.13-3.x.x.tgz -C /opt
+#    
+# 3. 启动服务：
+#    # Zookeeper
+#    /opt/kafka/bin/zookeeper-server-start.sh -daemon /opt/kafka/config/zookeeper.properties
+#    
+#    # Kafka
+#    /opt/kafka/bin/kafka-server-start.sh -daemon /opt/kafka/config/server.properties
+#
+# 4. 加密敏感变量（如果使用 SASL）：
+#    ansible-vault encrypt_string 'kafka_user' --name 'vault_kafka_sasl_username'
+#    ansible-vault encrypt_string 'kafka_pass' --name 'vault_kafka_sasl_password'
+#
+# 5. 运行 playbook：
+#    ansible-playbook -i inventory playbook.yml --ask-vault-pass
+#
+# 6. 验证 Topic：
+#    /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+#    /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic app-logs

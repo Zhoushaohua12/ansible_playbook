@@ -1,0 +1,76 @@
+---
+# RabbitMQ 队列管理配置变量示例文件
+#
+# 重要提示：
+# 1. 这是示例文件，包含占位符值
+# 2. 生产使用时请复制并填写真实值
+# 3. 不要将包含真实凭证的文件提交到版本控制系统
+# 4. 建议使用 Ansible Vault 加密管理员凭证
+
+# =============================================================================
+# RabbitMQ 连接配置（需要管理员凭证）
+# =============================================================================
+
+rabbitmq_admin_user: "{{ vault_rabbitmq_admin_user }}"
+rabbitmq_admin_password: "{{ vault_rabbitmq_admin_password }}"
+
+# =============================================================================
+# 队列配置
+# =============================================================================
+
+rabbitmq_queues:
+  # 工作队列
+  - name: "app.tasks"
+    vhost: "/app"
+    durable: true
+    auto_delete: false
+    arguments:
+      x-max-length: 10000
+  
+  # 延迟队列
+  - name: "app.delayed"
+    vhost: "/app"
+    durable: true
+    arguments:
+      x-message-ttl: 60000
+      x-dead-letter-exchange: "app.dlx"
+      x-dead-letter-routing-key: "app.tasks"
+  
+  # 死信队列
+  - name: "app.dead_letter"
+    vhost: "/app"
+    durable: true
+
+# =============================================================================
+# 交换机配置
+# =============================================================================
+
+rabbitmq_exchanges:
+  # Topic 交换机
+  - name: "app.logs"
+    type: topic
+    vhost: "/app"
+    durable: true
+  
+  # 死信交换机
+  - name: "app.dlx"
+    type: direct
+    vhost: "/app"
+    durable: true
+
+# =============================================================================
+# 绑定配置
+# =============================================================================
+
+rabbitmq_bindings:
+  # 绑定日志队列
+  - exchange: "app.logs"
+    queue: "app.error_logs"
+    routing_key: "error.*"
+    vhost: "/app"
+  
+  # 绑定死信队列
+  - exchange: "app.dlx"
+    queue: "app.dead_letter"
+    routing_key: "app.tasks"
+    vhost: "/app"
