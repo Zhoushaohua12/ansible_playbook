@@ -1,6 +1,6 @@
 advanced:
   title: 高级特性
-  description: "涵盖 block/rescue、条件判断、循环、变量、handler 以及 include_tasks 的实战示例"
+  description: "涵盖 block/rescue、条件判断、循环、变量、handler 以及 include/import/loop 矩阵等高级特性的实战示例"
   topics:
     - id: block_rescue
       name: Block 与 Rescue
@@ -32,6 +32,26 @@ advanced:
       doc: advanced/include_tasks/README.md
       example: advanced/include_tasks/playbook.yml
       summary: "通过 include_tasks 拆分子任务并传递参数"
+    - id: block_always
+      name: Block Always 进阶
+      doc: advanced/block_always/README.md
+      example: advanced/block_always/playbook.yml
+      summary: "演示 block/rescue/always 组合，结合 when 条件、loop 循环和回滚清理"
+    - id: import_playbook
+      name: Import Playbook
+      doc: advanced/import_playbook/README.md
+      example: advanced/import_playbook/playbook.yml
+      summary: "Play 级别的 Playbook 复用，实现多阶段部署流程编排"
+    - id: import_tasks
+      name: Import Tasks
+      doc: advanced/import_tasks/README.md
+      example: advanced/import_tasks/playbook.yml
+      summary: "静态任务引入，保证配置与清理步骤在多个 Play 中保持一致"
+    - id: loop_matrix
+      name: Loop Matrix
+      doc: advanced/loop_matrix/README.md
+      example: advanced/loop_matrix/playbook.yml
+      summary: "利用 product/subelements 构建循环矩阵，批量执行多维组合操作"
 
 monitoring:
   title: 监控模块
@@ -221,7 +241,7 @@ files:
 
 commands:
   title: 命令执行模块
-  description: "演示 shell、command、raw、script 四个核心命令执行模块的使用差异、安全风险与最佳实践，包含中文文档和幂等性控制示例"
+  description: "演示 shell、command、raw、script、expect 五个核心命令执行模块的使用差异、安全风险与最佳实践，包含中文文档和幂等性控制示例"
   topics:
     - id: shell
       name: Shell 模块
@@ -256,6 +276,14 @@ commands:
         - "脚本执行权限"
       files:
         - "commands/script/files/example.sh"
+    - id: expect
+      name: Expect 模块
+      doc: commands/expect/README.md
+      example: commands/expect/playbook.yml
+      summary: "自动化交互式命令响应，支持密码输入、确认提示等场景，包含超时控制和敏感信息保护"
+      external_deps:
+        - "目标主机 Python 环境"
+        - "pexpect Python 库"
 
 web:
   title: Web 服务管理

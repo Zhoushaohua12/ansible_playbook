@@ -1,0 +1,14 @@
+---
+# 本文件通过 import_tasks 引入，用于统一清理逻辑
+- name: 在环境 {{ import_tasks_environment }} 中执行清理
+  ansible.builtin.debug:
+    msg: "清理 {{ svc_item.name }} 的临时文件"
+  loop: "{{ import_task_services }}"
+  loop_control:
+    loop_var: svc_item
+  when: import_tasks_cleanup_enabled
+
+- name: 输出清理完成提示
+  ansible.builtin.debug:
+    msg: "所有服务的清理步骤已完成"
+  when: import_tasks_cleanup_enabled

@@ -1,0 +1,55 @@
+---
+- name: expect 模块自动化交互示例
+  hosts: all
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 准备交互式脚本（仅示例用途）
+      ansible.builtin.copy:
+        dest: "{{ expect_temp_script }}"
+        mode: '0750'
+        content: |
+          #!/usr/bin/env bash
+          echo -n "请输入受控主机用户名: "
+          read username
+          echo -n "请输入一次性 token: "
+          read token
+          echo "校验 {{ expect_demo_service }} 的访问权限..."
+          sleep 1
+          if [ -z "$token" ]; then
+            echo "token 缺失，交互流程失败"
+            exit 1
+          fi
+          echo "用户名: $username"
+          echo "验证完成，准备同步配置"
+
+    - name: 使用 expect 自动响应提示并隐藏敏感信息
+      ansible.builtin.expect:
+        command: "{{ expect_temp_script }}"
+        responses:
+          '用户名': "{{ expect_demo_username }}"
+          '一次性 token': "{{ expect_one_time_token }}"
+        timeout: "{{ expect_timeout }}"
+        echo: true  # 在测试环境保留日志，生产环境可关闭
+      register: expect_result
+      no_log: true  # 避免 token 泄露
+      changed_when: "验证完成" in expect_result.stdout
+
+    - name: 超时控制示例 - 防止长时间阻塞
+      ansible.builtin.expect:
+        command: "/usr/bin/env bash -c 'read -p \"确认清理缓存 (y/N)? \" answer; echo $answer'"
+        responses:
+          '确认清理缓存': "{{ expect_cleanup_confirmation }}"
+        timeout: 5  # 显式设置较短的超时，失败时便于快速回滚
+        echo: true
+      register: cleanup_prompt
+      when: expect_enable_cleanup
+      failed_when: cleanup_prompt.rc != 0
+
+    - name: 清理临时脚本
+      ansible.builtin.file:
+        path: "{{ expect_temp_script }}"
+        state: absent
+      when: expect_auto_cleanup

@@ -1,0 +1,20 @@
+---
+# ⚠ 仅为演示所用，请根据环境调整文件路径与策略
+
+# 是否启用高风险操作
+enable_risky_operations: true
+
+# 需要配置的文件列表
+config_files:
+  - /tmp/app_config.ini
+  - /tmp/db_connection.conf
+  - /tmp/cache_settings.json
+
+# 备份文件后缀
+backup_suffix: ".ansible_backup"
+
+# 回滚日志路径
+rollback_log: /tmp/rollback.log
+
+# 是否清理临时文件
+cleanup_temp_files: true

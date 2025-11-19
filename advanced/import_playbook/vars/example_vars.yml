@@ -1,0 +1,12 @@
+---
+# 多阶段部署示例变量（请根据环境调整）
+import_target_env: "staging"
+import_release_version: "v2.5.7"
+import_services:
+  - api
+  - worker
+  - scheduler
+import_healthcheck_endpoints:
+  api: "/internal/health"
+  worker: "/metrics"
+  scheduler: "/status"

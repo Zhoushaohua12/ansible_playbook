@@ -1,0 +1,13 @@
+---
+- name: 阶段2：部署应用服务
+  hosts: all
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  tasks:
+    - name: 模拟服务部署（loop 演示）
+      ansible.builtin.debug:
+        msg: "正在部署服务 {{ service_item }} v{{ import_release_version }}"
+      loop: "{{ import_services }}"
+      loop_control:
+        loop_var: service_item

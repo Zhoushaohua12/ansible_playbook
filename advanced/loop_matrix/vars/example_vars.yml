@@ -1,0 +1,25 @@
+---
+# 循环矩阵示例变量，用于生成区域×环境×服务的组合
+loop_matrix_regions:
+  - us-east-1
+  - eu-west-1
+  - ap-southeast-1
+
+loop_matrix_environments:
+  - dev
+  - staging
+  - production
+
+loop_matrix_services:
+  - name: api
+    ports:
+      - 8080
+      - 8443
+  - name: worker
+    ports:
+      - 9000
+  - name: scheduler
+    ports:
+      - 6379
+
+loop_matrix_enable_experimental_features: false

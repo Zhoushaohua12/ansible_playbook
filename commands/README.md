@@ -1,7 +1,7 @@
 # 命令执行模块指南
 
 ## 章节概览
-本章节介绍 Ansible 中四个核心命令执行模块的使用差异、安全风险与最佳实践。这些模块允许在目标主机上执行命令和脚本，但各自有不同的适用场景和安全考虑。所有示例均包含中文注释，并强调幂等性和安全防护措施。
+本章节介绍 Ansible 中五个核心命令执行模块的使用差异、安全风险与最佳实践。这些模块允许在目标主机上执行命令和脚本（包含交互式输入场景），但各自有不同的适用场景和安全考虑。所有示例均包含中文注释，并强调幂等性和安全防护措施。
 
 ## 模块对比
 
@@ -11,12 +11,14 @@
 | `command` | ❌ 无 Shell | ✅ 需要 | ✅ 低（直接执行） | 安全的简单命令执行 |
 | `raw` | ✅ 完整支持 | ❌ 不需要 | ⚠️ 高（绕过 Ansible） | 无 Python 环境或系统引导阶段 |
 | `script` | ✅ 依赖脚本 | ✅ 需要 | ⚠️ 中等（脚本内容风险） | 传输并执行本地脚本文件 |
+| `expect` | ✅ 交互式支持 | ✅ 需要 | ⚠️ 高（敏感信息泄露） | 自动响应交互式提示（密码、确认等） |
 
 ## 涉及模块
 - [shell 模块](shell/README.md)：通过系统 shell 执行命令，支持管道和重定向
 - [command 模块](command/README.md)：安全执行命令，不经过 shell 处理
 - [raw 模块](raw/README.md)：直接 SSH 执行，适用于无 Python 环境
 - [script 模块](script/README.md)：传输本地脚本到远程主机执行
+- [expect 模块](expect/README.md)：自动回应交互式提示，适用于密码输入、确认流程等场景
 
 ## 安全使用建议
 
@@ -31,6 +33,7 @@
 - **command 模块**：优先选择，避免 shell 注入风险
 - **raw 模块**：谨慎使用，会绕过 Ansible 的安全机制
 - **script 模块**：审查脚本内容，避免硬编码敏感信息
+- **expect 模块**：务必使用 `no_log: true` 和 Ansible Vault 保护敏感信息
 
 ## 测试与验证策略
 1. **中文文档校验**：确保所有 README 和 playbook 包含中文注释
@@ -51,6 +54,10 @@ commands/
 │   ├── playbook.yml
 │   └── vars/example_vars.yml
 ├── raw/                     # raw 模块示例
+│   ├── README.md
+│   ├── playbook.yml
+│   └── vars/example_vars.yml
+├── expect/                  # expect 模块示例（交互式）
 │   ├── README.md
 │   ├── playbook.yml
 │   └── vars/example_vars.yml

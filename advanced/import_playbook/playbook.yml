@@ -1,0 +1,25 @@
+---
+# 主 Playbook - 通过 import_playbook 编排多阶段部署流程
+# 注意：import_playbook 在解析阶段就完成合并，无法动态控制执行顺序
+
+- name: 预检查 - 确认执行用户和目标环境
+  hosts: all
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  tasks:
+    - name: 打印部署信息
+      ansible.builtin.debug:
+        msg: "开始 import_playbook 演示 - 目标环境: {{ import_target_env }}, 版本: {{ import_release_version }}"
+
+- import_playbook: stage1_prepare.yml
+- import_playbook: stage2_deploy.yml
+- import_playbook: stage3_verify.yml
+
+- name: 最终汇总与清理
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: 输出部署总结
+      ansible.builtin.debug:
+        msg: "所有阶段已完成，import_playbook 示例演练结束"
