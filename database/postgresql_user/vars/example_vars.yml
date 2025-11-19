@@ -1,0 +1,51 @@
+---
+# PostgreSQL 连接配置
+postgres_host: "db.example.com"  # PostgreSQL 服务器地址，可以是 localhost 或远程主机
+postgres_port: 5432  # PostgreSQL 服务器端口
+postgres_admin_user: "postgres"  # 管理员用户名，需要 SUPERUSER 或 CREATEROLE 权限
+postgres_admin_password: "PLEASE_CHANGE_THIS_ADMIN_PASSWORD"  # ⚠️ 管理员密码 - 生产环境请使用 ansible-vault 加密
+
+# 应用用户配置
+app_user_name: "webapp_user"  # 应用数据库用户名
+app_user_password: "PLEASE_CHANGE_THIS_APP_PASSWORD"  # ⚠️ 应用用户密码 - 生产环境请使用 ansible-vault 加密
+app_database: "webapp_db"  # 应用数据库名称
+app_user_role_flags: "LOGIN,NOCREATEDB,NOCREATEROLE,NOSUPERUSER"  # 应用用户角色标志
+app_user_privileges: "ALL"  # 应用用户权限（ALL 或 SELECT,INSERT,UPDATE,DELETE）
+
+# 只读用户配置
+readonly_user_name: "report_user"  # 只读用户名，用于报表和查询
+readonly_user_password: "PLEASE_CHANGE_THIS_READONLY_PASSWORD"  # ⚠️ 只读用户密码
+readonly_conn_limit: 10  # 只读用户最大连接数
+
+# 复制用户配置
+replication_user_name: "replicator"  # 复制用户名，用于主从复制
+replication_user_password: "PLEASE_CHANGE_THIS_REPLICATION_PASSWORD"  # ⚠️ 复制用户密码
+
+# 密码轮换配置（可选）
+# new_app_user_password: "NEW_PASSWORD_HERE"  # 新密码，用于定期密码轮换
+# password_expiry_date: "2025-12-31"  # 密码过期日期，ISO 8601 格式
+
+# 备份用户配置
+backup_user_name: "backup_user"  # 备份用户名
+backup_user_password: "PLEASE_CHANGE_THIS_BACKUP_PASSWORD"  # ⚠️ 备份用户密码
+
+# 数据库管理用户配置
+dbadmin_user_name: "dbadmin"  # 数据库管理员用户名
+dbadmin_user_password: "PLEASE_CHANGE_THIS_DBADMIN_PASSWORD"  # ⚠️ 数据库管理员密码
+create_dbadmin_user: false  # 是否创建数据库管理员用户
+
+# 测试用户清理配置
+test_user_name: "test_user"  # 测试用户名
+cleanup_test_users: false  # 是否清理测试用户，生产环境设为 true
+
+# 连接限制配置
+enforce_connection_limits: false  # 是否强制执行连接数限制
+
+# ⚠️ 安全提示：
+# 1. 所有密码字段都是占位符，请替换为真实密码
+# 2. 生产环境务必使用 ansible-vault encrypt 加密此文件
+# 3. 建议配合 vars_prompt 或外部密钥管理系统
+# 4. 定期更新数据库用户密码，建立轮换机制
+# 5. 遵循最小权限原则，仅授予必要的权限
+# 6. 配置 pg_hba.conf 限制用户连接来源
+# 7. 使用 conn_limit 防止用户消耗所有连接

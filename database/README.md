@@ -33,6 +33,9 @@ pip install psycopg2-binary
 
 # MongoDB 客户端库
 pip install pymongo
+
+# Redis 客户端库
+pip install redis
 ```
 
 ⚠️ **重要提示**：以上 Python 库需要安装在 **目标数据库主机** 上，而非 Ansible 控制节点。如果使用 delegate_to 或 localhost 模式，则在相应主机上安装。
@@ -62,6 +65,30 @@ pip install pymongo
 - **文档**: [mongodb_user/README.md](mongodb_user/README.md)
 - **示例**: [mongodb_user/playbook.yml](mongodb_user/playbook.yml)
 - **功能**: 创建/删除 MongoDB 用户，配置角色和权限
+
+### PostgreSQL 用户管理
+- **模块**: `community.postgresql.postgresql_user`
+- **文档**: [postgresql_user/README.md](postgresql_user/README.md)
+- **示例**: [postgresql_user/playbook.yml](postgresql_user/playbook.yml)
+- **功能**: 创建/删除 PostgreSQL 用户（角色），设置密码、权限和连接限制
+
+### MongoDB 数据库管理
+- **模块**: `community.mongodb.mongodb_db`
+- **文档**: [mongodb_db/README.md](mongodb_db/README.md)
+- **示例**: [mongodb_db/playbook.yml](mongodb_db/playbook.yml)
+- **功能**: 创建/删除 MongoDB 数据库，支持副本集和 SSL 连接
+
+### Redis 数据管理
+- **模块**: `community.general.redis_data`
+- **文档**: [redis/README.md](redis/README.md)
+- **示例**: [redis/playbook.yml](redis/playbook.yml)
+- **功能**: 管理 Redis 键值对数据，支持过期时间、条件设置和 TLS 连接
+
+### MySQL 主从复制管理
+- **模块**: `community.mysql.mysql_replication`
+- **文档**: [mysql_replication/README.md](mysql_replication/README.md)
+- **示例**: [mysql_replication/playbook.yml](mysql_replication/playbook.yml)
+- **功能**: 配置和管理 MySQL 主从复制，支持传统复制和 GTID 复制
 
 ## 安全注意事项
 
@@ -125,10 +152,13 @@ ansible-playbook database/mysql_user/playbook.yml --check
 ### 1. 安装依赖
 ```bash
 # 安装 Ansible Collection
-ansible-galaxy collection install community.mysql community.postgresql community.mongodb
+ansible-galaxy collection install community.mysql community.postgresql community.mongodb community.general
 
 # 在目标主机安装 Python 库（示例：MySQL）
 pip install PyMySQL
+
+# 安装其他数据库客户端库
+pip install psycopg2-binary pymongo redis
 ```
 
 ### 2. 配置变量
@@ -170,7 +200,11 @@ ansible-playbook database/mysql_user/playbook.yml
 ## 相关链接
 - [MySQL 用户管理](mysql_user/README.md) - MySQL 用户创建和权限管理
 - [MySQL 数据库管理](mysql_db/README.md) - MySQL 数据库和表管理
+- [MySQL 主从复制管理](mysql_replication/README.md) - MySQL 主从复制配置
 - [PostgreSQL 数据库管理](postgresql_db/README.md) - PostgreSQL 数据库管理
+- [PostgreSQL 用户管理](postgresql_user/README.md) - PostgreSQL 用户和角色管理
 - [MongoDB 用户管理](mongodb_user/README.md) - MongoDB 用户和角色管理
+- [MongoDB 数据库管理](mongodb_db/README.md) - MongoDB 数据库管理
+- [Redis 数据管理](redis/README.md) - Redis 键值对管理
 - [监控模块总览](../monitoring/README.md) - 配合数据库监控使用
 - [应用管理指南](../applications/README.md) - 应用部署与数据库集成

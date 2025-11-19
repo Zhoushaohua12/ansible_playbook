@@ -1,0 +1,162 @@
+---
+- name: MySQL 主从复制管理示例演示
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    - name: 获取主服务器 binlog 位置信息
+      community.mysql.mysql_replication:
+        login_host: "{{ master_host }}"
+        login_port: "{{ master_port }}"
+        login_user: "{{ master_admin_user }}"
+        login_password: "{{ master_admin_password }}"
+        mode: getprimary
+      check_mode: true
+      no_log: true
+      register: master_status
+      delegate_to: "{{ master_host }}"
+    
+    - name: 显示主服务器状态信息
+      ansible.builtin.debug:
+        msg: "主服务器 binlog 文件: {{ master_status.File | default('N/A') }}, 位置: {{ master_status.Position | default('N/A') }}"
+      when: master_status is defined
+    
+    - name: 配置从服务器 - 使用传统 binlog 位置复制
+      community.mysql.mysql_replication:
+        login_host: "{{ replica_host }}"
+        login_port: "{{ replica_port }}"
+        login_user: "{{ replica_admin_user }}"
+        login_password: "{{ replica_admin_password }}"
+        mode: changeprimary
+        master_host: "{{ master_host }}"
+        master_port: "{{ master_port }}"
+        master_user: "{{ replication_user }}"
+        master_password: "{{ replication_password }}"
+        master_log_file: "{{ master_binlog_file }}"
+        master_log_pos: "{{ master_binlog_pos }}"
+        master_connect_retry: "{{ master_connect_retry }}"
+      check_mode: true
+      no_log: true
+      when: not use_gtid_replication | default(false) | bool
+      delegate_to: "{{ replica_host }}"
+    
+    - name: 配置从服务器 - 使用 GTID 自动定位复制
+      community.mysql.mysql_replication:
+        login_host: "{{ replica_host }}"
+        login_port: "{{ replica_port }}"
+        login_user: "{{ replica_admin_user }}"
+        login_password: "{{ replica_admin_password }}"
+        mode: changeprimary
+        master_host: "{{ master_host }}"
+        master_port: "{{ master_port }}"
+        master_user: "{{ replication_user }}"
+        master_password: "{{ replication_password }}"
+        master_auto_position: true
+        master_connect_retry: "{{ master_connect_retry }}"
+      check_mode: true
+      no_log: true
+      when: use_gtid_replication | default(false) | bool
+      delegate_to: "{{ replica_host }}"
+    
+    - name: 配置从服务器 - 使用 SSL 加密复制
+      community.mysql.mysql_replication:
+        login_host: "{{ replica_host }}"
+        login_user: "{{ replica_admin_user }}"
+        login_password: "{{ replica_admin_password }}"
+        mode: changeprimary
+        master_host: "{{ master_host }}"
+        master_user: "{{ replication_user }}"
+        master_password: "{{ replication_password }}"
+        master_auto_position: "{{ use_gtid_replication | default(false) }}"
+        master_ssl: true
+        master_ssl_ca: "{{ ssl_ca_cert }}"
+        master_ssl_cert: "{{ ssl_client_cert }}"
+        master_ssl_key: "{{ ssl_client_key }}"
+      check_mode: true
+      no_log: true
+      when: use_ssl_replication | default(false) | bool
+      delegate_to: "{{ replica_host }}"
+    
+    - name: 配置延迟复制 - 用于时间点恢复
+      community.mysql.mysql_replication:
+        login_host: "{{ replica_host }}"
+        login_user: "{{ replica_admin_user }}"
+        login_password: "{{ replica_admin_password }}"
+        mode: changeprimary
+        master_host: "{{ master_host }}"
+        master_user: "{{ replication_user }}"
+        master_password: "{{ replication_password }}"
+        master_auto_position: true
+        master_delay: "{{ replication_delay }}"
+      check_mode: true
+      no_log: true
+      when: enable_delayed_replication | default(false) | bool
+      delegate_to: "{{ replica_host }}"
+    
+    - name: 启动从服务器复制线程
+      community.mysql.mysql_replication:
+        login_host: "{{ replica_host }}"
+        login_user: "{{ replica_admin_user }}"
+        login_password: "{{ replica_admin_password }}"
+        mode: startreplica
+      check_mode: true
+      no_log: true
+      when: start_replication | default(false) | bool
+      delegate_to: "{{ replica_host }}"
+    
+    - name: 获取从服务器复制状态
+      community.mysql.mysql_replication:
+        login_host: "{{ replica_host }}"
+        login_user: "{{ replica_admin_user }}"
+        login_password: "{{ replica_admin_password }}"
+        mode: getreplica
+      check_mode: true
+      no_log: true
+      register: replica_status
+      delegate_to: "{{ replica_host }}"
+    
+    - name: 显示从服务器复制状态
+      ansible.builtin.debug:
+        msg: |
+          IO 线程状态: {{ replica_status.Slave_IO_Running | default('N/A') }}
+          SQL 线程状态: {{ replica_status.Slave_SQL_Running | default('N/A') }}
+          复制延迟（秒）: {{ replica_status.Seconds_Behind_Master | default('N/A') }}
+          主服务器日志文件: {{ replica_status.Master_Log_File | default('N/A') }}
+      when: replica_status is defined
+    
+    - name: 验证复制线程运行正常
+      ansible.builtin.assert:
+        that:
+          - replica_status.Slave_IO_Running == "Yes"
+          - replica_status.Slave_SQL_Running == "Yes"
+        fail_msg: "复制线程未运行，请检查错误日志"
+        success_msg: "复制线程运行正常"
+      when: 
+        - replica_status is defined
+        - verify_replication_status | default(false) | bool
+    
+    - name: 停止从服务器复制线程 - 维护操作前
+      community.mysql.mysql_replication:
+        login_host: "{{ replica_host }}"
+        login_user: "{{ replica_admin_user }}"
+        login_password: "{{ replica_admin_password }}"
+        mode: stopreplica
+      check_mode: true
+      no_log: true
+      when: stop_replication | default(false) | bool
+      delegate_to: "{{ replica_host }}"
+    
+    - name: 重置从服务器复制配置 - 重新配置前
+      community.mysql.mysql_replication:
+        login_host: "{{ replica_host }}"
+        login_user: "{{ replica_admin_user }}"
+        login_password: "{{ replica_admin_password }}"
+        mode: resetreplica
+      check_mode: true
+      no_log: true
+      when: 
+        - reset_replica_config | default(false) | bool
+        - confirm_reset | default(false) | bool
+      delegate_to: "{{ replica_host }}"

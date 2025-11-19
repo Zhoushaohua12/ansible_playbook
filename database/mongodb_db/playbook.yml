@@ -1,0 +1,121 @@
+---
+- name: MongoDB 数据库管理示例演示
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    - name: 创建应用数据库
+      community.mongodb.mongodb_db:
+        login_host: "{{ mongodb_host }}"
+        login_port: "{{ mongodb_port }}"
+        login_user: "{{ mongodb_admin_user }}"
+        login_password: "{{ mongodb_admin_password }}"
+        login_database: "{{ mongodb_auth_database }}"
+        name: "{{ app_database }}"
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ mongodb_host }}"
+    
+    - name: 批量创建多个应用数据库
+      community.mongodb.mongodb_db:
+        login_host: "{{ mongodb_host }}"
+        login_port: "{{ mongodb_port }}"
+        login_user: "{{ mongodb_admin_user }}"
+        login_password: "{{ mongodb_admin_password }}"
+        login_database: "{{ mongodb_auth_database }}"
+        name: "{{ item }}"
+        state: present
+      check_mode: true
+      no_log: true
+      loop: "{{ application_databases }}"
+      delegate_to: "{{ mongodb_host }}"
+    
+    - name: 创建数据库 - 使用 SSL 连接
+      community.mongodb.mongodb_db:
+        login_host: "{{ mongodb_host }}"
+        login_port: "{{ mongodb_port }}"
+        login_user: "{{ mongodb_admin_user }}"
+        login_password: "{{ mongodb_admin_password }}"
+        login_database: "{{ mongodb_auth_database }}"
+        name: "{{ secure_database }}"
+        ssl: "{{ mongodb_use_ssl }}"
+        ssl_cert_reqs: "{{ mongodb_ssl_cert_reqs }}"
+        state: present
+      check_mode: true
+      no_log: true
+      when: mongodb_use_ssl | default(false) | bool
+      delegate_to: "{{ mongodb_host }}"
+    
+    - name: 在副本集环境中创建数据库
+      community.mongodb.mongodb_db:
+        login_host: "{{ mongodb_host }}"
+        login_port: "{{ mongodb_port }}"
+        login_user: "{{ mongodb_admin_user }}"
+        login_password: "{{ mongodb_admin_password }}"
+        login_database: "{{ mongodb_auth_database }}"
+        replica_set: "{{ mongodb_replica_set }}"
+        name: "{{ replicated_database }}"
+        state: present
+      check_mode: true
+      no_log: true
+      when: mongodb_replica_set is defined and mongodb_replica_set != ""
+      delegate_to: "{{ mongodb_host }}"
+    
+    - name: 创建日志数据库 - 用于应用日志存储
+      community.mongodb.mongodb_db:
+        login_host: "{{ mongodb_host }}"
+        login_user: "{{ mongodb_admin_user }}"
+        login_password: "{{ mongodb_admin_password }}"
+        login_database: "{{ mongodb_auth_database }}"
+        name: "{{ log_database }}"
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ mongodb_host }}"
+    
+    - name: 创建分析数据库 - 用于数据分析
+      community.mongodb.mongodb_db:
+        login_host: "{{ mongodb_host }}"
+        login_user: "{{ mongodb_admin_user }}"
+        login_password: "{{ mongodb_admin_password }}"
+        login_database: "{{ mongodb_auth_database }}"
+        name: "{{ analytics_database }}"
+        state: present
+      check_mode: true
+      no_log: true
+      when: create_analytics_db | default(false) | bool
+      delegate_to: "{{ mongodb_host }}"
+    
+    - name: 删除测试数据库 - 开发环境清理
+      community.mongodb.mongodb_db:
+        login_host: "{{ mongodb_host }}"
+        login_user: "{{ mongodb_admin_user }}"
+        login_password: "{{ mongodb_admin_password }}"
+        login_database: "{{ mongodb_auth_database }}"
+        name: "{{ test_database }}"
+        state: absent
+      check_mode: true
+      no_log: true
+      when: 
+        - cleanup_test_databases | default(false) | bool
+        - environment == "development"
+      delegate_to: "{{ mongodb_host }}"
+    
+    - name: 批量删除废弃数据库 - 存储空间清理
+      community.mongodb.mongodb_db:
+        login_host: "{{ mongodb_host }}"
+        login_user: "{{ mongodb_admin_user }}"
+        login_password: "{{ mongodb_admin_password }}"
+        login_database: "{{ mongodb_auth_database }}"
+        name: "{{ item }}"
+        state: absent
+      check_mode: true
+      no_log: true
+      loop: "{{ deprecated_databases | default([]) }}"
+      when: 
+        - confirm_deletion | default(false) | bool
+        - environment != "production"
+      delegate_to: "{{ mongodb_host }}"

@@ -1,0 +1,144 @@
+---
+- name: Redis 数据管理示例演示
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    - name: 设置单个应用配置参数
+      community.general.redis_data:
+        login_host: "{{ redis_host }}"
+        login_port: "{{ redis_port }}"
+        login_password: "{{ redis_password }}"
+        key: "{{ config_key }}"
+        value: "{{ config_value }}"
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ redis_host }}"
+    
+    - name: 批量初始化应用配置参数
+      community.general.redis_data:
+        login_host: "{{ redis_host }}"
+        login_port: "{{ redis_port }}"
+        login_password: "{{ redis_password }}"
+        key: "{{ item.key }}"
+        value: "{{ item.value }}"
+        state: present
+      check_mode: true
+      no_log: true
+      loop: "{{ application_configs }}"
+      delegate_to: "{{ redis_host }}"
+    
+    - name: 设置带过期时间的会话缓存
+      community.general.redis_data:
+        login_host: "{{ redis_host }}"
+        login_port: "{{ redis_port }}"
+        login_password: "{{ redis_password }}"
+        key: "session:{{ session_id }}"
+        value: "{{ session_data }}"
+        expiration: "{{ session_expiration }}"
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ redis_host }}"
+    
+    - name: 获取分布式锁 - 仅当键不存在时设置
+      community.general.redis_data:
+        login_host: "{{ redis_host }}"
+        login_port: "{{ redis_port }}"
+        login_password: "{{ redis_password }}"
+        key: "{{ lock_key }}"
+        value: "{{ ansible_hostname }}"
+        non_existing: true
+        expiration: "{{ lock_expiration }}"
+        state: present
+      check_mode: true
+      no_log: true
+      register: lock_result
+      delegate_to: "{{ redis_host }}"
+    
+    - name: 设置功能开关标志
+      community.general.redis_data:
+        login_host: "{{ redis_host }}"
+        login_password: "{{ redis_password }}"
+        key: "feature:{{ item.name }}"
+        value: "{{ item.enabled }}"
+        state: present
+      check_mode: true
+      no_log: true
+      loop: "{{ feature_flags }}"
+      delegate_to: "{{ redis_host }}"
+    
+    - name: 预置缓存数据 - 应用启动时预热
+      community.general.redis_data:
+        login_host: "{{ redis_host }}"
+        login_password: "{{ redis_password }}"
+        key: "cache:{{ item.key }}"
+        value: "{{ item.value }}"
+        expiration: "{{ cache_default_expiration }}"
+        state: present
+      check_mode: true
+      no_log: true
+      loop: "{{ cache_warmup_data }}"
+      when: preload_cache | default(false) | bool
+      delegate_to: "{{ redis_host }}"
+    
+    - name: 使用 TLS 连接设置安全配置
+      community.general.redis_data:
+        login_host: "{{ redis_host }}"
+        login_port: "{{ redis_tls_port }}"
+        login_password: "{{ redis_password }}"
+        tls: "{{ redis_use_tls }}"
+        validate_certs: "{{ redis_validate_certs }}"
+        key: "secure:config:api_key"
+        value: "{{ secure_api_key }}"
+        state: present
+      check_mode: true
+      no_log: true
+      when: redis_use_tls | default(false) | bool
+      delegate_to: "{{ redis_host }}"
+    
+    - name: 使用 Redis ACL 用户设置数据
+      community.general.redis_data:
+        login_host: "{{ redis_host }}"
+        login_user: "{{ redis_acl_user }}"
+        login_password: "{{ redis_acl_password }}"
+        key: "app:counter"
+        value: "0"
+        state: present
+      check_mode: true
+      no_log: true
+      when: 
+        - redis_use_acl | default(false) | bool
+        - redis_acl_user is defined
+      delegate_to: "{{ redis_host }}"
+    
+    - name: 设置限流计数器 - 带过期时间
+      community.general.redis_data:
+        login_host: "{{ redis_host }}"
+        login_password: "{{ redis_password }}"
+        key: "ratelimit:{{ client_ip }}:{{ api_endpoint }}"
+        value: "0"
+        expiration: 60
+        non_existing: true
+        state: present
+      check_mode: true
+      no_log: true
+      when: enable_rate_limiting | default(false) | bool
+      delegate_to: "{{ redis_host }}"
+    
+    - name: 删除测试数据键
+      community.general.redis_data:
+        login_host: "{{ redis_host }}"
+        login_password: "{{ redis_password }}"
+        key: "{{ item }}"
+        state: absent
+      check_mode: true
+      no_log: true
+      loop: "{{ test_keys | default([]) }}"
+      when: 
+        - cleanup_test_data | default(false) | bool
+        - environment != "production"
+      delegate_to: "{{ redis_host }}"
