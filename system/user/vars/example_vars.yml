@@ -1,0 +1,62 @@
+# user 模块配置变量示例
+
+# ========== 运维账号配置 ==========
+# 用户名称
+deploy_user_name: deploy
+
+# 用户注释（GECOS 字段）
+deploy_user_comment: "部署运维账号"
+
+# 登录 shell（/bin/bash 表示可以交互登录）
+deploy_user_shell: /bin/bash
+
+# 主目录路径
+deploy_user_home: /home/deploy
+
+# 是否自动创建主目录
+deploy_user_createhome: true
+
+# 用户 ID（固定值避免冲突，通常系统用户从 1000 开始）
+deploy_user_uid: 1000
+
+# 辅助组列表（逗号分隔）
+# ⚠️  重要：需要确保这些组已存在，或者通过 group 模块先创建
+# 常见组：wheel（CentOS sudo），sudo（Ubuntu/Debian），docker，adm 等
+deploy_user_groups: "wheel"
+
+# ========== 应用账号配置 ==========
+# 应用用户名称
+app_user_name: appuser
+
+# 应用用户注释
+app_user_comment: "应用服务账号"
+
+# 应用用户 shell（/sbin/nologin 禁止登录，用于系统服务）
+app_user_shell: /sbin/nologin
+
+# 应用主目录（通常为应用部署目录）
+app_user_home: /opt/app
+
+# 是否创建应用主目录
+app_user_createhome: true
+
+# 应用用户 ID
+app_user_uid: 1001
+
+# ========== 系统账号配置 ==========
+# 系统服务用户名称
+system_user_name: sysservice
+
+# 系统账号注释
+system_user_comment: "系统服务账号"
+
+# ========== 安全提示 ==========
+# ⚠️  特别注意：
+# 1. 修改用户名、UID 等信息前，请确保系统中没有依赖这些值的进程
+# 2. 删除用户前，确保没有以该用户身份运行的进程，或使用 force: yes
+# 3. 为避免 UID 冲突，建议：
+#    - 系统用户：0-99（root）、100-999（系统服务）
+#    - 普通用户：1000+
+# 4. 跨多个主机部署时，保持 UID 一致可避免权限问题
+# 5. 生产环境部署前，一定要使用 --check 模式预览：
+#    ansible-playbook system/user/playbook.yml --check

@@ -1,0 +1,266 @@
+---
+- name: iptables 防火墙配置示例演示
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 检查 iptables 可用性 ==========
+    - name: 检查 iptables 命令
+      ansible.builtin.command: which iptables
+      register: iptables_available
+      changed_when: false
+      ignore_errors: true
+    
+    - name: 显示 iptables 可用性
+      ansible.builtin.debug:
+        msg: "iptables 命令可用: {{ 'yes' if iptables_available.rc == 0 else 'no' }}"
+    
+    # ========== 查看当前 iptables 规则 ==========
+    - name: 获取当前 iptables 规则
+      ansible.builtin.command: iptables -L -n -v
+      register: iptables_rules
+      changed_when: false
+      when: iptables_available.rc == 0
+    
+    - name: 显示当前 iptables 规则（前 20 行）
+      ansible.builtin.debug:
+        msg: "{{ iptables_rules.stdout_lines[:20] }}"
+      when: iptables_available.rc == 0
+    
+    # ========== 演示基础防火墙规则 ==========
+    - name: 演示基础防火墙配置
+      ansible.builtin.debug:
+        msg: |
+          基础防火墙规则配置示例：
+          
+          1. 允许已建立的连接：
+             - name: 允许已建立连接
+               community.general.iptables:
+                 chain: INPUT
+                 protocol: all
+                 match: state
+                 ctstate: ESTABLISHED,RELATED
+                 jump: ACCEPT
+          
+          2. 允许 loopback 接口：
+             - name: 允许 loopback
+               community.general.iptables:
+                 chain: INPUT
+                 in_interface: lo
+                 jump: ACCEPT
+          
+          3. 允许 SSH 访问：
+             - name: 允许 SSH
+               community.general.iptables:
+                 chain: INPUT
+                 protocol: tcp
+                 destination_port: 22
+                 jump: ACCEPT
+    
+    # ========== 演示 Web 服务规则 ==========
+    - name: 演示 Web 服务防火墙规则
+      ansible.builtin.debug:
+        msg: |
+          Web 服务防火墙规则配置示例：
+          
+          1. 允许 HTTP：
+             - name: 允许 HTTP
+               community.general.iptables:
+                 chain: INPUT
+                 protocol: tcp
+                 destination_port: 80
+                 jump: ACCEPT
+          
+          2. 允许 HTTPS：
+             - name: 允许 HTTPS
+               community.general.iptables:
+                 chain: INPUT
+                 protocol: tcp
+                 destination_port: 443
+                 jump: ACCEPT
+    
+    # ========== 演示 NAT 与端口转发 ==========
+    - name: 演示 NAT 规则配置
+      ansible.builtin.debug:
+        msg: |
+          NAT 与端口转发规则示例：
+          
+          1. 启用 IP 转发（前置条件）：
+             - name: 启用 IP 转发
+               ansible.builtin.sysctl:
+                 name: net.ipv4.ip_forward
+                 value: '1'
+                 sysctl_set: yes
+          
+          2. 配置 DNAT（端口转发）：
+             - name: 将 80 端口转发到内网主机
+               community.general.iptables:
+                 table: nat
+                 chain: PREROUTING
+                 protocol: tcp
+                 destination_port: 80
+                 jump: DNAT
+                 to_destination: 192.168.1.100:8080
+          
+          3. 配置 SNAT（源 NAT）：
+             - name: 内网通过网关访问外网
+               community.general.iptables:
+                 table: nat
+                 chain: POSTROUTING
+                 out_interface: eth0
+                 source: 192.168.1.0/24
+                 jump: SNAT
+                 to_source: 203.0.113.10
+    
+    # ========== 演示源 IP 限制 ==========
+    - name: 演示源 IP 限制规则
+      ansible.builtin.debug:
+        msg: |
+          源 IP 限制规则示例：
+          
+          1. 仅允许特定 IP 访问 SSH：
+             - name: 限制 SSH 访问源 IP
+               community.general.iptables:
+                 chain: INPUT
+                 protocol: tcp
+                 destination_port: 22
+                 source: "{{ ssh_allowed_ip }}"
+                 jump: ACCEPT
+          
+          2. 拒绝特定 IP：
+             - name: 拒绝攻击源 IP
+               community.general.iptables:
+                 chain: INPUT
+                 source: "{{ blocked_ip }}"
+                 jump: DROP
+                 comment: "Block malicious IP"
+    
+    # ========== 演示限流规则 ==========
+    - name: 演示限流规则
+      ansible.builtin.debug:
+        msg: |
+          限流规则配置示例（防止 DDoS）：
+          
+          1. 限制 HTTP 连接速率：
+             - name: 限制 HTTP 连接
+               community.general.iptables:
+                 chain: INPUT
+                 protocol: tcp
+                 destination_port: 80
+                 match: limit
+                 limit: "100/minute"
+                 jump: ACCEPT
+                 comment: "Rate limit HTTP"
+          
+          2. 防止 SYN flood 攻击：
+             - name: 防止 SYN flood
+               community.general.iptables:
+                 chain: INPUT
+                 protocol: tcp
+                 match: limit
+                 limit_burst: 5
+                 jump: ACCEPT
+    
+    # ========== 演示规则删除 ==========
+    - name: 演示删除规则
+      ansible.builtin.debug:
+        msg: |
+          删除规则示例：
+          
+          1. 移除特定规则：
+             - name: 删除规则
+               community.general.iptables:
+                 chain: INPUT
+                 protocol: tcp
+                 destination_port: 22
+                 jump: ACCEPT
+                 action: remove
+          
+          2. 删除所有规则（谨慎使用）：
+             - name: 清空所有规则
+               ansible.builtin.command: iptables -F
+    
+    # ========== 演示规则持久化 ==========
+    - name: 演示规则持久化
+      ansible.builtin.debug:
+        msg: |
+          规则持久化方法：
+          
+          1. 保存当前规则：
+             - name: 保存 iptables 规则
+               ansible.builtin.shell: |
+                 iptables-save > /etc/iptables/rules.v4
+               when: ansible_os_family == "Debian"
+          
+          2. 配置开机自动加载：
+             - name: 启用 iptables-persistent
+               ansible.builtin.systemd:
+                 name: iptables-persistent
+                 enabled: true
+    
+    # ========== 查看 NAT 表规则 ==========
+    - name: 获取 NAT 表规则
+      ansible.builtin.command: iptables -L -n -v -t nat
+      register: nat_rules
+      changed_when: false
+      when: iptables_available.rc == 0
+      ignore_errors: true
+    
+    - name: 显示 NAT 表规则
+      ansible.builtin.debug:
+        msg: "{{ nat_rules.stdout_lines[:20] }}"
+      when: iptables_available.rc == 0 and nat_rules.rc == 0
+    
+    # ========== 查看 mangle 表规则 ==========
+    - name: 获取 mangle 表规则
+      ansible.builtin.command: iptables -L -n -v -t mangle
+      register: mangle_rules
+      changed_when: false
+      when: iptables_available.rc == 0
+      ignore_errors: true
+    
+    - name: 显示 mangle 表规则
+      ansible.builtin.debug:
+        msg: "{{ mangle_rules.stdout_lines[:20] }}"
+      when: iptables_available.rc == 0 and mangle_rules.rc == 0
+    
+    # ========== 总结 ==========
+    - name: iptables 配置完成总结
+      ansible.builtin.debug:
+        msg: |
+          iptables 防火墙管理要点总结：
+          
+          1. 关键参数
+             - chain: INPUT/OUTPUT/FORWARD/自定义
+             - table: filter/nat/mangle/raw
+             - protocol: tcp/udp/icmp/all
+             - jump: ACCEPT/DROP/REJECT/REDIRECT/DNAT/SNAT 等
+          
+          2. 匹配条件
+             - source/destination: IP 或 CIDR
+             - destination_port/source_port: 端口范围
+             - in_interface/out_interface: 网络接口
+             - state/ctstate: 连接状态
+             - limit: 限流条件
+          
+          3. iptables 的四个表
+             - filter: 过滤规则（默认）
+             - nat: 地址转换规则（端口转发）
+             - mangle: 分组修改规则
+             - raw: 跳过追踪规则
+          
+          4. 最佳实践
+             - 始终设置默认 DROP 策略
+             - 使用 state/ctstate 追踪连接
+             - 规则顺序很重要（从上到下匹配）
+             - 修改前备份当前规则
+             - 定期审查和清理规则
+             - 使用注释标识规则用途
+          
+          5. 重要提示
+             - iptables 规则在重启后丢失
+             - 必须使用 iptables-persistent 持久化
+             - 谨慎使用 DROP，避免锁定自己
+             - 配置 NAT 前启用 IP 转发

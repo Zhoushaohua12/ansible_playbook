@@ -1,0 +1,230 @@
+---
+- name: systemd 模块使用示例演示
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 检查 systemd 可用性 ==========
+    - name: 验证系统使用 systemd
+      ansible.builtin.stat:
+        path: /run/systemd/system
+      register: systemd_available
+    
+    - name: 显示 systemd 可用状态
+      ansible.builtin.debug:
+        msg: "系统 systemd 可用: {{ systemd_available.stat.exists }}"
+    
+    # ========== 列出所有 systemd 单元 ==========
+    - name: 列出所有已启用的 service 单元
+      ansible.builtin.command: systemctl list-unit-files --type=service --state=enabled --no-pager
+      register: enabled_services
+      changed_when: false
+      when: systemd_available.stat.exists
+    
+    - name: 显示已启用的服务（前 10 个）
+      ansible.builtin.debug:
+        msg: "{{ enabled_services.stdout_lines[:10] }}"
+      when: systemd_available.stat.exists
+    
+    # ========== 列出所有 timer 单元 ==========
+    - name: 列出系统中的 systemd timer
+      ansible.builtin.command: systemctl list-unit-files --type=timer --no-pager
+      register: timers_list
+      changed_when: false
+      when: systemd_available.stat.exists
+    
+    - name: 显示 systemd timer 列表（前 10 个）
+      ansible.builtin.debug:
+        msg: "{{ timers_list.stdout_lines[:10] }}"
+      when: systemd_available.stat.exists
+    
+    # ========== 演示 systemd 单元管理 ==========
+    - name: 演示 systemd 单元启用与禁用
+      ansible.builtin.debug:
+        msg: |
+          systemd 单元管理操作示例：
+          
+          1. 启用并启动服务：
+             - name: 启用 nginx 开机自启
+               ansible.posix.systemd:
+                 name: nginx.service
+                 enabled: true
+                 state: started
+          
+          2. 禁用开机自启（但保持运行）：
+             - name: 禁用 nginx 开机自启
+               ansible.posix.systemd:
+                 name: nginx.service
+                 enabled: false
+          
+          3. Mask 服务（彻底禁用）：
+             - name: Mask nginx 服务
+               ansible.posix.systemd:
+                 name: nginx.service
+                 masked: true
+          
+          4. Unmask 服务（恢复使用）：
+             - name: Unmask nginx 服务
+               ansible.posix.systemd:
+                 name: nginx.service
+                 masked: false
+    
+    # ========== 演示 daemon_reload ==========
+    - name: 演示修改 systemd 文件后的 daemon_reload
+      ansible.builtin.debug:
+        msg: |
+          修改 systemd 单元文件后的处理流程：
+          
+          1. 上传自定义服务文件：
+             - name: 上传自定义 service 文件
+               ansible.builtin.copy:
+                 src: myapp.service
+                 dest: /etc/systemd/system/myapp.service
+          
+          2. 重新加载 systemd daemon：
+             - name: 重新加载 systemd daemon
+               ansible.posix.systemd:
+                 daemon_reload: true
+          
+          3. 启用并启动自定义服务：
+             - name: 启用并启动自定义服务
+               ansible.posix.systemd:
+                 name: myapp.service
+                 enabled: true
+                 state: started
+    
+    # ========== 演示 timer 单元管理 ==========
+    - name: 演示 systemd timer 管理
+      ansible.builtin.debug:
+        msg: |
+          systemd timer（定时任务）管理示例：
+          
+          1. 启用定期备份 timer：
+             - name: 启用 backup.timer
+               ansible.posix.systemd:
+                 name: backup.timer
+                 enabled: true
+                 state: started
+          
+          2. 禁用 timer（停止定时执行）：
+             - name: 停止定期清理 timer
+               ansible.posix.systemd:
+                 name: cleanup.timer
+                 state: stopped
+                 enabled: false
+          
+          3. 获取 timer 状态：
+             - name: 获取备份 timer 运行状态
+               ansible.builtin.command: systemctl status backup.timer
+               register: timer_status
+               changed_when: false
+    
+    # ========== 演示用户级 systemd 单元 ==========
+    - name: 演示用户级 systemd 单元
+      ansible.builtin.debug:
+        msg: |
+          用户级 systemd 单元管理示例（无需 root 权限）：
+          
+          1. 启用用户服务：
+             - name: 为用户启用 syncthing
+               ansible.posix.systemd:
+                 name: syncthing.service
+                 scope: user
+                 enabled: true
+                 state: started
+               become_user: deploy
+          
+          2. 管理用户定时器：
+             - name: 启用用户级定时器
+               ansible.posix.systemd:
+                 name: backup.timer
+                 scope: user
+                 enabled: true
+                 state: started
+               become_user: deploy
+    
+    # ========== 演示 no_block 参数 ==========
+    - name: 演示 no_block 异步启动
+      ansible.builtin.debug:
+        msg: |
+          长时间启动的服务可使用 no_block：
+          
+          - name: 启动重型服务但不等待完成
+            ansible.posix.systemd:
+              name: heavy-service.service
+              state: started
+              no_block: true
+    
+    # ========== 获取单元状态详情 ==========
+    - name: 获取 nginx 单元的详细状态
+      ansible.builtin.command: systemctl status nginx.service
+      register: nginx_status
+      changed_when: false
+      ignore_errors: true
+    
+    - name: 显示 nginx 单元状态
+      ansible.builtin.debug:
+        msg: "{{ nginx_status.stdout_lines }}"
+      when: nginx_status.rc == 0
+    
+    - name: 演示获取单元状态的 playbook
+      ansible.builtin.debug:
+        msg: |
+          获取单元状态的 playbook 示例：
+          
+          - name: 获取单元状态
+            ansible.posix.systemd:
+              name: nginx.service
+            register: unit_status
+          
+          - name: 显示状态详情
+            ansible.builtin.debug:
+              var: unit_status
+    
+    # ========== 演示批量管理 ==========
+    - name: 演示批量管理多个单元
+      ansible.builtin.debug:
+        msg: |
+          批量启用与启动服务的示例：
+          
+          - name: 启用并启动所有必需服务
+            ansible.posix.systemd:
+              name: "{{ item }}"
+              enabled: true
+              state: started
+            loop:
+              - nginx.service
+              - postgresql.service
+              - redis.service
+    
+    # ========== 总结 ==========
+    - name: systemd 模块使用总结
+      ansible.builtin.debug:
+        msg: |
+          systemd 模块要点总结：
+          
+          1. 关键参数
+             - name: 单元名称（含 .service、.timer 等后缀）
+             - state: started/stopped/restarted/reloaded
+             - enabled: true/false（开机自启）
+             - masked: true/false（彻底禁用）
+             - daemon_reload: true（修改单元文件后必须）
+             - scope: system/user（权限范围）
+          
+          2. 与 service 模块的区别
+             - service：高层接口，跨 init 系统
+             - systemd：底层接口，systemd 专用，功能更丰富
+          
+          3. 常见操作
+             - 启用开机自启：enabled: true
+             - Mask 禁用：masked: true
+             - 重载配置：state: reloaded
+             - 定时任务：管理 .timer 单元
+          
+          4. 最佳实践
+             - 修改单元文件后总是执行 daemon_reload
+             - 使用 scope: user 进行用户级单元管理
+             - 谨慎使用 masked，避免系统损坏
+             - 将修改作为 playbook 的一部分追踪

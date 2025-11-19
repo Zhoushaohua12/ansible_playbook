@@ -1,0 +1,66 @@
+# firewalld 防火墙配置变量示例
+
+# ========== Web 服务配置 ==========
+# Web 服务所属 zone
+firewalld_web_zone: public
+
+# Web 服务列表
+firewalld_web_services:
+  - http
+  - https
+
+# ========== 应用服务配置 ==========
+# 应用服务端口
+app_port: "8080"
+
+# 应用服务 protocol（tcp/udp）
+app_protocol: tcp
+
+# 应用服务所属 zone
+app_zone: internal
+
+# ========== 数据库配置 ==========
+# 数据库端口
+db_port: "3306"
+
+# 数据库所属 zone
+db_zone: internal
+
+# 数据库允许的网络或源 IP
+db_allowed_network: "192.168.1.0/24"
+
+# ========== SSH 配置 ==========
+# SSH 所属 zone
+ssh_zone: internal
+
+# ========== DNS 配置 ==========
+# DNS zone
+dns_zone: public
+
+# 是否启用 DNS 服务
+firewalld_enable_dns: false
+
+# ========== Zone 说明 ==========
+# firewalld 的 zone 概念类似于网络信任级别
+# - public: 不信任的网络（如互联网）
+# - external: 用于 NAT/伪装，不相信其他计算机
+# - dmz: 隔离区域，有限访问内部网络
+# - work: 工作网络，相信网络中的大多数计算机
+# - home: 家庭网络，信任网络中的大多数计算机
+# - internal: 内部网络，信任所有网络中的计算机
+# - trusted: 信任所有网络连接
+# - drop: 仅允许已建立的连接传入，所有传入连接默认被丢弃
+
+# ========== 安全提示 ==========
+# ⚠️  特别注意：
+# 1. 确保永远不会锁定 SSH 端口（通常 22）
+# 2. 新规则通常需要同时设置：
+#    - permanent: true （永久生效）
+#    - immediate: true （立即生效）
+# 3. 使用 source 参数限制源 IP 提高安全性
+# 4. 修改规则前始终备份当前配置
+# 5. 使用 zone 进行分层隔离，避免过度开放
+# 6. 定期审查防火墙规则，移除不必要的规则
+# 7. 在测试环境验证所有规则后再部署到生产
+# 8. 生产环境部署前，一定要使用 --check 模式预览：
+#    ansible-playbook system/firewalld/playbook.yml --check

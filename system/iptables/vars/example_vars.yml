@@ -1,0 +1,91 @@
+# iptables 防火墙配置变量示例
+
+# ========== 基本配置 ==========
+# 规则链（INPUT、OUTPUT、FORWARD 等）
+iptables_chain: INPUT
+
+# 规则操作（append、insert、replace、remove）
+iptables_action: append
+
+# 协议类型（tcp、udp、icmp、all）
+iptables_protocol: tcp
+
+# ========== 端口配置 ==========
+# 目标端口
+iptables_destination_port: 80
+
+# 源端口（可选）
+# iptables_source_port: 1024
+
+# ========== 地址配置 ==========
+# 源 IP（CIDR 格式）
+iptables_source: "0.0.0.0/0"
+
+# 目标 IP
+# iptables_destination: "192.168.1.100"
+
+# ========== SSH 访问控制 ==========
+# 允许 SSH 访问的源 IP
+ssh_allowed_ip: "192.168.1.0/24"
+
+# ========== 拒绝的 IP 列表 ==========
+# 需要拒绝的恶意 IP
+blocked_ip: "192.0.2.100"
+
+# ========== NAT 配置 ==========
+# NAT 表
+iptables_nat_table: nat
+
+# NAT 链（PREROUTING、POSTROUTING 等）
+iptables_nat_chain: PREROUTING
+
+# DNAT 目标地址（端口转发）
+nat_dnat_target: "192.168.1.100:8080"
+
+# SNAT 源地址
+nat_snat_source: "203.0.113.10"
+
+# ========== 限流配置 ==========
+# 限流速率（如 100/minute）
+rate_limit: "100/minute"
+
+# 限流突发数
+rate_limit_burst: 5
+
+# ========== 接口配置 ==========
+# 输入接口
+in_interface: eth0
+
+# 输出接口
+out_interface: eth0
+
+# ========== 连接状态 ==========
+# 连接状态（NEW、ESTABLISHED、RELATED、INVALID）
+connection_state: "NEW,ESTABLISHED,RELATED"
+
+# ========== 规则备注 ==========
+# 规则注释（用于识别规则）
+rule_comment: "Allow HTTP traffic"
+
+# ========== 安全提示 ==========
+# ⚠️  特别注意：
+# 1. iptables 规则执行需要 root 权限
+# 2. 规则顺序很重要，iptables 从上到下依次匹配
+# 3. iptables 规则在系统重启后会丢失，需要持久化：
+#    - 使用 iptables-persistent 或 ufw
+#    - 手动保存：iptables-save > /etc/iptables/rules.v4
+# 4. 修改规则前一定要：
+#    - 备份当前规则
+#    - 准备 SSH 通道避免被锁定
+#    - 在测试环境验证
+# 5. 默认策略建议设置为 DROP，仅允许必需的规则
+# 6. 常见错误：
+#    - 忘记允许 loopback 接口（lo）
+#    - 锁定自己无法 SSH 连接
+#    - 规则冲突导致流量被意外丢弃
+# 7. 防止 DDoS 攻击的实用规则：
+#    - 使用 limit 限制连接速率
+#    - 防止 SYN flood 攻击
+#    - 限制单个 IP 的并发连接数
+# 8. 生产环境部署前一定要使用 --check 模式预览：
+#    ansible-playbook system/iptables/playbook.yml --check

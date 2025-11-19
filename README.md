@@ -11,6 +11,7 @@
 - `monitoring/`：主流监控系统的 Ansible 集成示例。
 - `network/`：网络配置与防火墙管理（firewalld、ufw、iptables、wait_for）的完整指南。
 - `storage/`：磁盘、LVM 与文件系统管理的演练场景。
+- `system/`：系统管理模块（user、group、service、systemd、firewalld、iptables、hostname）的完整指南。
 - `web/`：Web 服务器（Nginx、Apache）配置与管理示例。
 - `metadata/modules.yaml`：用于索引特性与文档的元数据。
 - `tests/`：确保示例结构完整的 pytest 测试。
@@ -24,6 +25,7 @@
 - [监控模块总览](monitoring/README.md)
 - [网络模块实践指南](network/README.md)
 - [存储模块实践指南](storage/README.md)
+- [系统管理模块指南](system/README.md)
 - [Web 服务管理指南](web/README.md)
 
 ## 如何学习
