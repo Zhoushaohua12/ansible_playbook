@@ -32,3 +32,43 @@ advanced:
       doc: advanced/include_tasks/README.md
       example: advanced/include_tasks/playbook.yml
       summary: "通过 include_tasks 拆分子任务并传递参数"
+
+monitoring:
+  title: 监控模块
+  description: "主流监控系统的 Ansible 集成示例，包含 Nagios、Datadog、Zabbix 等监控平台的自动化配置"
+  external_dependencies:
+    - "community.general collection (Nagios)"
+    - "community.datadog collection (Datadog)"
+    - "community.zabbix collection (Zabbix)"
+    - "Python libraries: python-nagios, datadog, zabbix-api, requests"
+    - "监控服务器访问权限和 API 凭证"
+  topics:
+    - id: nagios_monitoring
+      name: Nagios 监控集成
+      doc: monitoring/nagios/README.md
+      example: monitoring/nagios/playbook.yml
+      summary: "传统开源监控系统的自动化配置，支持主机、服务、告警管理"
+      external_deps:
+        - "community.general collection"
+        - "python-nagios library"
+        - "Nagios 服务器 API 访问权限"
+    - id: datadog_monitoring
+      name: Datadog 云监控
+      doc: monitoring/datadog/README.md
+      example: monitoring/datadog/playbook.yml
+      summary: "云原生监控和 APM 平台集成，支持基础设施、应用性能、日志聚合"
+      external_deps:
+        - "community.datadog collection"
+        - "datadog Python library"
+        - "Datadog API Key 和 App Key"
+        - "Datadog Agent 安装权限"
+    - id: zabbix_monitoring
+      name: Zabbix 企业监控
+      doc: monitoring/zabbix/README.md
+      example: monitoring/zabbix/playbook.yml
+      summary: "企业级开源监控解决方案，支持分布式监控和自动发现"
+      external_deps:
+        - "community.zabbix collection"
+        - "zabbix-api Python library"
+        - "Zabbix Server API 访问权限"
+        - "Zabbix Agent 安装配置"

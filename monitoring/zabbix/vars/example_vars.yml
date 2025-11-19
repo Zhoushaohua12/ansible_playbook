@@ -1,0 +1,380 @@
+---
+# Zabbix 监控配置变量示例文件
+# 
+# 重要提示：
+# 1. 这是示例文件，包含占位符值
+# 2. 生产使用时请复制为 production_vars.yml 并填写真实值
+# 3. 不要将包含真实凭证的文件提交到版本控制系统
+# 4. 建议使用 Ansible Vault 加密敏感信息
+
+# =============================================================================
+# Zabbix 服务器连接配置
+# =============================================================================
+
+# Zabbix 服务器基本信息
+zabbix_url: "http://zabbix.example.com"  # 替换为实际的 Zabbix Web UI URL
+zabbix_api_url: "{{ zabbix_url }}/api_jsonrpc.php"
+
+# API 访问凭证（敏感信息 - 需要加密）
+# 注意：请使用 vault 加密这些敏感变量
+zabbix_user: "Admin"  # 替换为实际的 API 用户名
+zabbix_password: "{{ vault_zabbix_password }}"  # 使用 vault 变量保护密码
+
+# =============================================================================
+# 监控主机配置
+# =============================================================================
+
+# Web 服务器列表
+zabbix_web_hosts:
+  - host_name: "web-server-01.example.com"
+    visible_name: "Web Server 01 - Production"
+    host_address: "192.168.1.10"
+    host_groups:
+      - "Web Servers"
+      - "Production Servers"
+    custom_items:
+      - name: "Apache Process Count"
+        key: "proc.num[apache2]"
+        type: "Zabbix agent"
+        value_type: "uint"
+        description: "Number of Apache processes running"
+      - name: "PHP-FPM Process Count"
+        key: "proc.num[php-fpm]"
+        type: "Zabbix agent"
+        value_type: "uint"
+        description: "Number of PHP-FPM processes running"
+  
+  - host_name: "web-server-02.example.com"
+    visible_name: "Web Server 02 - Production"
+    host_address: "192.168.1.11"
+    host_groups:
+      - "Web Servers"
+      - "Production Servers"
+    custom_items:
+      - name: "Nginx Process Count"
+        key: "proc.num[nginx]"
+        type: "Zabbix agent"
+        value_type: "uint"
+        description: "Number of Nginx processes running"
+      - name: "SSL Certificate Expiry"
+        key: "system.run[openssl x509 -enddate -noout -in /etc/ssl/certs/domain.crt | cut -d= -f2]"
+        type: "Zabbix agent"
+        value_type: "text"
+        description: "SSL certificate expiry date"
+
+# 数据库服务器列表
+zabbix_db_hosts:
+  - host_name: "db-server-01.example.com"
+    visible_name: "MySQL Database Server 01"
+    host_address: "192.168.1.20"
+    host_groups:
+      - "Database Servers"
+      - "Production Servers"
+    custom_items:
+      - name: "MySQL Process Count"
+        key: "proc.num[mysqld]"
+        type: "Zabbix agent"
+        value_type: "uint"
+        description: "Number of MySQL processes running"
+      - name: "MySQL Connections"
+        key: "mysql.status[Threads_connected]"
+        type: "Zabbix agent"
+        value_type: "uint"
+        description: "Current number of MySQL connections"
+  
+  - host_name: "db-server-02.example.com"
+    visible_name: "PostgreSQL Database Server 02"
+    host_address: "192.168.1.21"
+    host_groups:
+      - "Database Servers"
+      - "Production Servers"
+    custom_items:
+      - name: "PostgreSQL Process Count"
+        key: "proc.num[postmaster]"
+        type: "Zabbix agent"
+        value_type: "uint"
+        description: "Number of PostgreSQL processes running"
+      - name: "PostgreSQL Connections"
+        key: "pgsql.active"
+        type: "Zabbix agent"
+        value_type: "uint"
+        description: "Current number of PostgreSQL connections"
+
+# =============================================================================
+# 自定义服务配置
+# =============================================================================
+
+# 自定义应用服务名称
+custom_service_name: "webapp"  # 用于自定义监控模板的服务名称
+
+# SNMP 配置
+snmp_community: "public"  # SNMP community 字符串（生产环境应使用复杂值）
+
+# 网络监控阈值
+network_traffic_threshold: 100000000  # 网络流量阈值 (100 Mbps)
+
+# =============================================================================
+# 功能开关配置
+# =============================================================================
+
+# 启用/禁用各种功能
+enable_network_discovery: true      # 是否启用网络自动发现
+enable_email_alerts: true           # 是否启用邮件告警
+create_maintenance_window: false    # 是否创建维护窗口
+enable_custom_monitors: true        # 是否启用自定义监控项
+
+# =============================================================================
+# 告警和通知配置
+# =============================================================================
+
+# 邮件通知配置
+email_notification:
+  smtp_server: "smtp.example.com"
+  smtp_port: 587
+  smtp_username: "zabbix@example.com"
+  smtp_password: "{{ vault_smtp_password }}"
+  smtp_security: "starttls"  # none, starttls, ssl
+  from_email: "zabbix@example.com"
+  
+  # 通知接收者
+  recipients:
+    - name: "Admin"
+      email: "admin@example.com"
+      severity: ["disaster", "high", "average", "warning"]
+    - name: "Ops Team"
+      email: "ops@example.com"
+      severity: ["disaster", "high", "average"]
+    - name: "Dev Team"
+      email: "dev@example.com"
+      severity: ["disaster", "high"]
+
+# 告警级别配置
+alert_severities:
+  disaster:
+    color: "FF0000"  # 红色
+    recovery_msg: true
+    acknowledge_required: true
+  
+  high:
+    color: "FF8000"  # 橙色
+    recovery_msg: true
+    acknowledge_required: true
+  
+  average:
+    color: "FFFF00"  # 黄色
+    recovery_msg: true
+    acknowledge_required: false
+  
+  warning:
+    color: "0080FF"  # 蓝色
+    recovery_msg: false
+    acknowledge_required: false
+  
+  information:
+    color: "00FF00"  # 绿色
+    recovery_msg: false
+    acknowledge_required: false
+
+# =============================================================================
+# Zabbix Proxy 配置
+# =============================================================================
+
+# Zabbix Proxy 设置（可选）
+zabbix_proxy_name: "proxy-datacenter-01"  # Proxy 名称
+zabbix_proxy_address: "192.168.1.100"    # Proxy IP 地址
+zabbix_proxy_mode: 0  # 0=active, 1=passive
+
+# Proxy 管理的主机组
+zabbix_proxy_host_groups:
+  - "Remote Servers"
+  - "Branch Office Servers"
+
+# =============================================================================
+# 监控模板配置
+# =============================================================================
+
+# 自定义监控模板
+custom_templates:
+  - name: "Template App Web Service"
+    description: "Web application service monitoring"
+    host_groups:
+      - "Templates"
+    items:
+      - name: "HTTP Response Time"
+        key: "web.page.perf[{{ inventory_hostname }},/]"
+        type: "Zabbix agent"
+        value_type: "float"
+        units: "s"
+      - name: "HTTP Response Code"
+        key: "web.page.get[{{ inventory_hostname }},/]"
+        type: "Zabbix agent"
+        value_type: "text"
+    
+    triggers:
+      - name: "HTTP service is down"
+        expression: "last(/Template App Web Service/web.page.get[{{ inventory_hostname }},/])<>200"
+        severity: "high"
+      - name: "HTTP response time is too high"
+        expression: "last(/Template App Web Service/web.page.perf[{{ inventory_hostname }},/])>3"
+        severity: "warning"
+
+# =============================================================================
+# 维护窗口配置
+# =============================================================================
+
+# 计划维护窗口
+maintenance_windows:
+  - name: "Weekly System Maintenance"
+    description: "Weekly maintenance window for system updates and patches"
+    active_since: "{{ ansible_date_time.epoch }}"
+    active_till: "{{ (ansible_date_time.epoch | int + 86400 * 30) | int }}"  # 30天后
+    host_groups:
+      - "Web Servers"
+      - "Database Servers"
+    timeperiods:
+      - period: "3600"  # 1小时
+        time_type: "0"   # 每天
+        start_time: "36000"  # 10:00 AM
+        start_date: "{{ ansible_date_time.epoch }}"
+  
+  - name: "Monthly Database Maintenance"
+    description: "Monthly database maintenance and optimization"
+    active_since: "{{ ansible_date_time.epoch }}"
+    active_till: "{{ (ansible_date_time.epoch | int + 86400 * 90) | int }}"  # 90天后
+    host_groups:
+      - "Database Servers"
+    timeperiods:
+      - period: "7200"  # 2小时
+        time_type: "2"   # 每周
+        start_time: "46800"  # 1:00 PM (13:00)
+        start_date: "{{ ansible_date_time.epoch }}"
+        every: "1"  # 每周一次
+        dayofweek: "1"  # 周一
+
+# =============================================================================
+# 安全和审计配置
+# =============================================================================
+
+# 安全设置
+security_config:
+  # API 访问限制
+  api_access:
+    allowed_source_ips:
+      - "192.168.1.0/24"    # 管理网络
+      - "10.0.0.0/8"        # 内网
+      - "172.16.0.0/12"     # 私有网络
+    
+    rate_limiting:
+      enabled: true
+      max_requests_per_minute: 200
+      block_duration: 300  # 5分钟
+
+  # 用户会话管理
+  session_management:
+    session_timeout: 1800  # 30分钟
+    max_concurrent_sessions: 10
+    require_two_factor_auth: false
+
+  # 数据加密
+  encryption:
+    enable_https: true
+    ssl_cert_path: "/etc/ssl/certs/zabbix.crt"
+    ssl_key_path: "/etc/ssl/private/zabbix.key"
+
+# 审计设置
+audit_config:
+  log_api_calls: true
+  log_user_actions: true
+  log_configuration_changes: true
+  audit_log_retention: 90  # 天数
+
+# =============================================================================
+# 性能优化配置
+# =============================================================================
+
+# 数据库优化
+database_config:
+  # 历史数据保留期
+  history_retention: 7      # 天数
+  trends_retention: 365     # 天数
+  events_retention: 90      # 天数
+  
+  # 数据库连接池
+  max_connections: 100
+  connection_timeout: 30
+  
+  # 数据库分区（如果支持）
+  enable_partitioning: true
+  partition_interval: "daily"
+
+# 缓存配置
+cache_config:
+  config_cache_size: "8M"
+  value_cache_size: "16M"
+  trend_cache_size: "4M"
+  history_cache_size: "16M"
+
+# =============================================================================
+# 环境特定配置
+# =============================================================================
+
+# 开发环境配置
+development_overrides:
+  zabbix_url: "http://zabbix-dev.example.com"
+  enable_email_alerts: false
+  enable_network_discovery: false
+  create_maintenance_window: false
+  
+  # 监控频率调整
+  monitoring_intervals:
+    default_interval: 300    # 5分钟
+    discovery_interval: 3600 # 1小时
+
+# 测试环境配置
+staging_overrides:
+  zabbix_url: "http://zabbix-staging.example.com"
+  enable_email_alerts: true
+  email_notification:
+    recipients:
+      - name: "QA Team"
+        email: "qa@example.com"
+        severity: ["disaster", "high"]
+
+# 生产环境配置
+production_overrides:
+  zabbix_url: "https://zabbix.example.com"
+  enable_email_alerts: true
+  security_config:
+    session_management:
+      require_two_factor_auth: true
+    api_access:
+      max_requests_per_minute: 500
+
+# =============================================================================
+# 使用说明
+# =============================================================================
+
+# 1. 安装依赖：
+#    ansible-galaxy collection install community.zabbix
+#    pip install zabbix-api requests
+#
+# 2. 加密敏感变量：
+#    ansible-vault encrypt_string 'your_password' --name 'vault_zabbix_password'
+#    ansible-vault encrypt_string 'your_smtp_password' --name 'vault_smtp_password'
+#
+# 3. 运行 playbook：
+#    ansible-playbook -i inventory playbook.yml --ask-vault-pass
+#
+# 4. 检查模式运行：
+#    ansible-playbook -i inventory playbook.yml --check --ask-vault-pass
+#
+# 5. 调试模式运行：
+#    ansible-playbook -i inventory playbook.yml -vvv --ask-vault-pass
+#
+# 6. 验证 Agent 连接：
+#    zabbix_get -s <host_ip> -k agent.ping
+#
+# 7. 测试 API 连接：
+#    curl -X POST -H "Content-Type: application/json-rpc" \
+#         -d '{"jsonrpc":"2.0","method":"user.login","params":{"user":"Admin","password":"your_password"},"id":1}' \
+#         http://zabbix.example.com/api_jsonrpc.php

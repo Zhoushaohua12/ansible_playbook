@@ -1,0 +1,277 @@
+---
+# Datadog 监控配置示例 Playbook
+# 用于演示如何安全地配置 Datadog 监控、日志收集和告警
+
+- name: 配置 Datadog 云监控
+  hosts: all
+  gather_facts: yes
+  vars_files:
+    - vars/production_vars.yml  # 生产环境变量（包含敏感信息）
+  
+  tasks:
+    # 预检查：验证网络连接和 API 凭证
+    - name: 验证 Datadog API 连通性
+      uri:
+        url: "https://{{ datadog_site }}/api/v1/validate"
+        method: GET
+        headers:
+          "DD-API-KEY": "{{ datadog_api_key }}"
+          "DD-APP-KEY": "{{ datadog_app_key }}"
+        status_code: [200, 204]
+      register: datadog_api_check
+      no_log: true  # 保护 API Key 不在日志中显示
+      check_mode: yes  # 仅检查，不实际执行
+      failed_when: false
+
+    - name: 显示 API 连接状态
+      debug:
+        msg: "Datadog API 连接状态: {{ '正常' if datadog_api_check.status in [200, 204] else '异常' }}"
+      when: datadog_api_check is defined
+
+    # 安装和配置 Datadog Agent
+    - name: 安装 Datadog Agent
+      community.datadog.datadog_agent:
+        api_key: "{{ datadog_api_key }}"
+        site: "{{ datadog_site }}"
+        tags: "{{ datadog_tags | default([]) }}"
+        hostname: "{{ inventory_hostname }}"
+        state: present
+      no_log: true  # 保护 API Key
+      register: agent_install_result
+      when: datadog_api_check.status in [200, 204]
+
+    # 配置 Agent 集成
+    - name: 配置系统监控集成
+      community.datadog.datadog_agent_integration:
+        integration_name: "system"
+        config:
+          init_config: {}
+          instances:
+            - min_collection_interval: 15
+              host_tags: true
+      register: system_integration_result
+      when: agent_install_result is defined
+
+    - name: 配置网络监控集成
+      community.datadog.datadog_agent_integration:
+        integration_name: "network"
+        config:
+          init_config: {}
+          instances:
+            - collect_connection_state: "yes"
+              collect_connection_states_for: "all"
+              collect_metrics_for_all_network_interfaces: "yes"
+      register: network_integration_result
+      when: agent_install_result is defined
+
+    - name: 配置 Docker 监控集成
+      community.datadog.datadog_agent_integration:
+        integration_name: "docker"
+        config:
+          init_config: {}
+          instances:
+            - url: "unix:///var/run/docker.sock"
+              collect_events: true
+              container_include_all: true
+              collect_container_size: true
+      register: docker_integration_result
+      when: 
+        - agent_install_result is defined
+        - ansible_virtualization_type == "docker" or "'docker' in ansible_cmdline"
+
+    # 配置日志收集
+    - name: 启用日志收集功能
+      community.datadog.datadog_agent:
+        api_key: "{{ datadog_api_key }}"
+        logs_enabled: true
+        log_level: "{{ datadog_log_level | default('info') }}"
+        state: present
+      no_log: true  # 保护 API Key
+      register: logs_config_result
+      when: agent_install_result is defined
+
+    - name: 配置应用程序日志收集
+      community.datadog.datadog_agent_integration:
+        integration_name: "logs"
+        config:
+          logs_config:
+            logs_collect_container_logs: true
+            logs_container_collect_all: true
+            logs_container_exclude: "name:datadog-agent"
+      register: app_logs_result
+      when: logs_config_result is defined
+
+    # 创建监控告警
+    - name: 创建 CPU 使用率告警
+      community.datadog.datadog_monitor:
+        type: "metric alert"
+        query: "avg(last_15m):avg:system.cpu.total{*} by {host} > 80"
+        name: "CPU 使用率过高 - {{ inventory_hostname }}"
+        message: "主机 {{ inventory_hostname }} CPU 使用率超过 80%，请及时检查"
+        priority: 2
+        tags: ["env:{{ datadog_env | default('production') }}", "team:ops"]
+        api_key: "{{ datadog_api_key }}"
+        app_key: "{{ datadog_app_key }}"
+        thresholds:
+          critical: 90
+          warning: 80
+        evaluation_window: "last_15m"
+        notify_no_data: false
+        notify_audit: false
+        no_data_timeframe: 20
+      no_log: true  # 保护 API Key
+      register: cpu_monitor_result
+      when: agent_install_result is defined
+
+    - name: 创建内存使用率告警
+      community.datadog.datadog_monitor:
+        type: "metric alert"
+        query: "avg(last_15m):avg:system.mem.used{*} by {host} / avg:system.mem.total{*} by {host} * 100 > 85"
+        name: "内存使用率过高 - {{ inventory_hostname }}"
+        message: "主机 {{ inventory_hostname }} 内存使用率超过 85%，请及时检查"
+        priority: 2
+        tags: ["env:{{ datadog_env | default('production') }}", "team:ops"]
+        api_key: "{{ datadog_api_key }}"
+        app_key: "{{ datadog_app_key }}"
+        thresholds:
+          critical: 95
+          warning: 85
+        evaluation_window: "last_15m"
+        notify_no_data: false
+        notify_audit: false
+        no_data_timeframe: 20
+      no_log: true  # 保护 API Key
+      register: memory_monitor_result
+      when: agent_install_result is defined
+
+    - name: 创建磁盘空间告警
+      community.datadog.datadog_monitor:
+        type: "metric alert"
+        query: "avg(last_15m):avg:system.disk.in_use{*} by {host,device} > 90"
+        name: "磁盘空间不足 - {{ inventory_hostname }}"
+        message: "主机 {{ inventory_hostname }} 磁盘空间使用率超过 90%，请及时清理"
+        priority: 3
+        tags: ["env:{{ datadog_env | default('production') }}", "team:ops"]
+        api_key: "{{ datadog_api_key }}"
+        app_key: "{{ datadog_app_key }}"
+        thresholds:
+          critical: 95
+          warning: 90
+        evaluation_window: "last_15m"
+        notify_no_data: false
+        notify_audit: false
+        no_data_timeframe: 20
+      no_log: true  # 保护 API Key
+      register: disk_monitor_result
+      when: agent_install_result is defined
+
+    # 创建服务可用性监控
+    - name: 创建 HTTP 服务可用性监控
+      community.datadog.datadog_monitor:
+        type: "service check"
+        query: "\"http.can_connect\".over(\"env:{{ datadog_env | default('production') }}\").by(\"host\",\"url\").last(10).count_by_status()"
+        name: "HTTP 服务不可用 - {{ inventory_hostname }}"
+        message: "主机 {{ inventory_hostname }} 上的 HTTP 服务无法访问"
+        priority: 1
+        tags: ["env:{{ datadog_env | default('production') }}", "team:web"]
+        api_key: "{{ datadog_api_key }}"
+        app_key: "{{ datadog_app_key }}"
+        thresholds:
+          critical: 1
+          warning: 1
+        evaluation_window: "last_10m"
+        notify_no_data: true
+        notify_audit: false
+        no_data_timeframe: 15
+      no_log: true  # 保护 API Key
+      register: http_monitor_result
+      when: 
+        - agent_install_result is defined
+        - monitor_http_services | default(false)
+
+    # 创建 Dashboard
+    - name: 创建基础设施监控 Dashboard
+      community.datadog.datadog_dashboard:
+        title: "基础设施监控 - {{ inventory_hostname }}"
+        description: "主机 {{ inventory_hostname }} 的基础设施监控面板"
+        layout_type: "ordered"
+        widgets:
+          - id: 1
+            definition:
+              title: "CPU 使用率"
+              type: "timeseries"
+              requests:
+                - q: "avg:system.cpu.total{host:{{ inventory_hostname }}}"
+                  display_type: "line"
+              yaxis:
+                min: "0"
+                max: "100"
+          - id: 2
+            definition:
+              title: "内存使用率"
+              type: "timeseries"
+              requests:
+                - q: "avg:system.mem.used{host:{{ inventory_hostname }}} / avg:system.mem.total{host:{{ inventory_hostname }}} * 100"
+                  display_type: "line"
+              yaxis:
+                min: "0"
+                max: "100"
+          - id: 3
+            definition:
+              title: "磁盘使用率"
+              type: "timeseries"
+              requests:
+                - q: "avg:system.disk.in_use{host:{{ inventory_hostname }}} * 100"
+                  display_type: "line"
+              yaxis:
+                min: "0"
+                max: "100"
+        api_key: "{{ datadog_api_key }}"
+        app_key: "{{ datadog_app_key }}"
+      no_log: true  # 保护 API Key
+      register: dashboard_result
+      when: agent_install_result is defined
+
+    # 配置 APM（如果启用）
+    - name: 配置 APM 服务监控
+      community.datadog.datadog_agent:
+        api_key: "{{ datadog_api_key }}"
+        apm_enabled: true
+        process_enabled: true
+        state: present
+      no_log: true  # 保护 API Key
+      register: apm_config_result
+      when: 
+        - agent_install_result is defined
+        - enable_apm | default(false)
+
+    # 输出配置摘要
+    - name: 显示配置变更摘要
+      debug:
+        msg: |
+          Datadog 配置完成摘要:
+          - Agent 安装: {{ '成功' if agent_install_result.changed else '无变更' }}
+          - 系统集成: {{ '成功' if system_integration_result.changed else '无变更' }}
+          - 网络集成: {{ '成功' if network_integration_result.changed else '无变更' }}
+          - Docker 集成: {{ '成功' if docker_integration_result.changed else '未配置' }}
+          - 日志收集: {{ '成功' if logs_config_result.changed else '无变更' }}
+          - CPU 告警: {{ '创建成功' if cpu_monitor_result.changed else '已存在' }}
+          - 内存告警: {{ '创建成功' if memory_monitor_result.changed else '已存在' }}
+          - 磁盘告警: {{ '创建成功' if disk_monitor_result.changed else '已存在' }}
+          - Dashboard: {{ '创建成功' if dashboard_result.changed else '已存在' }}
+          - APM 配置: {{ '启用成功' if apm_config_result.changed else '未启用' }}
+      when: agent_install_result is defined
+
+  handlers:
+    - name: 重启 Datadog Agent
+      systemd:
+        name: datadog-agent
+        state: restarted
+      listen: "restart datadog agent"
+      when: ansible_service_mgr == "systemd"
+
+    - name: 重载 Datadog Agent 配置
+      command: datadog-agent config check
+      register: config_check
+      listen: "reload datadog config"
+      check_mode: yes  # 仅检查，不实际执行

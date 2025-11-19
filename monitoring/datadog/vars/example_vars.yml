@@ -1,0 +1,288 @@
+---
+# Datadog 监控配置变量示例文件
+# 
+# 重要提示：
+# 1. 这是示例文件，包含占位符值
+# 2. 生产使用时请复制为 production_vars.yml 并填写真实值
+# 3. 不要将包含真实凭证的文件提交到版本控制系统
+# 4. 建议使用 Ansible Vault 加密敏感信息
+
+# =============================================================================
+# Datadog API 连接配置
+# =============================================================================
+
+# Datadog 站点配置
+datadog_site: "datadoghq.com"  # 可选值: datadoghq.com, datadoghq.eu, us3.datadoghq.com, ddog-gov.com
+datadog_api_url: "https://{{ datadog_site }}"  # 自定义 API 端点（可选）
+
+# API 访问凭证（敏感信息 - 需要加密）
+# 注意：请使用 vault 加密这些敏感变量
+datadog_api_key: "{{ vault_datadog_api_key }}"  # Datadog API Key
+datadog_app_key: "{{ vault_datadog_app_key }}"  # Datadog Application Key
+
+# =============================================================================
+# Agent 基础配置
+# =============================================================================
+
+# Agent 通用配置
+datadog_tags:
+  - "env:{{ datadog_env | default('production') }}"
+  - "team:{{ datadog_team | default('ops') }}"
+  - "service:{{ datadog_service | default('infrastructure') }}"
+  - "region:{{ ansible_facts['distribution_release'] | default('unknown') }}"
+
+# 环境标识
+datadog_env: "production"  # production, staging, development
+datadog_team: "ops"        # ops, dev, security, etc.
+datadog_service: "infrastructure"  # 服务名称标识
+
+# Agent 日志配置
+datadog_log_level: "info"  # debug, info, warn, error
+datadog_log_file: "/var/log/datadog/agent.log"
+
+# =============================================================================
+# 监控功能开关
+# =============================================================================
+
+# 功能启用开关
+enable_apm: true                    # 是否启用应用性能监控
+enable_logs: true                   # 是否启用日志收集
+enable_process_monitoring: true     # 是否启用进程监控
+enable_network_monitoring: true     # 是否启用网络监控
+enable_docker_monitoring: true      # 是否启用 Docker 监控
+enable_database_monitoring: false   # 是否启用数据库监控
+
+# 服务监控开关
+monitor_http_services: true         # 是否监控 HTTP 服务
+monitor_https_services: true        # 是否监控 HTTPS 服务
+monitor_database_services: false   # 是否监控数据库服务
+
+# =============================================================================
+# 告警配置
+# =============================================================================
+
+# 告警阈值配置
+alert_thresholds:
+  cpu:
+    warning: 70      # CPU 使用率警告阈值 (%)
+    critical: 90     # CPU 使用率严重阈值 (%)
+    evaluation_window: "last_15m"  # 评估窗口
+  
+  memory:
+    warning: 80      # 内存使用率警告阈值 (%)
+    critical: 95     # 内存使用率严重阈值 (%)
+    evaluation_window: "last_15m"
+  
+  disk:
+    warning: 85      # 磁盘使用率警告阈值 (%)
+    critical: 95     # 磁盘使用率严重阈值 (%)
+    evaluation_window: "last_15m"
+  
+  network:
+    warning: 1000    # 网络流量警告阈值 (Mbps)
+    critical: 2000   # 网络流量严重阈值 (Mbps)
+    evaluation_window: "last_5m"
+
+# 告警通知配置
+notification_settings:
+  email_enabled: true
+  slack_enabled: false
+  pagerduty_enabled: false
+  webhook_enabled: false
+  
+  # 通知渠道
+  email_recipients:
+    - "ops-team@example.com"
+    - "admin@example.com"
+  
+  slack_channel: "#alerts"
+  pagerduty_service_key: "{{ vault_pagerduty_service_key | default('') }}"
+  webhook_url: "{{ vault_alert_webhook_url | default('') }}"
+
+# =============================================================================
+# 集成配置
+# =============================================================================
+
+# Docker 集成配置
+docker_integration:
+  enabled: true
+  collect_events: true
+  collect_container_metrics: true
+  collect_container_size: true
+  container_include_all: true
+  container_exclude: "name:datadog-agent"
+
+# 网络集成配置
+network_integration:
+  enabled: true
+  collect_connection_state: true
+  collect_connection_states_for: "all"
+  collect_metrics_for_all_network_interfaces: true
+
+# 系统集成配置
+system_integration:
+  enabled: true
+  min_collection_interval: 15  # 秒
+  host_tags: true
+  device_blacklist:  # 排除的设备
+    - "lo"
+    - "docker0"
+
+# =============================================================================
+# 日志收集配置
+# =============================================================================
+
+# 日志收集设置
+logs_config:
+  enabled: true
+  collect_container_logs: true
+  container_collect_all: true
+  container_exclude: "name:datadog-agent"
+  
+  # 日志处理规则
+  processing_rules:
+    - type: "exclude_at_match"
+      name: "exclude_sensitive_data"
+      pattern: "(password|secret|token|key|api_key)\\s*[:=]\\s*[\"']?[\\w=-]+[\"']?"
+    
+    - type: "mask_sequences"
+      name: "mask_ip_addresses"
+      placeholder: "[REDACTED_IP]"
+      regex: "\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\b"
+
+# 应用程序日志配置
+application_logs:
+  - name: "nginx"
+    path: "/var/log/nginx/*.log"
+    source: "nginx"
+    service: "web"
+  
+  - name: "apache"
+    path: "/var/log/apache2/*.log"
+    source: "apache"
+    service: "web"
+  
+  - name: "mysql"
+    path: "/var/log/mysql/*.log"
+    source: "mysql"
+    service: "database"
+
+# =============================================================================
+# APM 配置
+# =============================================================================
+
+# APM 设置
+apm_config:
+  enabled: true
+  env: "{{ datadog_env }}"
+  service_mapping:
+    - service_name: "webapp"
+      env: "{{ datadog_env }}"
+      version: "1.0.0"
+  
+  # 采样配置
+  sampling_rules:
+    - service_pattern: "webapp"
+      sample_rate: 0.1  # 10% 采样率
+    
+    - service_pattern: "api"
+      sample_rate: 0.5  # 50% 采样率
+
+# =============================================================================
+# Dashboard 配置
+# =============================================================================
+
+# Dashboard 模板配置
+dashboard_templates:
+  infrastructure:
+    title: "基础设施监控"
+    layout_type: "ordered"
+    widgets:
+      - title: "系统概览"
+        type: "hostmap"
+        size: "large"
+      
+      - title: "CPU 使用率"
+        type: "timeseries"
+        query: "avg:system.cpu.total{*} by {host}"
+      
+      - title: "内存使用率"
+        type: "timeseries"
+        query: "avg:system.mem.used{*} / avg:system.mem.total{*} * 100 by {host}"
+
+# =============================================================================
+# 安全和合规配置
+# =============================================================================
+
+# 安全设置
+security_config:
+  # 数据脱敏
+  data_masking:
+    enabled: true
+    patterns:
+      - "(password|secret|token|key)\\s*[:=]\\s*[\"']?[\\w=-]+[\"']?"
+      - "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b"  # 邮箱
+      - "\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\b"  # IP 地址
+  
+  # 访问控制
+  access_control:
+    allowed_source_ips:
+      - "0.0.0.0/0"  # 生产环境可能需要限制
+    
+    api_rate_limit:
+      enabled: true
+      requests_per_minute: 500
+
+# =============================================================================
+# 环境特定配置
+# =============================================================================
+
+# 开发环境配置
+development_overrides:
+  datadog_env: "development"
+  enable_apm: false
+  enable_logs: false
+  alert_thresholds:
+    cpu:
+      warning: 85
+      critical: 95
+    memory:
+      warning: 85
+      critical: 95
+
+# 测试环境配置
+staging_overrides:
+  datadog_env: "staging"
+  enable_apm: true
+  enable_logs: true
+  alert_thresholds:
+    cpu:
+      warning: 75
+      critical: 90
+
+# =============================================================================
+# 使用说明
+# =============================================================================
+
+# 1. 安装依赖：
+#    ansible-galaxy collection install community.datadog
+#    pip install datadog requests
+#
+# 2. 加密敏感变量：
+#    ansible-vault encrypt_string 'your_api_key' --name 'vault_datadog_api_key'
+#    ansible-vault encrypt_string 'your_app_key' --name 'vault_datadog_app_key'
+#
+# 3. 运行 playbook：
+#    ansible-playbook -i inventory playbook.yml --ask-vault-pass
+#
+# 4. 检查模式运行：
+#    ansible-playbook -i inventory playbook.yml --check --ask-vault-pass
+#
+# 5. 调试模式运行：
+#    ansible-playbook -i inventory playbook.yml -vvv --ask-vault-pass
+#
+# 6. 验证 Agent 状态：
+#    datadog-agent status
+#
+# 7. 测试 API 连接：
+#    curl -H "DD-API-KEY: $DATADOG_API_KEY" "https://api.datadoghq.com/api/v1/validate"
