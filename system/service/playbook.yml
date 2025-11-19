@@ -1,0 +1,173 @@
+---
+- name: service 模块使用示例演示
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 演示 systemd 版本的 service 模块 ==========
+    - name: 检查系统 init 类型
+      ansible.builtin.command: test -d /run/systemd/system && echo "systemd" || echo "sysvinit"
+      register: init_type
+      changed_when: false
+    
+    - name: 显示系统 init 类型
+      ansible.builtin.debug:
+        msg: "系统使用 init 类型: {{ init_type.stdout }}"
+    
+    # ========== 启动与启用关键系统服务演示 ==========
+    - name: 演示启动 systemd 服务（非实际启动）
+      ansible.builtin.debug:
+        msg: |
+          以下是实际部署中会执行的 service 操作示例：
+          1. 启动 Nginx Web 服务：
+             - name: 启动 Nginx
+               ansible.builtin.service:
+                 name: nginx
+                 state: started
+                 enabled: true
+          
+          2. 启动 MySQL 数据库服务：
+             - name: 启动 MySQL
+               ansible.builtin.service:
+                 name: mysql
+                 state: started
+                 enabled: true
+          
+          3. 启动 Redis 缓存服务：
+             - name: 启动 Redis
+               ansible.builtin.service:
+                 name: redis-server
+                 state: started
+                 enabled: true
+    
+    # ========== 查询系统中的服务 ==========
+    - name: 列出所有已安装的服务单元
+      ansible.builtin.command: systemctl list-unit-files --type=service --no-pager
+      register: services_list
+      changed_when: false
+      when: "'systemd' in init_type.stdout"
+    
+    - name: 显示已安装的服务（前 20 个）
+      ansible.builtin.debug:
+        msg: "{{ services_list.stdout_lines[:20] }}"
+      when: "'systemd' in init_type.stdout"
+    
+    # ========== 演示服务启用与禁用 ==========
+    - name: 演示启用服务开机自启动
+      ansible.builtin.debug:
+        msg: |
+          启用服务开机自启动的 playbook 示例：
+          - name: 启用服务开机自启动
+            ansible.builtin.service:
+              name: "{{ service_name }}"
+              enabled: "{{ service_enabled }}"
+              use: systemd  # 可选，通常自动检测
+    
+    # ========== 演示服务重启与重载 ==========
+    - name: 演示服务管理操作
+      ansible.builtin.debug:
+        msg: |
+          service 模块支持的操作：
+          1. 启动服务:
+             state: started
+          
+          2. 停止服务:
+             state: stopped
+          
+          3. 重启服务:
+             state: restarted
+             sleep: 2  # 重启前等待 2 秒
+          
+          4. 重载配置（仅限支持此操作的服务）:
+             state: reloaded
+    
+    # ========== 验证当前正在运行的服务 ==========
+    - name: 获取正在运行的服务列表
+      ansible.builtin.command: systemctl list-units --type=service --state=running --no-pager
+      register: running_services
+      changed_when: false
+      when: "'systemd' in init_type.stdout"
+    
+    - name: 显示正在运行的服务
+      ansible.builtin.debug:
+        msg: "{{ running_services.stdout_lines[:15] }}"
+      when: "'systemd' in init_type.stdout"
+    
+    # ========== 演示服务依赖关系 ==========
+    - name: 演示多服务依赖启动
+      ansible.builtin.debug:
+        msg: |
+          多服务依赖启动示例（按先后顺序）：
+          - name: 按顺序启动依赖服务
+            ansible.builtin.service:
+              name: "{{ item }}"
+              state: started
+              enabled: true
+            loop:
+              - postgresql    # 数据库先启
+              - redis         # 缓存服务次之
+              - myapp-service # 应用服务最后
+    
+    # ========== 演示与 handler 结合使用 ==========
+    - name: 演示与 handler 结合使用
+      ansible.builtin.debug:
+        msg: |
+          与 handler 结合使用示例：
+          tasks:
+            - name: 修改配置文件
+              ansible.builtin.lineinfile:
+                path: /etc/nginx/nginx.conf
+                regexp: '^worker_processes'
+                line: 'worker_processes auto;'
+              notify: "重载 Nginx"
+          
+          handlers:
+            - name: 重载 Nginx
+              ansible.builtin.service:
+                name: nginx
+                state: reloaded
+    
+    # ========== 演示服务健康检查 ==========
+    - name: 演示服务启动与健康检查
+      ansible.builtin.debug:
+        msg: |
+          启动服务并检查就绪的完整示例：
+          - name: 启动 Nginx
+            ansible.builtin.service:
+              name: nginx
+              state: started
+              enabled: true
+          
+          - name: 等待 Nginx 启动完成
+            ansible.builtin.wait_for:
+              port: 80
+              delay: 2
+              timeout: 30
+    
+    # ========== 总结 ==========
+    - name: service 模块使用总结
+      ansible.builtin.debug:
+        msg: |
+          service 模块要点总结：
+          
+          1. 基础操作
+             - state: started/stopped/restarted/reloaded
+             - enabled: true/false
+          
+          2. 高级用法
+             - sleep: 重启前等待时间
+             - pattern: 进程匹配模式
+             - runlevel: 运行级别（sysvinit）
+          
+          3. 最佳实践
+             - 始终设置 enabled: true 确保自启动
+             - 启动后结合 wait_for 进行健康检查
+             - 重启关键服务前做好日志备份
+             - 通过 handler 自动触发服务重载
+          
+          4. 与其他模块协同
+             - lineinfile/template: 修改配置后重载
+             - wait_for: 检查服务就绪
+             - firewalld/iptables: 配置防火墙规则

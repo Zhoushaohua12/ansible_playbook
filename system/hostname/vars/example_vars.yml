@@ -1,0 +1,84 @@
+# hostname 模块配置变量示例
+
+# ========== 主机名配置 ==========
+# 新主机名
+new_hostname: "web-prod-01"
+
+# ========== 命名规范变量 ==========
+# 服务角色（web、db、cache、app、mq、monitor 等）
+service_role: web
+
+# 环境标识（prod、staging、dev、test）
+environment: prod
+
+# 服务器编号（用于生成 01、02 等）
+server_index: 1
+
+# ========== 地理位置变量 ==========
+# 地域（如 us-east-1、eu-west-1）
+region: us-east-1
+
+# 数据中心标识（如 dc1、dc2）
+datacenter: dc1
+
+# ========== 域名配置 ==========
+# 完整域名后缀
+domain_suffix: "example.com"
+
+# 是否需要配置完整 FQDN
+use_fqdn: false
+
+# ========== 动态命名示例 ==========
+# 以下变量用于生成动态主机名
+
+# 生产 Web 服务器
+# hostname: web-prod-01, web-prod-02, web-prod-03 ...
+
+# 生产数据库
+# hostname: db-prod-primary, db-prod-secondary, db-prod-replica-1 ...
+
+# 预发布缓存
+# hostname: cache-staging-01, cache-staging-02 ...
+
+# 开发应用
+# hostname: app-dev-local, app-dev-test ...
+
+# ========== 常见命名规范 ==========
+# [role]-[environment]-[number]
+# web-prod-01
+# db-prod-primary
+# cache-staging-01
+#
+# [role]-[region]-[number]
+# web-us-east-1-01
+# db-eu-west-1-primary
+#
+# [role]-[datacenter]-[number]
+# web-dc1-01
+# db-dc2-replica
+
+# ========== 安全提示 ==========
+# ⚠️  特别注意：
+# 1. hostname 模块需要 root 或 sudo 权限
+# 2. 主机名命名规范：
+#    - 仅使用小写字母、数字、连字符
+#    - 不使用大写字母或特殊字符
+#    - 长度通常不超过 63 字符
+# 3. 修改主机名前：
+#    - 确保新主机名在 DNS 中有对应记录
+#    - 备份重要配置文件
+#    - 通知相关团队（监控、日志系统）
+# 4. 修改可能影响：
+#    - 日志系统会记录新主机名
+#    - 监控和告警规则可能需要更新
+#    - 应用程序如果依赖主机名，可能需要重启
+#    - SSH 连接跳转关键字 %h 受影响
+# 5. 特殊环境注意事项：
+#    - 容器：hostnamectl 可能无效，需要 docker run --hostname
+#    - Kubernetes：Pod 主机名由集群自动管理
+#    - 云平台：某些实例类型可能有限制
+# 6. 生产环境部署前一定要：
+#    - 在开发/测试环境验证
+#    - 准备回滚方案
+#    - 使用 --check 模式预览：
+#      ansible-playbook system/hostname/playbook.yml --check

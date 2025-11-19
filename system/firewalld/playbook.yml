@@ -1,0 +1,197 @@
+---
+- name: firewalld 防火墙配置示例（系统管理角度）
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 启动并配置 firewalld 服务 ==========
+    - name: 启动 firewalld 服务
+      ansible.builtin.systemd:
+        name: firewalld
+        state: started
+        enabled: true
+        daemon_reload: true
+    
+    - name: 验证 firewalld 运行状态
+      ansible.builtin.command: firewall-cmd --state
+      register: firewalld_state
+      changed_when: false
+    
+    - name: 显示 firewalld 状态
+      ansible.builtin.debug:
+        msg: "firewalld 状态: {{ firewalld_state.stdout }}"
+    
+    # ========== 配置基础防火墙规则 ==========
+    - name: 演示在 public zone 开放 HTTP/HTTPS 服务
+      ansible.builtin.debug:
+        msg: |
+          以下是实际配置中会执行的操作：
+          - name: 在 public zone 开放 HTTP
+            community.general.firewalld:
+              service: http
+              zone: "{{ firewalld_web_zone }}"
+              state: enabled
+              permanent: true
+              immediate: true
+          
+          - name: 在 public zone 开放 HTTPS
+            community.general.firewalld:
+              service: https
+              zone: "{{ firewalld_web_zone }}"
+              state: enabled
+              permanent: true
+              immediate: true
+    
+    # ========== 应用专用规则 ==========
+    - name: 演示为应用开放专用端口
+      ansible.builtin.debug:
+        msg: |
+          应用专用端口配置示例：
+          - name: 在 internal zone 开放应用端口
+            community.general.firewalld:
+              port: "{{ app_port }}/tcp"
+              zone: "{{ app_zone }}"
+              state: enabled
+              permanent: true
+              immediate: true
+    
+    # ========== 数据库访问控制 ==========
+    - name: 演示数据库防火墙配置
+      ansible.builtin.debug:
+        msg: |
+          数据库访问控制示例（限制源 IP）：
+          - name: 在 internal zone 开放 MySQL
+            community.general.firewalld:
+              port: 3306/tcp
+              zone: internal
+              source: "{{ db_allowed_network }}"
+              state: enabled
+              permanent: true
+              immediate: true
+    
+    # ========== DNS 配置演示 ==========
+    - name: 演示 DNS 服务配置
+      ansible.builtin.debug:
+        msg: |
+          DNS 服务配置示例：
+          - name: 在 public zone 开放 DNS 服务
+            community.general.firewalld:
+              service: dns
+              zone: public
+              state: enabled
+              permanent: true
+              immediate: true
+              when: firewalld_enable_dns
+    
+    # ========== SSH 访问配置 ==========
+    - name: 演示 SSH 访问控制
+      ansible.builtin.debug:
+        msg: |
+          SSH 访问控制示例（仅 internal zone）：
+          - name: 在 internal zone 开放 SSH
+            community.general.firewalld:
+              service: ssh
+              zone: internal
+              state: enabled
+              permanent: true
+              immediate: true
+    
+    # ========== 验证当前规则 ==========
+    - name: 获取 public zone 规则
+      ansible.builtin.command: firewall-cmd --zone=public --list-all
+      register: firewalld_public_rules
+      changed_when: false
+    
+    - name: 显示 public zone 规则
+      ansible.builtin.debug:
+        msg: "{{ firewalld_public_rules.stdout_lines }}"
+    
+    - name: 获取 internal zone 规则
+      ansible.builtin.command: firewall-cmd --zone=internal --list-all
+      register: firewalld_internal_rules
+      changed_when: false
+    
+    - name: 显示 internal zone 规则
+      ansible.builtin.debug:
+        msg: "{{ firewalld_internal_rules.stdout_lines }}"
+    
+    # ========== 列出所有可用服务 ==========
+    - name: 列出 firewalld 中预定义的服务
+      ansible.builtin.command: firewall-cmd --get-services
+      register: firewalld_services
+      changed_when: false
+    
+    - name: 显示可用的 firewalld 服务（前 20 个）
+      ansible.builtin.debug:
+        msg: "{{ (firewalld_services.stdout.split())[:20] }}"
+    
+    # ========== 演示 zone 概念 ==========
+    - name: 列出所有可用的 zone
+      ansible.builtin.command: firewall-cmd --get-zones
+      register: firewalld_zones
+      changed_when: false
+    
+    - name: 显示 firewalld zone 列表
+      ansible.builtin.debug:
+        msg: "可用的 zone: {{ firewalld_zones.stdout }}"
+    
+    - name: 获取默认 zone
+      ansible.builtin.command: firewall-cmd --get-default-zone
+      register: default_zone
+      changed_when: false
+    
+    - name: 显示默认 zone
+      ansible.builtin.debug:
+        msg: "默认 zone: {{ default_zone.stdout }}"
+    
+    # ========== 备份当前配置 ==========
+    - name: 演示配置备份
+      ansible.builtin.debug:
+        msg: |
+          备份 firewalld 配置的方法：
+          
+          1. 保存运行时配置为永久配置：
+             - name: 保存运行时配置
+               ansible.builtin.command: firewall-cmd --runtime-to-permanent
+          
+          2. 手动备份配置文件：
+             - name: 备份 firewalld 配置
+               ansible.builtin.copy:
+                 src: /etc/firewalld/
+                 dest: /backup/firewalld.{{ ansible_date_time.iso8601 }}
+                 remote_src: yes
+    
+    # ========== 总结 ==========
+    - name: firewalld 配置完成总结
+      ansible.builtin.debug:
+        msg: |
+          firewalld 系统管理要点总结：
+          
+          1. 基本配置
+             - 启动服务：systemd 模块启动 firewalld
+             - 开放服务：firewalld 模块管理 service
+             - 开放端口：firewalld 模块管理 port
+          
+          2. Zone 隔离策略
+             - public zone: 对外服务（Web）
+             - internal zone: 内部服务（数据库、应用）
+             - dmz zone: 边界隔离
+             - drop zone: 默认拒绝
+          
+          3. 配置方案
+             - permanent: true 永久保存
+             - immediate: true 立即生效
+             - 通常两个都设置为 true
+          
+          4. 最佳实践
+             - 修改前备份配置
+             - 在测试环境验证
+             - 确保管理端口（SSH）始终畅通
+             - 使用 source 限制源 IP 增加安全性
+          
+          5. 与系统模块协同
+             - user/group: firewalld 管理员权限
+             - service/systemd: 启动 firewalld 服务
+             - 生成防火墙变更事件给 handler

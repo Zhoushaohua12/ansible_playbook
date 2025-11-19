@@ -1,0 +1,139 @@
+---
+- name: user 模块使用示例演示
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 创建基础运维账号 ==========
+    - name: 创建运维部署账号
+      ansible.builtin.user:
+        name: "{{ deploy_user_name }}"
+        comment: "{{ deploy_user_comment }}"
+        shell: "{{ deploy_user_shell }}"
+        home: "{{ deploy_user_home }}"
+        createhome: "{{ deploy_user_createhome }}"
+        uid: "{{ deploy_user_uid }}"
+        groups: "{{ deploy_user_groups }}"
+        state: present
+    
+    - name: 显示创建的运维账号信息
+      ansible.builtin.debug:
+        msg: "已创建运维账号: {{ deploy_user_name }}，主目录: {{ deploy_user_home }}"
+    
+    # ========== 创建应用专用账号（禁用登录） ==========
+    - name: 创建应用服务账号（禁止登录）
+      ansible.builtin.user:
+        name: "{{ app_user_name }}"
+        comment: "{{ app_user_comment }}"
+        shell: "{{ app_user_shell }}"  # /sbin/nologin 防止登录
+        home: "{{ app_user_home }}"
+        createhome: "{{ app_user_createhome }}"
+        uid: "{{ app_user_uid }}"
+        state: present
+    
+    - name: 设置应用用户主目录权限
+      ansible.builtin.file:
+        path: "{{ app_user_home }}"
+        owner: "{{ app_user_name }}"
+        group: "{{ app_user_name }}"
+        mode: '0755'
+        state: directory
+    
+    # ========== 创建系统服务账号 ==========
+    - name: 创建系统服务账号（无主目录）
+      ansible.builtin.user:
+        name: "{{ system_user_name }}"
+        comment: "{{ system_user_comment }}"
+        shell: /sbin/nologin
+        home: /nonexistent
+        createhome: no
+        system: yes  # 标记为系统账号
+        state: present
+    
+    # ========== 管理用户组成员关系 ==========
+    - name: 为部署用户添加 docker 组（追加方式）
+      ansible.builtin.user:
+        name: "{{ deploy_user_name }}"
+        groups: docker
+        append: yes  # 保留现有组
+    
+    - name: 为部署用户添加 sudoers 权限（仅演示）
+      ansible.builtin.debug:
+        msg: "已为 {{ deploy_user_name }} 添加 docker 组，可通过 sudoers 配置 sudo 权限"
+    
+    # ========== 验证用户创建结果 ==========
+    - name: 检查运维账号是否存在
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ deploy_user_name }}"
+      register: deploy_user_info
+    
+    - name: 显示运维账号详细信息
+      ansible.builtin.debug:
+        var: deploy_user_info
+        verbosity: 2
+    
+    - name: 列出所有创建的账号
+      ansible.builtin.shell: |
+        echo "=== 创建的用户账号 ==="
+        grep "{{ deploy_user_name }}\|{{ app_user_name }}\|{{ system_user_name }}" /etc/passwd
+      register: user_list
+      changed_when: false
+    
+    - name: 显示用户列表
+      ansible.builtin.debug:
+        msg: "{{ user_list.stdout_lines }}"
+    
+    # ========== SSH 密钥管理演示 ==========
+    - name: 为部署用户生成 SSH 密钥（演示）
+      ansible.builtin.debug:
+        msg: |
+          生成 SSH 密钥的 playbook 示例：
+          - name: 生成 SSH 密钥
+            ansible.builtin.user:
+              name: {{ deploy_user_name }}
+              generate_ssh_key: yes
+              ssh_key_bits: 4096
+              ssh_key_comment: "deploy@{{ inventory_hostname }}"
+              state: present
+    
+    # ========== 权限验证 ==========
+    - name: 验证部署用户主目录权限
+      ansible.builtin.stat:
+        path: "{{ deploy_user_home }}"
+      register: deploy_home_stat
+    
+    - name: 显示主目录权限信息
+      ansible.builtin.debug:
+        msg: |
+          主目录: {{ deploy_user_home }}
+          所有者: {{ deploy_home_stat.stat.pw_name }}:{{ deploy_home_stat.stat.gr_name }}
+          权限: {{ deploy_home_stat.stat.mode }}
+    
+    - name: 验证应用用户主目录权限
+      ansible.builtin.stat:
+        path: "{{ app_user_home }}"
+      register: app_home_stat
+    
+    - name: 显示应用用户主目录权限
+      ansible.builtin.debug:
+        msg: |
+          应用用户主目录: {{ app_user_home }}
+          所有者: {{ app_home_stat.stat.pw_name }}:{{ app_home_stat.stat.gr_name }}
+          权限: {{ app_home_stat.stat.mode }}
+    
+    # ========== 总结 ==========
+    - name: 账号创建完成总结
+      ansible.builtin.debug:
+        msg: |
+          已完成以下用户创建：
+          1. 运维账号: {{ deploy_user_name }} (UID: {{ deploy_user_uid }})
+          2. 应用账号: {{ app_user_name }} (UID: {{ app_user_uid }})
+          3. 系统账号: {{ system_user_name }} (系统账号)
+          
+          下一步建议：
+          - 为 {{ deploy_user_name }} 配置 SSH 密钥
+          - 配置 sudoers 为部署用户授权
+          - 为应用账号绑定文件权限与进程

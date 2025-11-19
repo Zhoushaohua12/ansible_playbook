@@ -350,44 +350,106 @@ database:
         - "MongoDB 启用认证配置"
         - "userAdmin 或 userAdminAnyDatabase 角色"
 
+system:
+   title: 系统管理模块
+   description: "涵盖用户与组管理、服务生命周期控制、主机配置、防火墙规则管理等系统运维的核心模块，支持标准化部署、权限隔离、安全加固等场景"
+   external_dependencies:
+     - "ansible.builtin collection（user、group、service、hostname 模块）"
+     - "ansible.posix collection（systemd 模块）"
+     - "community.general collection（firewalld、iptables 模块）"
+     - "firewalld 服务（RHEL/CentOS/Fedora 系统）"
+     - "iptables 工具（通用 Linux 系统）"
+   topics:
+     - id: user
+       name: User 用户管理
+       doc: system/user/README.md
+       example: system/user/playbook.yml
+       summary: "创建、修改、删除用户账号，管理 SSH 密钥与权限，支持运维账号与应用专用账号的权限隔离"
+       external_deps:
+         - "ansible.builtin collection"
+     - id: group
+       name: Group 组管理
+       doc: system/group/README.md
+       example: system/group/playbook.yml
+       summary: "创建、修改、删除用户组，管理组成员与权限隔离，支持细粒度权限控制"
+       external_deps:
+         - "ansible.builtin collection"
+     - id: service
+       name: Service 服务管理
+       doc: system/service/README.md
+       example: system/service/playbook.yml
+       summary: "管理服务的启动、停止、重启与自启动配置，支持 systemd、sysvinit 等多种 init 系统"
+       external_deps:
+         - "ansible.builtin collection"
+     - id: systemd
+       name: Systemd 单元管理
+       doc: system/systemd/README.md
+       example: system/systemd/playbook.yml
+       summary: "底层 systemd 单元管理，支持服务启用、mask/unmask、用户级单元、timer 定时任务等"
+       external_deps:
+         - "ansible.posix collection"
+     - id: firewalld
+       name: Firewalld 防火墙管理
+       doc: system/firewalld/README.md
+       example: system/firewalld/playbook.yml
+       summary: "RHEL/CentOS 系统的动态防火墙规则管理，支持 zone、service、port 配置和热更新"
+       external_deps:
+         - "community.general collection"
+         - "firewalld 服务"
+     - id: iptables
+       name: iptables 防火墙与 NAT 规则
+       doc: system/iptables/README.md
+       example: system/iptables/playbook.yml
+       summary: "内核级防火墙规则管理，支持 NAT、DNAT、SNAT 和自定义规则链等高级用途"
+       external_deps:
+         - "community.general collection"
+         - "iptables 工具"
+     - id: hostname
+       name: Hostname 主机名配置
+       doc: system/hostname/README.md
+       example: system/hostname/playbook.yml
+       summary: "设置主机名和域名配置，自动更新 /etc/hostname 和 /etc/hosts，支持标准化命名规范"
+       external_deps:
+         - "ansible.builtin collection"
+
 network:
-  title: 网络与防火墙管理
-  description: "涵盖防火墙规则管理（firewalld/ufw/iptables）与网络连接监控（wait_for）的实战示例，支持多层部署、安全加固、容器网络等场景"
-  external_dependencies:
-    - "community.general collection（firewalld、ufw、iptables 模块）"
-    - "firewalld 服务（RHEL/CentOS/Fedora 系统）"
-    - "ufw 工具（Ubuntu/Debian 系统）"
-    - "iptables 工具（通用 Linux 系统）"
-    - "ansible.builtin 集合（wait_for 内置模块）"
-  topics:
-    - id: firewalld
-      name: Firewalld 防火墙管理
-      doc: network/firewalld/README.md
-      example: network/firewalld/playbook.yml
-      summary: "RHEL/CentOS 系统的动态防火墙规则管理，支持 zone、service、port 配置和热更新"
-      external_deps:
-        - "community.general collection（firewalld 模块）"
-        - "firewalld 服务"
-    - id: ufw
-      name: UFW 防火墙管理
-      doc: network/ufw/README.md
-      example: network/ufw/playbook.yml
-      summary: "Ubuntu/Debian 系统的简化防火墙管理，支持快速配置 allow/deny/reject 规则"
-      external_deps:
-        - "community.general collection（ufw 模块）"
-        - "ufw 工具"
-    - id: iptables
-      name: iptables 防火墙与 NAT 规则
-      doc: network/iptables/README.md
-      example: network/iptables/playbook.yml
-      summary: "内核级防火墙规则管理，支持 NAT、DNAT、SNAT 和自定义规则链等高级用途"
-      external_deps:
-        - "community.general collection（iptables 模块）"
-        - "iptables 工具"
-    - id: wait_for
-      name: Wait For 端口/服务监控
-      doc: network/wait_for/README.md
-      example: network/wait_for/playbook.yml
-      summary: "端口可用性和服务就绪监控，支持集群协调、滚动更新和多服务依赖场景"
-      external_deps:
-        - "ansible.builtin collection（wait_for 内置模块）"
+   title: 网络与防火墙管理
+   description: "涵盖防火墙规则管理（firewalld/ufw/iptables）与网络连接监控（wait_for）的实战示例，支持多层部署、安全加固、容器网络等场景"
+   external_dependencies:
+     - "community.general collection（firewalld、ufw、iptables 模块）"
+     - "firewalld 服务（RHEL/CentOS/Fedora 系统）"
+     - "ufw 工具（Ubuntu/Debian 系统）"
+     - "iptables 工具（通用 Linux 系统）"
+     - "ansible.builtin 集合（wait_for 内置模块）"
+   topics:
+     - id: firewalld
+       name: Firewalld 防火墙管理
+       doc: network/firewalld/README.md
+       example: network/firewalld/playbook.yml
+       summary: "RHEL/CentOS 系统的动态防火墙规则管理，支持 zone、service、port 配置和热更新"
+       external_deps:
+         - "community.general collection（firewalld 模块）"
+         - "firewalld 服务"
+     - id: ufw
+       name: UFW 防火墙管理
+       doc: network/ufw/README.md
+       example: network/ufw/playbook.yml
+       summary: "Ubuntu/Debian 系统的简化防火墙管理，支持快速配置 allow/deny/reject 规则"
+       external_deps:
+         - "community.general collection（ufw 模块）"
+         - "ufw 工具"
+     - id: iptables
+       name: iptables 防火墙与 NAT 规则
+       doc: network/iptables/README.md
+       example: network/iptables/playbook.yml
+       summary: "内核级防火墙规则管理，支持 NAT、DNAT、SNAT 和自定义规则链等高级用途"
+       external_deps:
+         - "community.general collection（iptables 模块）"
+         - "iptables 工具"
+     - id: wait_for
+       name: Wait For 端口/服务监控
+       doc: network/wait_for/README.md
+       example: network/wait_for/playbook.yml
+       summary: "端口可用性和服务就绪监控，支持集群协调、滚动更新和多服务依赖场景"
+       external_deps:
+         - "ansible.builtin collection（wait_for 内置模块）"

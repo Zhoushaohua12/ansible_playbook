@@ -1,0 +1,231 @@
+---
+- name: hostname 模块使用示例演示
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 获取当前主机名 ==========
+    - name: 获取当前主机名
+      ansible.builtin.command: hostname
+      register: current_hostname
+      changed_when: false
+    
+    - name: 显示当前主机名
+      ansible.builtin.debug:
+        msg: "当前主机名: {{ current_hostname.stdout }}"
+    
+    # ========== 获取主机名详细信息（systemd 环境） ==========
+    - name: 获取完整主机名信息
+      ansible.builtin.command: hostnamectl
+      register: hostname_details
+      changed_when: false
+      ignore_errors: true
+    
+    - name: 显示主机名详细信息
+      ansible.builtin.debug:
+        msg: "{{ hostname_details.stdout_lines }}"
+      when: hostname_details.rc == 0
+    
+    # ========== 演示修改主机名 ==========
+    - name: 演示修改主机名操作
+      ansible.builtin.debug:
+        msg: |
+          修改主机名的 playbook 示例：
+          
+          1. 简单修改主机名：
+             - name: 修改主机名
+               ansible.builtin.hostname:
+                 name: "{{ new_hostname }}"
+          
+          2. 基于环境和角色的动态命名：
+             - name: 动态设置主机名
+               ansible.builtin.hostname:
+                 name: "{{ service_role }}-{{ environment }}-{{ '%02d' | format(server_index) }}"
+               vars:
+                 service_role: web
+                 environment: prod
+                 server_index: 1
+               # 结果：web-prod-01
+    
+    # ========== 演示命名规范 ==========
+    - name: 演示标准化命名规范
+      ansible.builtin.debug:
+        msg: |
+          推荐的主机名命名规范：
+          
+          按环境分类：
+            - 生产环境: web-prod-01, db-prod-primary
+            - 预发布环境: app-staging-01, cache-staging-01
+            - 开发环境: web-dev-local, db-dev-test
+            - 测试环境: api-test-01, monitor-test-01
+          
+          按地理位置分类：
+            - 地域标识: web-us-east-1-01, db-eu-west-1-02
+            - 数据中心: web-dc1-01, db-dc2-primary
+          
+          按功能分类：
+            - Web 服务: web-1, web-2
+            - 数据库: db-primary, db-secondary
+            - 缓存: cache-master, cache-slave
+            - 消息队列: mq-broker-1, mq-broker-2
+            - 监控: monitor-central, prometheus-1
+    
+    # ========== 验证 /etc/hostname 文件 ==========
+    - name: 查看 /etc/hostname 文件
+      ansible.builtin.command: cat /etc/hostname
+      register: etc_hostname
+      changed_when: false
+      ignore_errors: true
+    
+    - name: 显示 /etc/hostname 文件内容
+      ansible.builtin.debug:
+        msg: "/etc/hostname 内容: {{ etc_hostname.stdout }}"
+      when: etc_hostname.rc == 0
+    
+    # ========== 验证 /etc/hosts 文件 ==========
+    - name: 查看 /etc/hosts 中的 loopback 配置
+      ansible.builtin.shell: grep "127.0.0.1" /etc/hosts | head -3
+      register: etc_hosts
+      changed_when: false
+      ignore_errors: true
+    
+    - name: 显示 /etc/hosts 中的 loopback 配置
+      ansible.builtin.debug:
+        msg: "{{ etc_hosts.stdout_lines }}"
+      when: etc_hosts.rc == 0
+    
+    # ========== 演示修改后的验证步骤 ==========
+    - name: 演示修改后的验证流程
+      ansible.builtin.debug:
+        msg: |
+          修改主机名后的验证步骤：
+          
+          1. 修改主机名：
+             - name: 修改主机名
+               ansible.builtin.hostname:
+                 name: "{{ new_hostname }}"
+          
+          2. 验证修改结果：
+             - name: 验证主机名修改
+               ansible.builtin.command: hostname
+               register: result
+               changed_when: false
+          
+          3. 更新 /etc/hosts 确保本机解析：
+             - name: 更新 /etc/hosts
+               ansible.builtin.lineinfile:
+                 path: /etc/hosts
+                 regexp: '^127\.0\.0\.1'
+                 line: '127.0.0.1   localhost {{ new_hostname }}'
+                 backup: yes
+          
+          4. 确认 DNS 解析正常：
+             - name: 测试主机名解析
+               ansible.builtin.shell: |
+                 hostname -f
+                 getent hosts $(hostname)
+    
+    # ========== 演示 DNS 配置建议 ==========
+    - name: 演示 DNS 配置最佳实践
+      ansible.builtin.debug:
+        msg: |
+          DNS 配置建议：
+          
+          1. 正向解析（A 记录）：
+             - 主机名 web-prod-01 应该对应 IP 192.168.1.100
+             - DNS 查询应该返回对应的 IP 地址
+          
+          2. 反向解析（PTR 记录）：
+             - 192.168.1.100 的 PTR 记录应该指向 web-prod-01
+             - 某些应用和安全工具需要反向解析
+          
+          3. FQDN 配置：
+             - 完整域名应该是 web-prod-01.example.com
+             - hostname -f 命令应该返回完整 FQDN
+          
+          4. 本地解析（/etc/hosts）：
+             - 127.0.0.1 localhost {{ hostname }}
+             - ::1 localhost {{ hostname }}
+    
+    # ========== 演示与其他配置的集成 ==========
+    - name: 演示主机名与系统配置的集成
+      ansible.builtin.debug:
+        msg: |
+          主机名与其他系统配置的集成：
+          
+          1. 日志系统配置：
+             - syslog 会记录主机名，修改后日志中会显示新主机名
+             - 确保日志聚合工具支持主机名变更
+          
+          2. 监控系统配置：
+             - Prometheus 等监控系统会使用主机名作为标签
+             - 修改主机名后应更新监控规则和告警规则
+          
+          3. 配置管理系统：
+             - Ansible inventory 中的主机名应与系统主机名一致
+             - 或者使用 IP 地址而非主机名进行连接
+          
+          4. 应用程序配置：
+             - 某些应用（如数据库集群）可能使用主机名
+             - 修改前确认应用是否依赖主机名
+    
+    # ========== 演示批量修改 ==========
+    - name: 演示批量修改主机名
+      ansible.builtin.debug:
+        msg: |
+          批量修改多台服务器主机名的示例：
+          
+          1. 基于 inventory 的命名：
+             - name: 根据 inventory 设置主机名
+               ansible.builtin.hostname:
+                 name: "{{ inventory_hostname }}"
+               # 使用 inventory 中定义的主机名
+          
+          2. 基于角色和索引的命名：
+             - name: 基于角色设置主机名
+               ansible.builtin.hostname:
+                 name: "{{ role }}-{{ environment }}-{{ groups[role] | index(inventory_hostname) + 1 | string | zfill(2) }}"
+               vars:
+                 role: web
+                 environment: prod
+               # 需要在 inventory 中定义 role 组
+    
+    # ========== 总结 ==========
+    - name: hostname 模块使用总结
+      ansible.builtin.debug:
+        msg: |
+          hostname 模块要点总结：
+          
+          1. 基础操作
+             - 参数非常简单：仅需 name 参数
+             - 自动检测系统类型并应用最合适的方法
+          
+          2. 修改范围
+             - 修改 /etc/hostname 文件
+             - 修改 /etc/hosts 文件中的 loopback 条目
+             - 运行时通过 hostnamectl 应用
+          
+          3. 命名规范建议
+             - 仅使用小写字母、数字、连字符
+             - 长度不超过 63 字符
+             - 建议格式：[role]-[environment]-[number]
+             - 例如：web-prod-01, db-staging-primary
+          
+          4. 前置准备
+             - 确保新主机名在 DNS 中有对应记录
+             - 备份重要的应用配置（如数据库）
+             - 通知相关团队（如监控、日志系统）
+          
+          5. 修改影响
+             - 日志系统会显示新主机名
+             - 监控告警规则可能需要更新
+             - SSH 连接可能受影响（需要检查本地 SSH 配置）
+             - 容器/VM 需要额外处理
+          
+          6. 验证步骤
+             - hostname 命令查看当前主机名
+             - hostnamectl 查看详细信息
+             - grep 127.0.0.1 /etc/hosts 验证本地解析
+             - nslookup 验证 DNS 解析

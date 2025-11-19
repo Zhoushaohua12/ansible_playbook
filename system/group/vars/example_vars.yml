@@ -1,0 +1,60 @@
+# group 模块配置变量示例
+
+# ========== 开发者组配置 ==========
+# 开发者组名称
+developers_group_name: developers
+
+# 开发者组 ID（≥ 1000 为普通组）
+developers_group_gid: 2000
+
+# ========== 系统管理员组配置 ==========
+# 系统管理员组名称
+sysadmins_group_name: sysadmins
+
+# 系统管理员组 ID
+sysadmins_group_gid: 2001
+
+# ========== 数据库管理员组配置 ==========
+# 数据库管理员组名称
+dbadmins_group_name: dbadmins
+
+# 数据库管理员组 ID
+dbadmins_group_gid: 2002
+
+# ========== 应用专用组配置 ==========
+# 应用专用组名称
+app_group_name: appservice
+
+# 应用专用组 ID
+app_group_gid: 2003
+
+# ========== Docker 组配置 ==========
+# ⚠️  注意：docker 组成员可无密码使用 Docker，权限等同于 root
+# 如果系统中未自动创建 docker 组，这里的配置会创建它
+docker_group_gid: 999
+
+# ========== 系统级别组配置 ==========
+# 系统级别服务组名称
+system_service_group_name: sysservice
+
+# ========== 用户配置示例 ==========
+# 开发者用户名称（演示用）
+developer_user_name: developer
+
+# 系统管理员用户名称（演示用）
+sysadmin_user_name: sysadmin
+
+# 应用用户名称（演示用）
+app_user_name: appuser
+
+# ========== 安全提示 ==========
+# ⚠️  特别注意：
+# 1. GID 规划建议：
+#    - 系统组：GID < 1000（如 docker 组通常是 999）
+#    - 普通组：GID >= 2000（避免与系统保留 ID 冲突）
+# 2. docker 组成员可无密码使用 Docker，等同于 root 权限
+# 3. 删除组前，确保组内没有成员或重要文件
+# 4. 跨多个主机部署时，保持 GID 一致可避免权限问题
+# 5. sudo/wheel 组是特殊的，通常由 OS 预置，无需创建
+# 6. 生产环境部署前，一定要使用 --check 模式预览：
+#    ansible-playbook system/group/playbook.yml --check

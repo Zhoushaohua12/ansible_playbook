@@ -1,0 +1,61 @@
+# systemd 模块配置变量示例
+
+# ========== 基础单元配置 ==========
+# 单元名称（包含类型后缀：.service、.timer、.socket 等）
+systemd_unit_name: nginx.service
+
+# 单元状态（started、stopped、restarted、reloaded）
+systemd_unit_state: started
+
+# 是否启用开机自启动
+systemd_unit_enabled: true
+
+# ========== daemon_reload 配置 ==========
+# 修改 systemd 单元文件后是否重新加载 daemon
+systemd_daemon_reload: false
+
+# ========== 用户级单元配置 ==========
+# 单元作用范围（system 系统级别，user 用户级别）
+systemd_scope: system
+
+# 用户名称（使用 scope: user 时需要指定）
+systemd_user: deploy
+
+# ========== Mask 与 Unmask 配置 ==========
+# 是否 mask 单元（true 禁用，false 取消禁用）
+systemd_masked: false
+
+# ========== 异步启动配置 ==========
+# 是否不等待启动完成直接返回
+systemd_no_block: false
+
+# ========== 常见单元名称参考 ==========
+# Service 单元
+# - nginx.service
+# - postgresql.service
+# - redis.service
+# - mysql.service
+# - docker.service
+# - ssh.service
+#
+# Timer 单元
+# - logrotate.timer
+# - backup.timer
+# - fstrim.timer
+# - daily-cron.timer
+#
+# Mount 单元
+# - /mnt-data.mount
+# - home.mount
+
+# ========== 安全提示 ==========
+# ⚠️  特别注意：
+# 1. systemd 模块操作需要 root 或 sudo 权限（scope: system）
+# 2. daemon_reload 必须在修改 systemd 单元文件后执行
+# 3. mask 操作会彻底禁用服务，需谨慎使用：
+#    - 禁用前确保没有依赖此服务的其他单元
+#    - 必要时需要 unmask 才能恢复
+# 4. scope: user 操作可由普通用户执行，无需 root 权限
+# 5. no_block: true 不等待启动完成，适合长时间启动的服务
+# 6. 在生产环境部署前，一定要使用 --check 模式预览：
+#    ansible-playbook system/systemd/playbook.yml --check

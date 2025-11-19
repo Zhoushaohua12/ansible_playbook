@@ -1,0 +1,65 @@
+# service 模块配置变量示例
+
+# ========== 基础服务配置 ==========
+# 服务名称
+service_name: nginx
+
+# 服务状态（started、stopped、restarted、reloaded）
+service_state: started
+
+# 是否启用服务开机自启动
+service_enabled: true
+
+# ========== 常见服务名称参考 ==========
+# Web 服务
+# - nginx
+# - httpd (Apache on RHEL)
+# - apache2 (Apache on Debian/Ubuntu)
+#
+# 数据库服务
+# - postgresql
+# - mysql / mysql-community-server
+# - mongodb
+# - redis / redis-server
+#
+# 应用相关
+# - tomcat / tomcat9
+# - java (如果配置了 systemd 单元)
+# - docker (Docker 守护进程)
+#
+# 系统服务
+# - ssh / sshd
+# - chrony / ntpd (时间同步)
+# - rsyslog / syslog-ng
+# - cron
+# - auditd
+
+# ========== 服务重启配置 ==========
+# 重启前等待时间（秒）
+# 用于处理某些服务启动缓慢的情况
+service_restart_sleep: 2
+
+# ========== 多服务依赖示例 ==========
+# 服务启动顺序列表
+services_to_start:
+  - postgresql
+  - redis
+  - nginx
+
+# ========== 安全提示 ==========
+# ⚠️  特别注意：
+# 1. service 操作需要 root 或 sudo 权限
+# 2. 重启关键服务前应：
+#    - 通知相关人员
+#    - 准备回滚方案
+#    - 选择低流量时段执行
+# 3. 服务依赖关系：
+#    - 数据库应在应用前启动
+#    - 缓存可与应用并行启动
+#    - 反向代理应最后启动
+# 4. reloaded 与 restarted 的区别：
+#    - reloaded：重新加载配置，不断开连接
+#    - restarted：完整重启，会中断服务
+# 5. 并非所有服务都支持 reloaded 操作
+# 6. 在实际部署时，务必使用 --check 模式预览：
+#    ansible-playbook system/service/playbook.yml --check

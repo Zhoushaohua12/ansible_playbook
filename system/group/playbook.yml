@@ -1,0 +1,163 @@
+---
+- name: group 模块使用示例演示
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 创建基础权限隔离组 ==========
+    - name: 创建开发者组
+      ansible.builtin.group:
+        name: "{{ developers_group_name }}"
+        gid: "{{ developers_group_gid }}"
+        state: present
+    
+    - name: 创建系统管理员组
+      ansible.builtin.group:
+        name: "{{ sysadmins_group_name }}"
+        gid: "{{ sysadmins_group_gid }}"
+        state: present
+    
+    - name: 创建数据库管理员组
+      ansible.builtin.group:
+        name: "{{ dbadmins_group_name }}"
+        gid: "{{ dbadmins_group_gid }}"
+        state: present
+    
+    # ========== 创建应用专用组 ==========
+    - name: 创建应用专用组
+      ansible.builtin.group:
+        name: "{{ app_group_name }}"
+        gid: "{{ app_group_gid }}"
+        state: present
+    
+    - name: 显示应用组创建信息
+      ansible.builtin.debug:
+        msg: "已创建应用组: {{ app_group_name }} (GID: {{ app_group_gid }})"
+    
+    # ========== 创建 docker 组演示 ==========
+    - name: 创建或验证 docker 组
+      ansible.builtin.group:
+        name: docker
+        gid: "{{ docker_group_gid }}"
+        state: present
+    
+    - name: 显示 docker 组信息
+      ansible.builtin.debug:
+        msg: "docker 组用于管理容器访问权限，成员可无密码使用 Docker"
+    
+    # ========== 创建系统级别的组 ==========
+    - name: 创建系统级服务组
+      ansible.builtin.group:
+        name: "{{ system_service_group_name }}"
+        system: yes  # 标记为系统组
+        state: present
+    
+    - name: 显示系统组创建信息
+      ansible.builtin.debug:
+        msg: "已创建系统组: {{ system_service_group_name }} (系统级别)"
+    
+    # ========== 验证组创建结果 ==========
+    - name: 查询所有创建的组
+      ansible.builtin.shell: |
+        echo "=== 已创建的用户组 ==="
+        grep -E "{{ developers_group_name }}|{{ sysadmins_group_name }}|{{ dbadmins_group_name }}|{{ app_group_name }}|docker|{{ system_service_group_name }}" /etc/group
+      register: group_list
+      changed_when: false
+    
+    - name: 显示组列表
+      ansible.builtin.debug:
+        msg: "{{ group_list.stdout_lines }}"
+    
+    # ========== 演示用户与组的关联 ==========
+    - name: 创建开发者用户
+      ansible.builtin.user:
+        name: "{{ developer_user_name }}"
+        comment: "开发者账号"
+        shell: /bin/bash
+        home: "/home/{{ developer_user_name }}"
+        createhome: yes
+        groups: "{{ developers_group_name }}"
+        state: present
+    
+    - name: 创建系统管理员用户
+      ansible.builtin.user:
+        name: "{{ sysadmin_user_name }}"
+        comment: "系统管理员账号"
+        shell: /bin/bash
+        home: "/home/{{ sysadmin_user_name }}"
+        createhome: yes
+        groups: "{{ sysadmins_group_name }}"
+        state: present
+    
+    - name: 创建应用专用用户
+      ansible.builtin.user:
+        name: "{{ app_user_name }}"
+        comment: "应用服务账号"
+        shell: /sbin/nologin
+        home: /opt/app
+        createhome: yes
+        groups: "{{ app_group_name }}"
+        state: present
+    
+    # ========== 权限验证与显示 ==========
+    - name: 获取开发者组信息
+      ansible.builtin.getent:
+        database: group
+        key: "{{ developers_group_name }}"
+      register: dev_group_info
+    
+    - name: 显示开发者组详细信息
+      ansible.builtin.debug:
+        msg: |
+          开发者组信息：
+          组名: {{ dev_group_info.ansible_facts.getent_group[developers_group_name][0] }}
+          GID: {{ dev_group_info.ansible_facts.getent_group[developers_group_name][1] }}
+          成员: {{ dev_group_info.ansible_facts.getent_group[developers_group_name][2] }}
+      when: developers_group_name in dev_group_info.ansible_facts.getent_group
+    
+    # ========== 演示组权限隔离 ==========
+    - name: 创建不同权限级别的文件进行权限演示
+      ansible.builtin.file:
+        path: "/tmp/{{ item.name }}"
+        owner: "{{ item.owner }}"
+        group: "{{ item.group }}"
+        mode: "{{ item.mode }}"
+        state: touch
+      loop:
+        - { name: "dev_resource.txt", owner: "root", group: "{{ developers_group_name }}", mode: "0640" }
+        - { name: "sysadmin_resource.txt", owner: "root", group: "{{ sysadmins_group_name }}", mode: "0640" }
+        - { name: "app_resource.txt", owner: "{{ app_user_name }}", group: "{{ app_group_name }}", mode: "0640" }
+    
+    - name: 显示创建的权限隔离文件
+      ansible.builtin.shell: |
+        echo "=== 权限隔离文件演示 ==="
+        ls -l /tmp/dev_resource.txt /tmp/sysadmin_resource.txt /tmp/app_resource.txt
+      register: files_info
+      changed_when: false
+    
+    - name: 显示文件权限信息
+      ansible.builtin.debug:
+        msg: "{{ files_info.stdout_lines }}"
+    
+    # ========== 总结 ==========
+    - name: 组创建完成总结
+      ansible.builtin.debug:
+        msg: |
+          已完成以下组创建：
+          1. 开发者组: {{ developers_group_name }} (GID: {{ developers_group_gid }})
+          2. 系统管理员组: {{ sysadmins_group_name }} (GID: {{ sysadmins_group_gid }})
+          3. 数据库管理员组: {{ dbadmins_group_name }} (GID: {{ dbadmins_group_gid }})
+          4. 应用专用组: {{ app_group_name }} (GID: {{ app_group_gid }})
+          5. Docker 组: docker (GID: {{ docker_group_gid }})
+          6. 系统组: {{ system_service_group_name }} (系统级别)
+          
+          权限隔离演示：
+          - 开发者组成员可访问 dev_resource.txt
+          - 系统管理员组成员可访问 sysadmin_resource.txt
+          - 应用账号可访问 app_resource.txt
+          
+          下一步建议：
+          - 为各组成员配置对应的 sudo 权限
+          - 为应用专用组设置文件夹权限
