@@ -354,11 +354,16 @@ web:
 
 applications:
   title: 应用管理
-  description: "涵盖软件包管理、容器部署、源码管理等应用生命周期管理的核心场景，支持从传统软件包到现代容器化应用的全自动化部署"
+  description: "涵盖软件包管理、容器部署、源码管理、Kubernetes 编排等应用生命周期管理的核心场景，支持从传统软件包到现代云原生应用的全自动化部署"
   external_dependencies:
-    - "community.docker collection (docker_container 模块)"
+    - "community.docker collection (docker_container, docker_image 模块)"
+    - "kubernetes.core collection (k8s 模块)"
+    - "community.general collection (npm 模块)"
     - "Docker Engine (容器部署场景)"
+    - "Kubernetes 集群 (容器编排场景)"
     - "Git 客户端 (源码部署场景)"
+    - "Node.js 和 npm (前端应用场景)"
+    - "Python 和 pip (Python 应用场景)"
     - "包管理器：yum/dnf (RHEL系) 或 apt (Debian系)"
     - "系统管理员权限 (包管理操作)"
   topics:
@@ -371,6 +376,42 @@ applications:
         - "community.docker collection"
         - "Docker Engine 服务"
         - "容器镜像仓库访问权限"
+    - id: docker_image
+      name: Docker 镜像管理
+      doc: applications/docker_image/README.md
+      example: applications/docker_image/playbook.yml
+      summary: "Docker 镜像构建、推送和管理，支持 CI/CD 流水线和镜像仓库操作"
+      external_deps:
+        - "community.docker collection"
+        - "Docker Engine 服务"
+        - "镜像仓库访问权限"
+    - id: kubernetes
+      name: Kubernetes 资源管理
+      doc: applications/kubernetes/README.md
+      example: applications/kubernetes/playbook.yml
+      summary: "Kubernetes 资源部署和管理，支持 Deployment、Service、Ingress 等 K8s 对象"
+      external_deps:
+        - "kubernetes.core collection"
+        - "Kubernetes 集群访问权限"
+        - "kubectl 配置文件"
+    - id: pip
+      name: Python 包管理
+      doc: applications/pip/README.md
+      example: applications/pip/playbook.yml
+      summary: "Python 包和虚拟环境管理，支持 requirements.txt 和依赖包版本控制"
+      external_deps:
+        - "ansible.builtin.pip 模块（内置）"
+        - "Python 和 pip 环境"
+        - "PyPI 访问权限"
+    - id: npm
+      name: Node.js 包管理
+      doc: applications/npm/README.md
+      example: applications/npm/playbook.yml
+      summary: "Node.js 包和项目依赖管理，支持 package.json 和前端应用部署"
+      external_deps:
+        - "community.general collection"
+        - "Node.js 和 npm 环境"
+        - "npm 注册表访问权限"
     - id: git
       name: Git 仓库管理
       doc: applications/git/README.md
@@ -408,6 +449,54 @@ applications:
         - "软件源配置"
         - "GPG 密钥管理"
         - "系统管理员权限"
+
+version_control:
+  title: 版本控制
+  description: "涵盖 Git、Mercurial、GitHub、GitLab 等主流版本控制系统的自动化管理，支持仓库操作、发布流程、平台集成和团队协作等核心场景"
+  external_dependencies:
+    - "community.general collection (github_release, gitlab_project, hg 模块)"
+    - "Git 客户端"
+    - "Mercurial 客户端"
+    - "GitHub Personal Access Token"
+    - "GitLab Personal Access Token"
+    - "SSH 密钥认证"
+  topics:
+    - id: git_workflow
+      name: Git 工作流管理
+      doc: version_control/git_workflow/README.md
+      example: version_control/git_workflow/playbook.yml
+      summary: "Git 仓库克隆、分支管理、版本发布和持续部署工作流"
+      external_deps:
+        - "ansible.builtin.git 模块（内置）"
+        - "Git 客户端"
+        - "SSH 密钥或 HTTPS 认证"
+    - id: github_release
+      name: GitHub Release 管理
+      doc: version_control/github_release/README.md
+      example: version_control/github_release/playbook.yml
+      summary: "GitHub Release 创建、文件上传和版本发布自动化"
+      external_deps:
+        - "community.general collection"
+        - "GitHub Personal Access Token"
+        - "GitHub 仓库访问权限"
+    - id: gitlab_project
+      name: GitLab 项目管理
+      doc: version_control/gitlab_project/README.md
+      example: version_control/gitlab_project/playbook.yml
+      summary: "GitLab 项目创建、配置管理和团队协作自动化"
+      external_deps:
+        - "community.general collection"
+        - "GitLab Personal Access Token"
+        - "GitLab API 访问权限"
+    - id: hg
+      name: Mercurial 仓库管理
+      doc: version_control/hg/README.md
+      example: version_control/hg/playbook.yml
+      summary: "Mercurial 仓库操作、分支管理和版本控制工作流"
+      external_deps:
+        - "community.general collection"
+        - "Mercurial 客户端"
+        - "SSH 密钥或 HTTP 认证"
 
 database:
   title: 数据库管理

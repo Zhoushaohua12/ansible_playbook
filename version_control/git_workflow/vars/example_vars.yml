@@ -1,0 +1,125 @@
+# Git 工作流示例变量配置
+
+# Git 客户端配置
+install_git: true  # 是否安装 Git 客户端
+
+# 部署环境配置
+deploy_base_path: "/opt/apps"  # 部署基础路径
+deploy_user: "appuser"  # 部署用户
+deploy_group: "appgroup"  # 部署组
+create_deploy_dirs: true  # 是否创建部署目录
+
+# SSH 认证配置
+ssh_key_file: "/home/{{ deploy_user }}/.ssh/id_rsa"  # SSH 私钥文件路径
+accept_hostkey: true  # 是否接受主机密钥
+
+# 克隆配置
+clone_depth: 50  # 克隆深度（0 表示完整克隆）
+force_prod_deploy: true  # 是否强制生产环境部署
+force_staging_deploy: true  # 是否强制预发布环境部署
+force_dev_deploy: true  # 是否强制开发环境部署
+
+# 生产环境配置
+deploy_production: true  # 是否部署生产环境
+prod_app_repository: "git@github.com:company/production-app.git"  # 生产环境仓库
+prod_deploy_path: "{{ deploy_base_path }}/production"  # 生产环境部署路径
+prod_version: "v2.1.3"  # 生产环境版本
+
+# 预发布环境配置
+deploy_staging: true  # 是否部署预发布环境
+staging_app_repository: "git@github.com:company/staging-app.git"  # 预发布环境仓库
+staging_deploy_path: "{{ deploy_base_path }}/staging"  # 预发布环境部署路径
+staging_version: "develop"  # 预发布环境版本
+
+# 开发环境配置
+deploy_development: true  # 是否部署开发环境
+dev_app_repository: "git@github.com:company/development-app.git"  # 开发环境仓库
+dev_deploy_path: "{{ deploy_base_path }}/development"  # 开发环境部署路径
+dev_version: "feature/new-feature"  # 开发环境版本
+
+# 多环境部署配置
+deploy_multi_env: true  # 是否部署多环境
+multi_env_repository: "git@github.com:company/multi-env-app.git"  # 多环境仓库
+multi_env_deployments:
+  - env_name: "test"
+    branch: "test"
+    deploy_path: "{{ deploy_base_path }}/test"
+  - env_name: "qa"
+    branch: "qa"
+    deploy_path: "{{ deploy_base_path }}/qa"
+  - env_name: "hotfix"
+    branch: "hotfix/emergency-fix"
+    deploy_path: "{{ deploy_base_path }}/hotfix"
+
+# 子模块配置
+deploy_with_submodules: true  # 是否部署包含子模块的项目
+submodule_repository: "git@github.com:company/app-with-submodules.git"  # 包含子模块的仓库
+submodule_deploy_path: "{{ deploy_base_path }}/submodules"  # 子模块部署路径
+submodule_version: "v1.5.2"  # 子模块版本
+
+# 备份配置
+create_backup: true  # 是否创建版本备份
+backup_repository: "git@github.com:company/backup-repo.git"  # 备份仓库
+backup_path: "{{ deploy_base_path }}/backup"  # 备份路径
+backup_tag: "backup-{{ ansible_date_time.epoch }}"  # 备份标签
+
+# 部署路径列表（用于权限设置等操作）
+deployment_paths:
+  - "{{ prod_deploy_path }}"
+  - "{{ staging_deploy_path }}"
+  - "{{ dev_deploy_path }}"
+
+# 验证配置
+verify_deployments: true  # 是否验证部署版本
+get_remote_info: true  # 是否获取远程仓库信息
+get_branch_info: true  # 是否获取分支信息
+get_tag_info: true  # 是否获取标签信息
+
+# 权限和文件配置
+set_permissions: true  # 是否设置目录权限
+create_deployment_info: true  # 是否创建部署信息文件
+
+# 显示配置
+show_results: true  # 是否显示操作结果摘要
+
+# 回滚配置
+rollback_version: "v2.1.2"  # 回滚目标版本
+
+# 应用信息
+app_name: "Web Application"
+app_description: "基于 Git 工作流的 Web 应用部署"
+app_owner: "DevOps Team"
+
+# 部署环境信息
+environments:
+  production:
+    name: "生产环境"
+    branch: "main"
+    auto_deploy: false
+    require_approval: true
+  staging:
+    name: "预发布环境"
+    branch: "develop"
+    auto_deploy: true
+    require_approval: false
+  development:
+    name: "开发环境"
+    branch: "feature/*"
+    auto_deploy: true
+    require_approval: false
+
+# Git 配置
+git_config:
+  user.name: "Deployment Bot"
+  user.email: "deployment@company.com"
+  core.autocrlf: false
+  pull.rebase: true
+
+# 重要：这些变量仅用于演示，生产环境请使用 Ansible Vault 或外部配置管理
+# ⚠️ 警告：SSH 私钥需要安全存储，建议使用 Ansible Vault 加密
+# 🔒 安全提示：使用最小权限原则配置仓库访问权限
+# 📝 注意：仓库 URL 和版本需要根据实际项目调整
+# 🚀 性能优化：根据网络环境调整克隆深度和并发数
+# 🔍 监控建议：监控部署操作的成功率和耗时
+# 🛡️ 安全加固：定期轮换 SSH 密钥和访问令牌
+# 📊 容量规划：监控部署目录的磁盘空间使用情况

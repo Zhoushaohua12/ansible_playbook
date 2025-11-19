@@ -1,0 +1,336 @@
+---
+- name: Mercurial (Hg) 仓库管理示例演示
+  hosts: all
+  become: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    - name: 确保 Mercurial 客户端已安装
+      ansible.builtin.package:
+        name: mercurial
+        state: present
+      when: install_mercurial | bool
+
+    - name: 创建应用部署目录
+      ansible.builtin.file:
+        path: "{{ deploy_base_path }}"
+        state: directory
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+        mode: '0755'
+      when: create_deploy_dirs | bool
+
+    - name: 克隆生产环境应用代码
+      community.general.hg:
+        repo: "{{ prod_app_repository }}"
+        dest: "{{ prod_deploy_path }}"
+        revision: "{{ prod_revision }}"
+        force: "{{ force_prod_deploy }}"
+        purge: "{{ purge_prod_deploy }}"
+        update: true
+        ssh_key_file: "{{ ssh_key_file }}"
+      when: deploy_production | bool
+      register: prod_clone_result
+      become_user: "{{ deploy_user }}"
+
+    - name: 克隆预发布环境应用代码
+      community.general.hg:
+        repo: "{{ staging_app_repository }}"
+        dest: "{{ staging_deploy_path }}"
+        revision: "{{ staging_revision }}"
+        force: "{{ force_staging_deploy }}"
+        purge: "{{ purge_staging_deploy }}"
+        update: true
+        ssh_key_file: "{{ ssh_key_file }}"
+      when: deploy_staging | bool
+      register: staging_clone_result
+      become_user: "{{ deploy_user }}"
+
+    - name: 克隆开发环境应用代码
+      community.general.hg:
+        repo: "{{ dev_app_repository }}"
+        dest: "{{ dev_deploy_path }}"
+        revision: "{{ dev_revision }}"
+        force: "{{ force_dev_deploy }}"
+        purge: "{{ purge_dev_deploy }}"
+        update: true
+        ssh_key_file: "{{ ssh_key_file }}"
+      when: deploy_development | bool
+      register: dev_clone_result
+      become_user: "{{ deploy_user }}"
+
+    - name: 部署多环境分支策略
+      community.general.hg:
+        repo: "{{ multi_env_repository }}"
+        dest: "{{ item.deploy_path }}"
+        revision: "{{ item.branch }}"
+        force: true
+        purge: true
+        update: true
+        ssh_key_file: "{{ ssh_key_file }}"
+      loop: "{{ multi_env_deployments }}"
+      when: deploy_multi_env | bool
+      loop_control:
+        label: "{{ item.env_name }}"
+      register: multi_env_results
+      become_user: "{{ deploy_user }}"
+
+    - name: 使用 HTTP 认证克隆私有仓库
+      community.general.hg:
+        repo: "{{ http_auth_repository }}"
+        dest: "{{ http_auth_deploy_path }}"
+        revision: "{{ http_auth_revision }}"
+        force: "{{ force_http_auth_deploy }}"
+        purge: true
+        update: true
+        username: "{{ hg_username }}"
+        password: "{{ hg_password }}"
+      when: deploy_http_auth | bool
+      register: http_auth_result
+      become_user: "{{ deploy_user }}"
+      no_log: true
+
+    - name: 部署标签版本
+      community.general.hg:
+        repo: "{{ tag_repository }}"
+        dest: "{{ tag_deploy_path }}"
+        revision: "{{ tag_revision }}"
+        force: "{{ force_tag_deploy }}"
+        purge: true
+        update: true
+        ssh_key_file: "{{ ssh_key_file }}"
+      when: deploy_tag_version | bool
+      register: tag_result
+      become_user: "{{ deploy_user }}"
+
+    - name: 创建版本标签备份
+      community.general.hg:
+        repo: "{{ backup_repository }}"
+        dest: "{{ backup_path }}"
+        revision: "{{ backup_revision }}"
+        force: "{{ force_backup_deploy }}"
+        purge: true
+        update: true
+        ssh_key_file: "{{ ssh_key_file }}"
+      when: create_backup | bool
+      register: backup_result
+      become_user: "{{ deploy_user }}"
+
+    - name: 验证生产部署版本
+      ansible.builtin.command: hg id --id
+      args:
+        chdir: "{{ prod_deploy_path }}"
+      register: prod_changeset_id
+      when: 
+        - deploy_production | bool
+        - verify_deployments | bool
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+
+    - name: 验证预发布部署版本
+      ansible.builtin.command: hg id --id
+      args:
+        chdir: "{{ staging_deploy_path }}"
+      register: staging_changeset_id
+      when: 
+        - deploy_staging | bool
+        - verify_deployments | bool
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+
+    - name: 验证开发部署版本
+      ansible.builtin.command: hg id --id
+      args:
+        chdir: "{{ dev_deploy_path }}"
+      register: dev_changeset_id
+      when: 
+        - deploy_development | bool
+        - verify_deployments | bool
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+
+    - name: 获取仓库分支信息
+      ansible.builtin.command: hg branches
+      args:
+        chdir: "{{ item }}"
+      loop: "{{ deployment_paths }}"
+      when: get_branch_info | bool
+      register: branch_info
+      become_user: "{{ deploy_user }}"
+      loop_control:
+        label: "{{ item | basename }}"
+      changed_when: false
+
+    - name: 获取标签信息
+      ansible.builtin.command: hg tags
+      args:
+        chdir: "{{ item }}"
+      loop: "{{ deployment_paths }}"
+      when: get_tag_info | bool
+      register: tag_info
+      become_user: "{{ deploy_user }}"
+      loop_control:
+        label: "{{ item | basename }}"
+      changed_when: false
+
+    - name: 获取仓库路径信息
+      ansible.builtin.command: hg paths
+      args:
+        chdir: "{{ item }}"
+      loop: "{{ deployment_paths }}"
+      when: get_paths_info | bool
+      register: paths_info
+      become_user: "{{ deploy_user }}"
+      loop_control:
+        label: "{{ item | basename }}"
+      changed_when: false
+
+    - name: 获取仓库摘要信息
+      ansible.builtin.command: hg summary
+      args:
+        chdir: "{{ item }}"
+      loop: "{{ deployment_paths }}"
+      when: get_summary_info | bool
+      register: summary_info
+      become_user: "{{ deploy_user }}"
+      loop_control:
+        label: "{{ item | basename }}"
+      changed_when: false
+
+    - name: 显示 Mercurial 仓库管理操作结果
+      ansible.builtin.debug:
+        msg: |
+          Mercurial 仓库管理操作结果摘要:
+          - 生产环境部署: {{ '成功' if prod_clone_result.changed else '无变更' }}
+          - 预发布环境部署: {{ '成功' if staging_clone_result.changed else '无变更' }}
+          - 开发环境部署: {{ '成功' if dev_clone_result.changed else '无变更' }}
+          - 多环境部署: {{ '成功' if (multi_env_results.results | selectattr('changed') | list | count > 0) else '无变更' }}
+          - HTTP 认证部署: {{ '成功' if http_auth_result.changed else '无变更' }}
+          - 标签版本部署: {{ '成功' if tag_result.changed else '无变更' }}
+          - 版本备份: {{ '成功' if backup_result.changed else '无变更' }}
+      when: show_results | bool
+
+    - name: 显示部署版本信息
+      ansible.builtin.debug:
+        msg: |
+          部署版本信息:
+          - 生产环境 Changeset ID: {{ prod_changeset_id.stdout if prod_changeset_id.stdout is defined else '未部署' }}
+          - 预发布环境 Changeset ID: {{ staging_changeset_id.stdout if staging_changeset_id.stdout is defined else '未部署' }}
+          - 开发环境 Changeset ID: {{ dev_changeset_id.stdout if dev_changeset_id.stdout is defined else '未部署' }}
+      when: 
+        - show_results | bool
+        - verify_deployments | bool
+
+    - name: 显示分支信息
+      ansible.builtin.debug:
+        msg: |
+          {{ item.item }} 分支信息:
+          {{ item.stdout }}
+      loop: "{{ branch_info.results }}"
+      when: 
+        - get_branch_info | bool
+        - branch_info.results is defined
+      loop_control:
+        label: "{{ item.item | basename }}"
+
+    - name: 显示标签信息
+      ansible.builtin.debug:
+        msg: |
+          {{ item.item }} 标签信息:
+          {{ item.stdout }}
+      loop: "{{ tag_info.results }}"
+      when: 
+        - get_tag_info | bool
+        - tag_info.results is defined
+      loop_control:
+        label: "{{ item.item | basename }}"
+
+    - name: 显示仓库路径信息
+      ansible.builtin.debug:
+        msg: |
+          {{ item.item }} 仓库路径信息:
+          {{ item.stdout }}
+      loop: "{{ paths_info.results }}"
+      when: 
+        - get_paths_info | bool
+        - paths_info.results is defined
+      loop_control:
+        label: "{{ item.item | basename }}"
+
+    - name: 显示仓库摘要信息
+      ansible.builtin.debug:
+        msg: |
+          {{ item.item }} 仓库摘要:
+          {{ item.stdout }}
+      loop: "{{ summary_info.results }}"
+      when: 
+        - get_summary_info | bool
+        - summary_info.results is defined
+      loop_control:
+        label: "{{ item.item | basename }}"
+
+    - name: 设置部署目录权限
+      ansible.builtin.file:
+        path: "{{ item }}"
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+        mode: '0755'
+        recurse: true
+      loop: "{{ deployment_paths }}"
+      when: set_permissions | bool
+      loop_control:
+        label: "{{ item | basename }}"
+
+    - name: 创建部署信息文件
+      ansible.builtin.template:
+        src: hg_deployment_info.j2
+        dest: "{{ item }}/hg_deployment_info.txt"
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+        mode: '0644'
+      loop: "{{ deployment_paths }}"
+      when: create_deployment_info | bool
+      loop_control:
+        label: "{{ item | basename }}"
+      vars:
+        env_name: "{{ item | basename | regex_replace('.*/', '') }}"
+        changeset_id: "{{ lookup('pipe', 'hg -R ' + item + ' id --id') }}"
+        deploy_time: "{{ ansible_date_time.iso8601 }}"
+
+    - name: 配置 Mercurial 用户信息
+      ansible.builtin.lineinfile:
+        path: "{{ item }}/.hg/hgrc"
+        line: "{{ item_line }}"
+        create: true
+        mode: '0644'
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+      loop: "{{ deployment_paths }}"
+      when: configure_hg_user | bool
+      loop_control:
+        label: "{{ item | basename }}"
+      vars:
+        item_line: |
+          [ui]
+          username = {{ hg_user_name }} <{{ hg_user_email }}>
+
+  handlers:
+    - name: 清理部署目录
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ deployment_paths }}"
+      listen: cleanup deployments
+
+    - name: 重置生产环境到指定版本
+      community.general.hg:
+        repo: "{{ prod_app_repository }}"
+        dest: "{{ prod_deploy_path }}"
+        revision: "{{ rollback_changeset }}"
+        force: true
+        purge: true
+        update: true
+        ssh_key_file: "{{ ssh_key_file }}"
+      listen: rollback production
+      become_user: "{{ deploy_user }}"

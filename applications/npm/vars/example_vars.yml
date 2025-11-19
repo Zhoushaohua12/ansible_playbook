@@ -1,0 +1,99 @@
+# Node.js 包管理示例变量配置
+
+# 系统配置
+install_system_nodejs: true  # 是否安装系统级 Node.js 和 npm
+
+# 全局 CLI 工具
+global_cli_tools:
+  - "pm2@5.3.0"
+  - "nodemon@3.0.1"
+  - "typescript@5.2.2"
+  - "@vue/cli@5.0.8"
+  - "create-react-app@5.0.1"
+install_global_tools: true  # 是否安装全局工具
+
+# 应用路径配置
+app_path: "/opt/nodejs-app"  # Node.js 应用路径
+app_user: "nodeuser"  # 应用运行用户
+app_group: "nodegroup"  # 应用运行组
+create_app_dir: true  # 是否创建应用目录
+
+# package.json 配置
+create_package_json: true  # 是否创建 package.json 文件
+package_json_exists: true  # package.json 是否存在（用于条件判断）
+
+# 核心依赖包
+core_dependencies:
+  - "express@4.18.2"
+  - "cors@2.8.5"
+  - "helmet@7.0.0"
+  - "morgan@1.10.0"
+  - "dotenv@16.3.1"
+  - "bcryptjs@2.4.3"
+  - "jsonwebtoken@9.0.2"
+install_core_deps: true  # 是否安装核心依赖
+
+# 开发依赖包
+development_dependencies:
+  - "nodemon@3.0.1"
+  - "jest@29.7.0"
+  - "eslint@8.50.0"
+  - "prettier@3.0.3"
+  - "supertest@6.3.3"
+  - "@types/node@20.6.3"
+install_dev_deps: true  # 是否安装开发依赖
+
+# npm 注册表配置
+npm_registry: "https://registry.npmjs.org/"  # npm 注册表地址
+install_from_package: true  # 是否从 package.json 安装
+install_production_only: false  # 是否只安装生产依赖
+
+# Git 仓库包
+git_packages:
+  - "git+https://github.com/user/custom-lib.git#v2.1.0"
+  - "git+https://github.com/another-org/utils.git#main"
+install_git_packages: false  # 是否安装 Git 仓库包
+
+# 安全相关包（需要保持最新）
+security_packages:
+  - "lodash"
+  - "request"
+  - "moment"
+  - "axios"
+upgrade_security_packages: true  # 是否升级安全包
+
+# 清理包列表
+cleanup_packages:
+  - "debug"
+  - "chalk"
+  - "ora"
+cleanup_dev_packages: false  # 是否清理开发包
+
+# 安全审计配置
+run_npm_audit: true  # 是否运行 npm audit
+run_npm_audit_fix: true  # 是否自动修复安全漏洞
+
+# 应用构建配置
+build_app: true  # 是否构建应用
+create_start_script: true  # 是否创建启动脚本
+set_permissions: true  # 是否设置目录权限
+
+# 服务配置
+app_service_name: "nodejs-app"  # systemd 服务名称
+
+# 显示配置
+show_results: true  # 是否显示操作结果摘要
+verify_installation: true  # 是否验证安装结果
+
+# 应用信息
+app_name: "Node.js Web Application"
+app_version: "1.0.0"
+app_description: "基于 Express 的 Web 应用"
+app_author: "DevOps Team"
+
+# 重要：这些变量仅用于演示，生产环境请使用 Ansible Vault 或外部配置管理
+# ⚠️ 警告：包版本需要根据实际需求调整，建议固定版本号
+# 🔒 安全提示：使用可信的 npm 注册表，避免安装恶意包
+# 📝 注意：应用路径需要根据实际部署环境调整
+# 🚀 性能优化：使用企业内部 npm 镜像可以加速包下载
+# 🔍 安全审计：建议定期运行 npm audit 检查安全漏洞

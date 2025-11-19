@@ -1,0 +1,275 @@
+---
+- name: Git 工作流管理示例演示
+  hosts: all
+  become: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    - name: 确保 Git 客户端已安装
+      ansible.builtin.package:
+        name: git
+        state: present
+      when: install_git | bool
+
+    - name: 创建应用部署目录
+      ansible.builtin.file:
+        path: "{{ deploy_base_path }}"
+        state: directory
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+        mode: '0755'
+      when: create_deploy_dirs | bool
+
+    - name: 克隆生产环境应用代码
+      ansible.builtin.git:
+        repo: "{{ prod_app_repository }}"
+        dest: "{{ prod_deploy_path }}"
+        version: "{{ prod_version }}"
+        accept_hostkey: true
+        force: "{{ force_prod_deploy }}"
+        depth: "{{ clone_depth }}"
+        key_file: "{{ ssh_key_file }}"
+      when: deploy_production | bool
+      register: prod_clone_result
+      become_user: "{{ deploy_user }}"
+
+    - name: 克隆预发布环境应用代码
+      ansible.builtin.git:
+        repo: "{{ staging_app_repository }}"
+        dest: "{{ staging_deploy_path }}"
+        version: "{{ staging_version }}"
+        accept_hostkey: true
+        force: "{{ force_staging_deploy }}"
+        depth: "{{ clone_depth }}"
+        key_file: "{{ ssh_key_file }}"
+      when: deploy_staging | bool
+      register: staging_clone_result
+      become_user: "{{ deploy_user }}"
+
+    - name: 克隆开发环境应用代码
+      ansible.builtin.git:
+        repo: "{{ dev_app_repository }}"
+        dest: "{{ dev_deploy_path }}"
+        version: "{{ dev_version }}"
+        accept_hostkey: true
+        force: "{{ force_dev_deploy }}"
+        depth: 1
+        key_file: "{{ ssh_key_file }}"
+      when: deploy_development | bool
+      register: dev_clone_result
+      become_user: "{{ deploy_user }}"
+
+    - name: 部署多环境分支策略
+      ansible.builtin.git:
+        repo: "{{ multi_env_repository }}"
+        dest: "{{ item.deploy_path }}"
+        version: "{{ item.branch }}"
+        accept_hostkey: true
+        force: true
+        key_file: "{{ ssh_key_file }}"
+      loop: "{{ multi_env_deployments }}"
+      when: deploy_multi_env | bool
+      loop_control:
+        label: "{{ item.env_name }}"
+      register: multi_env_results
+      become_user: "{{ deploy_user }}"
+
+    - name: 克隆包含子模块的项目
+      ansible.builtin.git:
+        repo: "{{ submodule_repository }}"
+        dest: "{{ submodule_deploy_path }}"
+        version: "{{ submodule_version }}"
+        accept_hostkey: true
+        recursive: true
+        update: true
+        key_file: "{{ ssh_key_file }}"
+      when: deploy_with_submodules | bool
+      register: submodule_result
+      become_user: "{{ deploy_user }}"
+
+    - name: 创建版本标签备份
+      ansible.builtin.git:
+        repo: "{{ backup_repository }}"
+        dest: "{{ backup_path }}"
+        version: "{{ backup_tag }}"
+        accept_hostkey: true
+        force: true
+        key_file: "{{ ssh_key_file }}"
+      when: create_backup | bool
+      register: backup_result
+      become_user: "{{ deploy_user }}"
+
+    - name: 验证生产部署版本
+      ansible.builtin.command: git rev-parse HEAD
+      args:
+        chdir: "{{ prod_deploy_path }}"
+      register: prod_commit_hash
+      when: 
+        - deploy_production | bool
+        - verify_deployments | bool
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+
+    - name: 验证预发布部署版本
+      ansible.builtin.command: git rev-parse HEAD
+      args:
+        chdir: "{{ staging_deploy_path }}"
+      register: staging_commit_hash
+      when: 
+        - deploy_staging | bool
+        - verify_deployments | bool
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+
+    - name: 验证开发部署版本
+      ansible.builtin.command: git rev-parse HEAD
+      args:
+        chdir: "{{ dev_deploy_path }}"
+      register: dev_commit_hash
+      when: 
+        - deploy_development | bool
+        - verify_deployments | bool
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+
+    - name: 获取仓库远程信息
+      ansible.builtin.command: git remote -v
+      args:
+        chdir: "{{ item }}"
+      loop: "{{ deployment_paths }}"
+      when: get_remote_info | bool
+      register: remote_info
+      become_user: "{{ deploy_user }}"
+      loop_control:
+        label: "{{ item | basename }}"
+      changed_when: false
+
+    - name: 获取分支信息
+      ansible.builtin.command: git branch -a
+      args:
+        chdir: "{{ item }}"
+      loop: "{{ deployment_paths }}"
+      when: get_branch_info | bool
+      register: branch_info
+      become_user: "{{ deploy_user }}"
+      loop_control:
+        label: "{{ item | basename }}"
+      changed_when: false
+
+    - name: 获取标签信息
+      ansible.builtin.command: git tag -l
+      args:
+        chdir: "{{ item }}"
+      loop: "{{ deployment_paths }}"
+      when: get_tag_info | bool
+      register: tag_info
+      become_user: "{{ deploy_user }}"
+      loop_control:
+        label: "{{ item | basename }}"
+      changed_when: false
+
+    - name: 显示 Git 工作流操作结果
+      ansible.builtin.debug:
+        msg: |
+          Git 工作流操作结果摘要:
+          - 生产环境部署: {{ '成功' if prod_clone_result.changed else '无变更' }}
+          - 预发布环境部署: {{ '成功' if staging_clone_result.changed else '无变更' }}
+          - 开发环境部署: {{ '成功' if dev_clone_result.changed else '无变更' }}
+          - 多环境部署: {{ '成功' if multi_env_results.results | selectattr('changed') | list | count > 0 else '无变更' }}
+          - 子模块部署: {{ '成功' if submodule_result.changed else '无变更' }}
+          - 版本备份: {{ '成功' if backup_result.changed else '无变更' }}
+      when: show_results | bool
+
+    - name: 显示部署版本信息
+      ansible.builtin.debug:
+        msg: |
+          部署版本信息:
+          - 生产环境版本: {{ prod_commit_hash.stdout if prod_commit_hash.stdout is defined else '未部署' }}
+          - 预发布环境版本: {{ staging_commit_hash.stdout if staging_commit_hash.stdout is defined else '未部署' }}
+          - 开发环境版本: {{ dev_commit_hash.stdout if dev_commit_hash.stdout is defined else '未部署' }}
+      when: 
+        - show_results | bool
+        - verify_deployments | bool
+
+    - name: 显示仓库远程信息
+      ansible.builtin.debug:
+        msg: |
+          {{ item.item }} 远程仓库信息:
+          {{ item.stdout }}
+      loop: "{{ remote_info.results }}"
+      when: 
+        - get_remote_info | bool
+        - remote_info.results is defined
+      loop_control:
+        label: "{{ item.item | basename }}"
+
+    - name: 显示分支信息
+      ansible.builtin.debug:
+        msg: |
+          {{ item.item }} 分支信息:
+          {{ item.stdout }}
+      loop: "{{ branch_info.results }}"
+      when: 
+        - get_branch_info | bool
+        - branch_info.results is defined
+      loop_control:
+        label: "{{ item.item | basename }}"
+
+    - name: 显示标签信息
+      ansible.builtin.debug:
+        msg: |
+          {{ item.item }} 标签信息:
+          {{ item.stdout }}
+      loop: "{{ tag_info.results }}"
+      when: 
+        - get_tag_info | bool
+        - tag_info.results is defined
+      loop_control:
+        label: "{{ item.item | basename }}"
+
+    - name: 设置部署目录权限
+      ansible.builtin.file:
+        path: "{{ item }}"
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+        mode: '0755'
+        recurse: true
+      loop: "{{ deployment_paths }}"
+      when: set_permissions | bool
+      loop_control:
+        label: "{{ item | basename }}"
+
+    - name: 创建部署信息文件
+      ansible.builtin.template:
+        src: deployment_info.j2
+        dest: "{{ item }}/deployment_info.txt"
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+        mode: '0644'
+      loop: "{{ deployment_paths }}"
+      when: create_deployment_info | bool
+      loop_control:
+        label: "{{ item | basename }}"
+      vars:
+        env_name: "{{ item | basename | regex_replace('.*/', '') }}"
+        commit_hash: "{{ lookup('pipe', 'git -C ' + item + ' rev-parse HEAD') }}"
+        deploy_time: "{{ ansible_date_time.iso8601 }}"
+
+  handlers:
+    - name: 清理部署目录
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ deployment_paths }}"
+      listen: cleanup deployments
+
+    - name: 重置生产环境到指定版本
+      ansible.builtin.git:
+        repo: "{{ prod_app_repository }}"
+        dest: "{{ prod_deploy_path }}"
+        version: "{{ rollback_version }}"
+        force: true
+        key_file: "{{ ssh_key_file }}"
+      listen: rollback production
+      become_user: "{{ deploy_user }}"
