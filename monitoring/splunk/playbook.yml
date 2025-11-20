@@ -5,6 +5,7 @@
 - name: 配置 Splunk 日志转发
   hosts: localhost
   gather_facts: false
+  become: true
   vars_files:
     - vars/example_vars.yml
   

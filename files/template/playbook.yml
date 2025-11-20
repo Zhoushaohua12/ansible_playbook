@@ -1,6 +1,7 @@
 ---
 - name: template 模块动态配置渲染演示
   hosts: all
+  gather_facts: false
   become: false
   vars_files:
     - vars/example_vars.yml
@@ -63,3 +64,8 @@
           - "app.conf 路径: {{ template_dest_dir }}/app.conf"
           - "文件大小: {{ template_stat_result.stat.size }} 字节"
           - "最后修改: {{ template_stat_result.stat.mtime | int | to_datetime }}"
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true

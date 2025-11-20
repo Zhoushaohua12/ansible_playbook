@@ -208,3 +208,8 @@
           - 建立定期密钥轮换和审计流程
           - 配置 SSH 服务的安全策略
           - 设置监控告警跟踪异常登录尝试
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true

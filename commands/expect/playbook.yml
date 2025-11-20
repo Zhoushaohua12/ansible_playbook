@@ -2,6 +2,7 @@
 - name: expect 模块自动化交互示例
   hosts: all
   gather_facts: false
+  become: true
   vars_files:
     - vars/example_vars.yml
 
@@ -53,3 +54,8 @@
         path: "{{ expect_temp_script }}"
         state: absent
       when: expect_auto_cleanup
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true

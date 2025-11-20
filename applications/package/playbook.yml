@@ -1,6 +1,7 @@
 ---
 - name: 跨平台软件包管理示例演示
   hosts: all
+  gather_facts: false
   become: true
   vars_files:
     - vars/example_vars.yml
@@ -11,31 +12,31 @@
         update_cache: true
         cache_valid_time: "{{ cache_valid_time }}"
       when: ansible_os_family == "Debian"
-      notify: 
-        - cache updated
+      notify:
+        - 包缓存已刷新
 
     - name: 安装基础系统工具（跨平台）
       ansible.builtin.package:
         name: "{{ base_tools[ansible_os_family] }}"
         state: present
-      notify: 
-        - base tools installed
+      notify:
+        - 基础工具已安装
 
     - name: 安装 Web 服务器软件
       ansible.builtin.package:
         name: "{{ web_server_packages[ansible_os_family] }}"
         state: "{{ web_server_state }}"
       register: web_server_install
-      notify: 
-        - web server installed
+      notify:
+        - Web 服务需重启
 
     - name: 安装数据库服务包
       ansible.builtin.package:
         name: "{{ database_packages[ansible_os_family] }}"
         state: present
       when: install_database | bool
-      notify: 
-        - database installed
+      notify:
+        - 数据库服务需重启
 
     - name: 安装开发工具链
       ansible.builtin.package:
@@ -150,18 +151,23 @@
         mode: '0644'
       when: generate_report | bool
 
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true
   handlers:
-    - name: cache updated
+    - name: 包缓存已刷新
       ansible.builtin.debug:
         msg: "包缓存已更新"
-      listen: cache updated
+      listen: 包缓存已刷新
 
-    - name: base tools installed
+    - name: 基础工具已安装
       ansible.builtin.debug:
         msg: "基础工具安装完成"
-      listen: base tools installed
+      listen: 基础工具已安装
 
-    - name: web server installed
+    - name: Web 服务需重启
       ansible.builtin.service:
         name: "{{ web_server_service[ansible_os_family] }}"
         state: started
@@ -169,9 +175,9 @@
       when: 
         - web_server_install.changed | default(false)
         - manage_web_service | bool
-      listen: web server installed
+      listen: Web 服务需重启
 
-    - name: database installed
+    - name: 数据库服务需重启
       ansible.builtin.service:
         name: "{{ database_service[ansible_os_family] }}"
         state: started
@@ -179,4 +185,4 @@
       when: 
         - install_database | bool
         - manage_database_service | bool
-      listen: database installed
+      listen: 数据库服务需重启

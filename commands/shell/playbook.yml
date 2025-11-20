@@ -1,6 +1,7 @@
 ---
 - name: shell 模块使用示例演示
   hosts: all
+  gather_facts: false
   become: false
   vars_files:
     - vars/example_vars.yml
@@ -93,3 +94,8 @@
         removes: "{{ shell_output_file }}"  # 仅当文件存在时执行
         warn: false
       changed_when: true
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true

@@ -2,6 +2,7 @@
 - name: user 模块使用示例演示
   hosts: localhost
   gather_facts: false
+  become: true
   vars_files:
     - vars/example_vars.yml
   
@@ -137,3 +138,8 @@
           - 为 {{ deploy_user_name }} 配置 SSH 密钥
           - 配置 sudoers 为部署用户授权
           - 为应用账号绑定文件权限与进程
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true

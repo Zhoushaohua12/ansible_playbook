@@ -2,6 +2,7 @@
 - name: nmcli 模块使用示例演示
   hosts: localhost
   gather_facts: false
+  become: true
   vars_files:
     - vars/example_vars.yml
   
@@ -427,3 +428,8 @@
           - 建立网络故障的应急响应机制
           - 定期进行网络配置的备份和测试
           - 建立网络配置的文档和标准流程
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true

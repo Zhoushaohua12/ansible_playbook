@@ -1,6 +1,7 @@
 ---
 - name: Git 仓库管理和源码部署示例
   hosts: all
+  gather_facts: false
   become: true
   vars_files:
     - vars/example_vars.yml
@@ -25,7 +26,7 @@
       register: main_app_clone
       when: deploy_main_app | bool
       notify: 
-        - handle main app update
+        - 应用代码已更新
 
     - name: 克隆配置仓库（环境配置）
       ansible.builtin.git:
@@ -100,7 +101,7 @@
         - main_app_clone.changed | default(false)
         - build_application | bool
       notify: 
-        - restart app service
+        - 应用服务需重启
 
     - name: 复制配置文件到应用目录
       ansible.builtin.copy:
@@ -169,23 +170,28 @@
           - 生产应用: {{ production_deploy.changed | default(false) }} ({{ production_deploy.after | default('N/A') }})
           - 复杂应用: {{ complex_app_clone.changed | default(false) }} ({{ complex_app_clone.after | default('N/A') }})
 
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true
   handlers:
-    - name: handle main app update
+    - name: 应用代码已更新
       ansible.builtin.debug:
         msg: "主应用代码已更新，触发后续处理流程"
-      listen: handle main app update
+      listen: 应用代码已更新
 
-    - name: restart app service
+    - name: 应用服务需重启
       ansible.builtin.service:
         name: "{{ app_service_name }}"
         state: restarted
         enabled: true
-      listen: restart app service
+      listen: 应用服务需重启
       when: manage_app_service | bool
 
-    - name: reload web server
+    - name: Web 服务需重载
       ansible.builtin.service:
         name: "{{ web_server_name }}"
         state: reloaded
-      listen: reload web server
+      listen: Web 服务需重载
       when: manage_web_server | bool

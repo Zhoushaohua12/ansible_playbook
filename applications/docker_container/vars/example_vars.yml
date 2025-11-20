@@ -1,3 +1,5 @@
+# ⚠️ 本文件仅为示例，占位符必须使用 Ansible Vault 或环境变量替换
+
 # Docker 容器管理示例变量配置
 
 # Docker 服务管理
@@ -30,7 +32,7 @@ redis_host_port: 6379
 redis_restart_policy: "unless-stopped"
 redis_memory_limit: "128m"
 redis_user: "redis"
-redis_password: "SecureRedisPassword123"  # 生产环境请使用 Ansible Vault
+redis_password: '{{ vault_redis_password }}'  # 使用 Vault 存储 Redis 密码
 
 # Redis 路径配置
 redis_data_path: "/opt/redis/data"
@@ -48,8 +50,8 @@ app_cpu_limit: "0.5"
 
 # 应用环境配置
 app_environment: "production"
-app_database_url: "postgresql://user:pass@db.example.com:5432/myapp"
-app_secret_key: "SuperSecretKeyForApp12345"  # 生产环境请使用 Ansible Vault
+app_database_url: '{{ vault_app_database_url }}'
+app_secret_key: '{{ vault_app_secret_key }}'  # 使用 Vault 存储应用密钥
 app_debug_mode: "false"
 
 # 应用路径配置

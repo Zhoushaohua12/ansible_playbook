@@ -5,6 +5,7 @@
 - name: 配置 Zabbix 企业级监控
   hosts: all
   gather_facts: yes
+  become: true
   vars_files:
     - vars/production_vars.yml  # 生产环境变量（包含敏感信息）
   

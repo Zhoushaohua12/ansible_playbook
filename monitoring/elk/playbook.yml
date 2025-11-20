@@ -5,6 +5,7 @@
 - name: 配置 ELK Stack 日志聚合
   hosts: localhost
   gather_facts: false
+  become: true
   vars_files:
     - vars/example_vars.yml
   

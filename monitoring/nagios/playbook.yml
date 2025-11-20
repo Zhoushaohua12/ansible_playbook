@@ -5,6 +5,7 @@
 - name: 配置 Nagios 监控
   hosts: monitoring_servers
   gather_facts: yes
+  become: true
   vars_files:
     - vars/production_vars.yml  # 生产环境变量（包含敏感信息）
   

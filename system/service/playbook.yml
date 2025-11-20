@@ -2,6 +2,7 @@
 - name: service 模块使用示例演示
   hosts: localhost
   gather_facts: false
+  become: true
   vars_files:
     - vars/example_vars.yml
   
@@ -123,6 +124,11 @@
                 line: 'worker_processes auto;'
               notify: "重载 Nginx"
           
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true
           handlers:
             - name: 重载 Nginx
               ansible.builtin.service:

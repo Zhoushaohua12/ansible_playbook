@@ -1,6 +1,7 @@
 ---
 - name: YUM 软件包管理示例演示（Red Hat 系列系统）
   hosts: all
+  gather_facts: false
   become: true
   vars_files:
     - vars/example_vars.yml
@@ -20,16 +21,16 @@
         update_cache: true
         update_cache_retries: "{{ yum_cache_retries }}"
         update_cache_retry_max_delay: "{{ yum_cache_retry_delay }}"
-      notify: 
-        - yum cache updated
+      notify:
+        - YUM 缓存已刷新
 
     - name: 安装基础系统工具包
       ansible.builtin.yum:
         name: "{{ base_system_packages }}"
         state: present
       register: base_tools_install
-      notify: 
-        - base tools installed
+      notify:
+        - 基础工具已安装
 
     - name: 安装 EPEL 仓库（扩展包源）
       ansible.builtin.yum:
@@ -44,8 +45,8 @@
         state: "{{ web_server_state }}"
         enablerepo: "{{ web_server_repos }}"
       register: web_server_install
-      notify: 
-        - web server installed
+      notify:
+        - Web 服务需重启
 
     - name: 安装数据库服务软件
       ansible.builtin.yum:
@@ -54,8 +55,8 @@
         exclude: "{{ database_exclude_packages }}"
       when: install_database | bool
       register: database_install
-      notify: 
-        - database installed
+      notify:
+        - 数据库服务需重启
 
     - name: 安装开发工具组
       ansible.builtin.yum:
@@ -121,8 +122,8 @@
         state: latest
         autoremove: true
       when: cleanup_system | bool
-      notify: 
-        - system cleaned
+      notify:
+        - 系统缓存已清理
 
     - name: 验证关键服务软件包安装状态
       ansible.builtin.package_facts:
@@ -194,21 +195,26 @@
         line: "apply_updates = yes"
         state: present
       when: configure_yum_cron | bool
-      notify: 
-        - yum cron configured
+      notify:
+        - YUM 自动更新已启用
 
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true
   handlers:
-    - name: yum cache updated
+    - name: YUM 缓存已刷新
       ansible.builtin.debug:
         msg: "YUM 缓存已更新"
-      listen: yum cache updated
+      listen: YUM 缓存已刷新
 
-    - name: base tools installed
+    - name: 基础工具已安装
       ansible.builtin.debug:
         msg: "基础系统工具安装完成"
-      listen: base tools installed
+      listen: 基础工具已安装
 
-    - name: web server installed
+    - name: Web 服务需重启
       ansible.builtin.service:
         name: "{{ web_server_service }}"
         state: started
@@ -216,9 +222,9 @@
       when: 
         - web_server_install.changed | default(false)
         - manage_web_service | bool
-      listen: web server installed
+      listen: Web 服务需重启
 
-    - name: database installed
+    - name: 数据库服务需重启
       ansible.builtin.service:
         name: "{{ database_service }}"
         state: started
@@ -226,16 +232,16 @@
       when: 
         - database_install.changed | default(false)
         - manage_database_service | bool
-      listen: database installed
+      listen: 数据库服务需重启
 
-    - name: system cleaned
+    - name: 系统缓存已清理
       ansible.builtin.debug:
         msg: "系统清理完成，已移除不需要的软件包和缓存"
-      listen: system cleaned
+      listen: 系统缓存已清理
 
-    - name: yum cron configured
+    - name: YUM 自动更新已启用
       ansible.builtin.service:
         name: yum-cron
         state: restarted
         enabled: true
-      listen: yum cron configured
+      listen: YUM 自动更新已启用
