@@ -2,6 +2,7 @@
 - name: reboot 模块使用示例演示
   hosts: localhost
   gather_facts: false
+  become: true
   vars_files:
     - vars/example_vars.yml
   
@@ -300,3 +301,8 @@
           - 配置重启操作的监控和告警
           - 定期进行重启演练和故障恢复测试
           - 建立重启操作的文档和标准流程
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true

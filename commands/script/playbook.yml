@@ -1,6 +1,7 @@
 ---
 - name: script 模块本地脚本传输执行示例演示
   hosts: all
+  gather_facts: false
   become: false
   vars_files:
     - vars/example_vars.yml
@@ -147,3 +148,8 @@
           - 脚本可独立测试和维护
           - 支持版本控制和代码审查
           - 可重用现有脚本资源
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true

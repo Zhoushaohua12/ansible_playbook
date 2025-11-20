@@ -2,6 +2,7 @@
 - name: URI 模块 REST API 调用示例
   hosts: localhost
   gather_facts: no
+  become: true
   vars_files:
     - vars/example_vars.yml
   
@@ -166,3 +167,8 @@
           - 状态码验证：{{ 'PASS' if health_check.status == uri_expected_status_code else 'FAIL' }}
           - 错误处理：{{ 'PASS' if unreliable_response is defined else 'SKIP' }}
       run_once: yes
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true

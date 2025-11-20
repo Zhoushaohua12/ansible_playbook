@@ -1,6 +1,7 @@
 ---
 - name: firewalld 防火墙规则管理示例
   hosts: all
+  gather_facts: false
   become: true
   vars_files:
     - vars/example_vars.yml
@@ -99,3 +100,8 @@
       ansible.builtin.command: firewall-cmd --runtime-to-permanent
       register: firewall_backup
       changed_when: "'success' in firewall_backup.stdout or firewall_backup.rc == 0"
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true

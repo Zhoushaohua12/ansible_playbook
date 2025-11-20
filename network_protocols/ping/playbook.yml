@@ -2,6 +2,7 @@
 - name: Ping 模块网络连通性检查示例
   hosts: all
   gather_facts: no
+  become: true
   vars_files:
     - vars/example_vars.yml
   
@@ -79,3 +80,8 @@
           - 失败列表：{{ failed_hosts | default([]) }}
       run_once: yes
       when: successful_hosts is defined or failed_hosts is defined
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true

@@ -1,6 +1,7 @@
 ---
 - name: Docker 容器管理示例演示
   hosts: all
+  gather_facts: false
   become: true
   vars_files:
     - vars/example_vars.yml
@@ -50,6 +51,7 @@
           - "{{ docker_network_name }}"
         memory_limit: "{{ redis_memory_limit }}"
         user: "{{ redis_user }}"
+      no_log: true
       register: redis_deployment
       when: deploy_redis | bool
 
@@ -81,6 +83,7 @@
           timeout: 10
           retries: 3
           start_period: 40
+      no_log: true
       register: app_deployment
       when: deploy_app | bool
 
@@ -125,6 +128,11 @@
         driver: bridge
       when: docker_create_network | bool
 
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true
   handlers:
     - name: 重启 Nginx 容器
       community.docker.docker_container:

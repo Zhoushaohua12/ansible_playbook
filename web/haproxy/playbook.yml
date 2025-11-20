@@ -2,6 +2,7 @@
 # ⚠️ 教学声明：本 playbook 主要用于学习 HAProxy 负载均衡配置，请在测试环境验证后再应用于生产。
 - name: HAProxy 负载均衡配置与部署
   hosts: load_balancers
+  gather_facts: false
   become: yes
   vars_files:
     - vars/example_vars.yml
@@ -124,6 +125,11 @@
           - "监听地址: {{ haproxy_listen_address }}:{{ haproxy_listen_port }}"
           - "日志路径: /var/log/haproxy/haproxy.log"
 
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true
   handlers:
     - name: 重启 rsyslog 服务
       ansible.builtin.service:

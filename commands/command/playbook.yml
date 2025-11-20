@@ -1,6 +1,7 @@
 ---
 - name: command 模块安全执行示例演示
   hosts: all
+  gather_facts: false
   become: false
   vars_files:
     - vars/example_vars.yml
@@ -108,3 +109,8 @@
           备份文件 {{ command_backup_file }}
           删除状态: {{ '已删除' if cleanup_result.changed | default(false) else '文件不存在，跳过删除' }}
       when: cleanup_result is defined
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true

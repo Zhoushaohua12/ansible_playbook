@@ -2,6 +2,7 @@
 - name: cron 模块使用示例演示
   hosts: localhost
   gather_facts: false
+  become: true
   vars_files:
     - vars/example_vars.yml
   
@@ -179,3 +180,8 @@
           - 为 cron 任务编写相应的执行脚本
           - 配置 cron 任务输出的邮件通知
           - 设置监控告警确保任务正常执行
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true

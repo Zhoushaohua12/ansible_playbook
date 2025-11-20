@@ -1,6 +1,7 @@
 ---
 - name: wait_for 模块端口监控示例
   hosts: all
+  gather_facts: false
   become: false
   vars_files:
     - vars/example_vars.yml
@@ -182,3 +183,8 @@
           {% if wait_for_check_log %}
           ✓ 日志内容匹配 ({{ wait_for_log_file }})
           {% endif %}
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true

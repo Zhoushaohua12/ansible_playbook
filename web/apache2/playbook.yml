@@ -2,6 +2,7 @@
 # ⚠️ 教学声明：本 playbook 主要用于学习 Apache2 配置管理，请在测试环境验证后再应用于生产。
 - name: Apache2 Web 服务器安装与配置
   hosts: web_servers
+  gather_facts: false
   become: yes
   vars_files:
     - vars/example_vars.yml
@@ -185,3 +186,8 @@
     - name: 输出已启用模块列表
       ansible.builtin.debug:
         msg: "{{ apache_modules.stdout_lines }}"
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true

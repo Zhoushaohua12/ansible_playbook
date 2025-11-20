@@ -5,6 +5,7 @@
 - name: 管理 RabbitMQ 队列和交换机
   hosts: localhost
   gather_facts: false
+  become: true
   vars_files:
     - vars/example_vars.yml
   
@@ -54,3 +55,8 @@
           - 队列: {{ '创建/更新' if queue_result.changed else '无变更' }}
           - 交换机: {{ '创建/更新' if exchange_result.changed else '无变更' }}
           - 绑定: {{ '创建/更新' if binding_result.changed else '无变更' }}
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true

@@ -2,6 +2,7 @@
 - name: DNS 模块 DNS 查询示例
   hosts: localhost
   gather_facts: no
+  become: true
   vars_files:
     - vars/example_vars.yml
   
@@ -204,3 +205,8 @@
           - 自定义 DNS 服务器查询：{{ 'PASS' if custom_dns_query is defined else 'SKIP' }}
           - DNS 服务器对比：{{ 'PASS' if google_dns_result is defined else 'SKIP' }}
       run_once: yes
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true

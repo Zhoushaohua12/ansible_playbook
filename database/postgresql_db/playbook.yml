@@ -2,6 +2,7 @@
 - name: PostgreSQL 数据库管理示例演示
   hosts: localhost
   gather_facts: false
+  become: true
   vars_files:
     - vars/example_vars.yml
   

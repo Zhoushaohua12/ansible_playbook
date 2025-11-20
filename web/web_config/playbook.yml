@@ -2,6 +2,7 @@
 # ⚠️ 教学声明：本 playbook 主要用于学习通用 Web 配置管理，请在测试环境验证后再应用于生产。
 - name: 通用 Web 配置管理（反向代理与静态站点）
   hosts: web_servers
+  gather_facts: false
   become: yes
   vars_files:
     - vars/example_vars.yml
@@ -238,3 +239,8 @@
           - "访问日志: {{ web_log_dir }}/{{ proxy_domain if deployment_type == 'proxy' else static_domain }}_access.log"
           - "错误日志: {{ web_log_dir }}/{{ proxy_domain if deployment_type == 'proxy' else static_domain }}_error.log"
           - "================================================"
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true

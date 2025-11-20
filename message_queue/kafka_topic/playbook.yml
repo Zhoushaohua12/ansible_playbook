@@ -5,6 +5,7 @@
 - name: 管理 Kafka Topic
   hosts: localhost
   gather_facts: false
+  become: true
   vars_files:
     - vars/example_vars.yml
   

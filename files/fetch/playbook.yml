@@ -1,6 +1,7 @@
 ---
 - name: fetch 模块综合演练
   hosts: all
+  gather_facts: false
   become: false
   vars_files:
     - vars/example_vars.yml
@@ -109,3 +110,8 @@
           - "获取时间: {{ ansible_date_time.iso8601 }}"
       delegate_to: localhost
       when: fetched_file.stat.exists
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true

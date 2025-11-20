@@ -1,6 +1,7 @@
 ---
 - name: Docker 镜像管理示例演示
   hosts: all
+  gather_facts: false
   become: true
   vars_files:
     - vars/example_vars.yml
@@ -188,13 +189,18 @@
         - get_image_info | bool
         - image_info.images is defined
 
+
+    - name: 仅在检查模式下预演变更
+      ansible.builtin.debug:
+        msg: "此任务运行在 check_mode 中，用于安全预演"
+      check_mode: true
   handlers:
     - name: 清理构建缓存
       ansible.builtin.command: docker builder prune -f
-      listen: cleanup build cache
+      listen: 清理构建缓存
       changed_when: false
 
     - name: 清理无用镜像
       ansible.builtin.command: docker image prune -f
-      listen: cleanup unused images
+      listen: 清理无用镜像
       changed_when: false
