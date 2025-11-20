@@ -1,0 +1,113 @@
+# DNS 模块查询示例变量
+
+# ========== 基础查询配置 ==========
+# 要查询的目标域名
+dns_target_domain: "example.com"
+
+# 期望的 IP 地址（用于验证 DNS 记录是否符合预期）
+dns_expected_ip_address: "93.184.216.34"
+
+# ========== 查询启用开关 ==========
+# 启用 A 记录查询（IPv4 地址）
+dns_enable_a_record_query: true
+
+# 启用 AAAA 记录查询（IPv6 地址）
+dns_enable_aaaa_record_query: false
+
+# 启用 CNAME 查询
+dns_enable_cname_query: false
+
+# 启用 MX 查询
+dns_enable_mx_query: false
+
+# 启用 NS 查询
+dns_enable_ns_query: false
+
+# 启用 TXT 查询
+dns_enable_txt_query: false
+
+# ========== 其他查询域名 ==========
+# CNAME 查询目标域名
+dns_cname_query_domain: "www.example.com"
+
+# MX 查询目标域名
+dns_mx_query_domain: "example.com"
+
+# NS 查询目标域名
+dns_ns_query_domain: "example.com"
+
+# TXT 查询目标域名（如检查 SPF、DKIM 记录）
+dns_txt_query_domain: "example.com"
+
+# ========== DNS 服务器配置 ==========
+# 自定义 DNS 服务器（示例：Google DNS）
+dns_nameserver: "8.8.8.8"
+
+# 启用自定义 DNS 服务器查询
+dns_enable_custom_nameserver: false
+
+# Google DNS 服务器
+dns_google_nameserver: "8.8.8.8"
+
+# Cloudflare DNS 服务器
+dns_cloudflare_nameserver: "1.1.1.1"
+
+# 启用 DNS 服务器对比
+dns_enable_dns_comparison: false
+
+# ========== 超时与错误处理 ==========
+# DNS 查询超时时间（秒）
+dns_query_timeout: 5
+
+# 测试缓慢 DNS 响应的域名
+dns_slow_domain: "example.com"
+
+# 启用缓慢查询测试
+dns_enable_slow_query_test: false
+
+# ========== DNS 区域查询 ==========
+# DNS 区域查询域名
+dns_zone_domain: "example.com"
+
+# 启用 DNS 区域查询
+dns_enable_zone_query: false
+
+# ========== 重要提示 ==========
+# ⚠️ 警告：这些变量仅用于演示，生产环境请根据实际需求调整
+# 1. DNS 服务器选择：
+#    - Google DNS：8.8.8.8、8.8.4.4（公共 DNS）
+#    - Cloudflare DNS：1.1.1.1、1.0.0.1（公共 DNS，强调隐私）
+#    - Quad9：9.9.9.9（公共 DNS，侧重安全）
+#    - 内网 DNS：使用企业内网 DNS 服务器，而非公共 DNS
+# 2. DNS 记录类型说明：
+#    - A 记录：IPv4 地址映射
+#    - AAAA 记录：IPv6 地址映射
+#    - CNAME：别名记录，用于将一个域名指向另一个域名
+#    - MX 记录：邮件服务器，用于邮件路由
+#    - NS 记录：权威 DNS 服务器，用于区域委派
+#    - TXT 记录：文本记录，常用于 SPF、DKIM、DMARC 等
+# 3. DNS 查询超时：
+#    - 默认 5 秒通常足够
+#    - 网络不稳定的环境可增加到 10-15 秒
+#    - 结合 retries 和 delay 提高可靠性
+# 4. DNS 解析验证：
+#    - 验证 CDN 或负载均衡配置是否生效
+#    - 检查 DNS 传播是否完成
+#    - 对比不同 DNS 服务器的结果，检查一致性
+# 5. DNS 安全考虑：
+#    - DNS 查询通常以明文发送，可能被监控或拦截
+#    - 隐私敏感的查询考虑使用 DNS-over-HTTPS 或 DNS-over-TLS
+#    - 避免查询包含敏感业务信息的域名，特别是在不信任的网络上
+# 6. DNS 区域更新（如使用 nsupdate）：
+#    - 需要 TSIG 密钥认证，密钥应使用 Ansible Vault 加密
+#    - 使用 check_mode: true 预览 DNS 变更，确认后再执行
+#    - 记录所有 DNS 操作，便于事后审计和故障排查
+# 7. DNS 查询性能：
+#    - 监控 DNS 查询耗时，识别响应缓慢的 DNS 服务器
+#    - 对于大规模查询，考虑使用批量查询或缓存机制
+#    - 在自动化脚本中添加适当的延迟，避免 DNS 查询风暴
+# 8. 常见 DNS 问题诊断：
+#    - NXDOMAIN：域名不存在
+#    - SERVFAIL：DNS 服务器故障
+#    - TIMEOUT：DNS 查询超时
+#    - 解析结果不一致：检查 DNS 服务器配置、缓存、传播状态

@@ -1,0 +1,81 @@
+---
+- name: Ping 模块网络连通性检查示例
+  hosts: all
+  gather_facts: no
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 基础连通性检查 ==========
+    - name: 执行 ICMP ping 测试
+      ansible.builtin.ping:
+      register: ping_result
+    
+    - name: 显示 ping 结果
+      ansible.builtin.debug:
+        msg: "主机 {{ inventory_hostname }} 连接正常，响应：{{ ping_result.ping }}"
+      when: ping_result is succeeded
+    
+    # ========== 错误处理与诊断 ==========
+    - name: 诊断连接失败
+      ansible.builtin.debug:
+        msg: "警告：主机 {{ inventory_hostname }} 连接失败 - {{ ping_result.msg | default('未知原因') }}"
+      when: ping_result is failed
+    
+    # ========== 批量主机检查 ==========
+    - name: 检查所有目标主机连接状态
+      ansible.builtin.ping:
+      register: all_ping_results
+      failed_when: false
+    
+    - name: 统计连接成功的主机
+      set_fact:
+        successful_hosts: "{{ successful_hosts | default([]) + [inventory_hostname] }}"
+      when: all_ping_results is succeeded
+    
+    - name: 统计连接失败的主机
+      set_fact:
+        failed_hosts: "{{ failed_hosts | default([]) + [inventory_hostname] }}"
+      when: all_ping_results is failed
+    
+    # ========== 自定义数据测试 ==========
+    - name: 使用自定义数据执行 ping 测试
+      ansible.builtin.ping:
+        data: "{{ ping_custom_data }}"
+      register: custom_ping_result
+      when: ping_custom_data is defined
+    
+    - name: 显示自定义 ping 结果
+      ansible.builtin.debug:
+        msg: "自定义 ping 响应：{{ custom_ping_result.ping }}"
+      when:
+        - custom_ping_result is succeeded
+        - ping_custom_data is defined
+    
+    # ========== 条件化决策 ==========
+    - name: 仅在连接成功时执行后续配置（示例）
+      ansible.builtin.debug:
+        msg: "⚠ 主机 {{ inventory_hostname }} 已验证可达，可以继续执行配置任务"
+      when: ping_result is succeeded
+    
+    # ========== 超时与重试演示 ==========
+    - name: 带超时控制的 ping 测试（通过 connection timeout）
+      ansible.builtin.ping:
+      register: timeout_ping
+      ignore_errors: yes
+    
+    - name: 显示带超时的结果
+      ansible.builtin.debug:
+        var: timeout_ping
+    
+    # ========== 最终统计 ==========
+    - name: 显示批量检查结果统计
+      ansible.builtin.debug:
+        msg: |
+          连通性检查完成：
+          - 成功主机：{{ successful_hosts | default([]) | length }} 台
+          - 失败主机：{{ failed_hosts | default([]) | length }} 台
+          - 成功列表：{{ successful_hosts | default([]) }}
+          - 失败列表：{{ failed_hosts | default([]) }}
+      run_once: yes
+      when: successful_hosts is defined or failed_hosts is defined

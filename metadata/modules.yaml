@@ -689,7 +689,40 @@ network:
        summary: "端口可用性和服务就绪监控，支持集群协调、滚动更新和多服务依赖场景"
        external_deps:
          - "ansible.builtin collection（wait_for 内置模块）"
-cloud:
+
+
+network_protocols:
+  title: 网络协议层通信
+  description: "涵盖 ICMP、HTTP、DNS 等网络协议层的通信模块，支持网络连通性检查、REST API 测试、DNS 查询与管理等应用层场景，强调安全实践（SSL 验证、敏感信息保护、检查模式预览）"
+  external_dependencies:
+    - "ansible.builtin collection（ping、uri 内置模块）"
+    - "community.general collection（dig 模块）"
+    - "dnsutils 或 bind-utils（DNS 工具，可选）"
+  topics:
+    - id: ping
+      name: Ping ICMP 连通性检查
+      doc: network_protocols/ping/README.md
+      example: network_protocols/ping/playbook.yml
+      summary: "使用 ICMP 协议进行主机存活检查，支持批量扫描、超时控制和错误处理"
+      external_deps:
+        - "ansible.builtin collection（ping 内置模块）"
+    - id: uri
+      name: URI HTTP/HTTPS API 调用
+      doc: network_protocols/uri/README.md
+      example: network_protocols/uri/playbook.yml
+      summary: "REST API 调用与响应处理，支持 SSL 验证、认证、请求头定制和敏感信息保护"
+      external_deps:
+        - "ansible.builtin collection（uri 内置模块）"
+        - "Ansible Vault（凭证保护）"
+    - id: dns
+      name: DNS 查询与记录管理
+      doc: network_protocols/dns/README.md
+      example: network_protocols/dns/playbook.yml
+      summary: "DNS 查询和记录验证，支持多 DNS 服务器对比、check_mode 预览和 TSIG 认证"
+      external_deps:
+        - "community.general collection（dig 模块）"
+        - "dnsutils 或 bind-utils"
+
   title: 云资源管理
   description: "涵盖 AWS、Azure、GCP、OpenStack、阿里云等云平台的 Dry Run 示例，强调依赖安装、认证方式与 Vault 管理"
   external_dependencies:
