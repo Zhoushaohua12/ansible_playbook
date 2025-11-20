@@ -1,0 +1,334 @@
+# ⚠️ 本文件仅为示例，占位符必须使用 Ansible Vault 或环境变量替换
+
+# ========== LDAP 服务器配置 ==========
+# LDAP 服务器 URI
+ldap_server_uri: "ldap://ldap.example.com:389"
+ldap_secure_server_uri: "ldaps://ldap.example.com:636"
+
+# 管理员绑定信息
+ldap_bind_dn: "cn=admin,dc=example,dc=com"
+
+# 敏感的管理员密码（应使用 Ansible Vault）
+vault_ldap_bind_password: "{{ vault_ldap_admin_password }}"
+
+# ========== LDAP 目录结构 ==========
+# 搜索基础 DN
+ldap_search_base: "dc=example,dc=com"
+
+# 用户基础 DN
+ldap_users_base: "ou=users,dc=example,dc=com"
+
+# 组基础 DN
+ldap_groups_base: "ou=groups,dc=example,dc=com"
+
+# ========== 搜索配置 ==========
+# 用户搜索过滤器
+user_search_filter: "(objectClass=inetOrgPerson)"
+
+# 用户属性列表
+user_attributes:
+  - "uid"
+  - "cn"
+  - "sn"
+  - "givenName"
+  - "mail"
+  - "telephoneNumber"
+  - "departmentNumber"
+
+# 详细用户属性
+detailed_user_attributes:
+  - "uid"
+  - "cn"
+  - "sn"
+  - "givenName"
+  - "mail"
+  - "telephoneNumber"
+  - "departmentNumber"
+  - "title"
+  - "mobile"
+  - "postalAddress"
+
+# ========== 用户认证配置 ==========
+# 认证用户名
+auth_username: "john.doe"
+
+# 敏感的用户密码（应使用 Ansible Vault）
+vault_user_password: "{{ vault_john_doe_password }}"
+
+# ========== 用户查询配置 ==========
+# 目标用户名
+target_username: "jane.smith"
+
+# ========== 新用户配置 ==========
+# 新用户信息
+new_user:
+  uid: "new.user"
+  cn: "New User"
+  sn: "User"
+  givenName: "New"
+  mail: "new.user@example.com"
+  telephoneNumber: "+1-555-0123"
+  departmentNumber: "IT001"
+
+# 敏感的新用户密码（应使用 Ansible Vault）
+vault_new_user_password: "{{ vault_new_user_pass }}"
+
+# ========== 属性修改配置 ==========
+# 新邮箱地址
+new_email_address: "jane.smith.new@example.com"
+
+# 新电话号码
+new_phone_number: "+1-555-0456"
+
+# ========== 密码管理配置 ==========
+# 敏感的新密码（应使用 Ansible Vault）
+vault_new_user_password: "{{ vault_updated_password }}"
+
+# ========== 组管理配置 ==========
+# 组名称
+group_name: "developers"
+
+# 组描述
+group_description: "Development Team Group"
+
+# 组成员
+member_user1: "john.doe"
+member_user2: "jane.smith"
+
+# 新增成员
+new_member: "new.user"
+
+# ========== 批量用户配置 ==========
+# 批量用户列表
+batch_users:
+  - uid: "user1"
+    cn: "User One"
+    sn: "One"
+    mail: "user1@example.com"
+    password: "{{ vault_user1_password }}"
+  - uid: "user2"
+    cn: "User Two"
+    sn: "Two"
+    mail: "user2@example.com"
+    password: "{{ vault_user2_password }}"
+  - uid: "user3"
+    cn: "User Three"
+    sn: "Three"
+    mail: "user3@example.com"
+    password: "{{ vault_user3_password }}"
+
+# ========== 删除操作配置 ==========
+# 要删除的用户
+user_to_delete: "old.user"
+
+# 要删除的组
+group_to_delete: "old.group"
+
+# ========== 安全提示 ==========
+# ⚠️  特别注意：
+# 1. 所有 LDAP 密码和敏感信息必须使用 Ansible Vault 加密存储
+# 2. 生产环境修改 LDAP 数据前必须：
+#    - 在测试环境充分测试操作
+#    - 备份当前 LDAP 数据
+#    - 确认操作权限和影响范围
+#    - 准备数据回滚方案
+# 3. 确保 LDAP 服务器使用 SSL/TLS 加密连接
+# 4. 使用最小权限原则配置绑定账户
+# 5. 生产环境部署前，一定要使用 --check 模式预览：
+#    ansible-playbook network_protocols/ldap/playbook.yml --check
+# 6. 定期更换 LDAP 管理员密码
+# 7. 启用 LDAP 操作审计日志
+# 8. 建立用户生命周期管理的审批流程
+
+# ========== 常用 LDAP 过滤器示例 ==========
+# 常用 LDAP 搜索过滤器：
+ldap_filters:
+  # 基础过滤器
+  all_users: "(objectClass=inetOrgPerson)"
+  all_groups: "(objectClass=groupOfNames)"
+  
+  # 用户查询
+  user_by_uid: "(uid={username})"
+  user_by_mail: "(mail={email})"
+  user_by_name: "(&(cn={name})(objectClass=inetOrgPerson))"
+  
+  # 组查询
+  group_by_name: "(cn={groupname})"
+  group_member: "(member={user_dn})"
+  
+  # 复合查询
+  users_in_department: "(&(objectClass=inetOrgPerson)(departmentNumber={dept}))"
+  active_users: "(&(objectClass=inetOrgPerson)(!(accountStatus=inactive)))"
+  
+  # 范围查询
+  users_by_letter: "(&(objectClass=inetOrgPerson)(cn={letter}*))"
+  recent_users: "(&(objectClass=inetOrgPerson)(createTimestamp>={timestamp}))"
+
+# ========== 常用 LDAP 属性示例 ==========
+# 常用 LDAP 对象类和属性：
+ldap_attributes:
+  # 个人属性
+  person_attributes:
+    - "cn"           # 通用名称
+    - "sn"           # 姓氏
+    - "givenName"     # 名字
+    - "displayName"   # 显示名称
+    - "mail"          # 邮箱地址
+    - "telephoneNumber" # 电话号码
+    - "mobile"        # 手机号码
+    - "postalAddress" # 邮政地址
+    - "title"         # 职位
+    - "departmentNumber" # 部门编号
+  
+  # 组织属性
+  organization_attributes:
+    - "o"            # 组织名称
+    - "ou"           # 组织单位
+    - "description"   # 描述
+    - "businessCategory" # 业务类别
+  
+  # 组属性
+  group_attributes:
+    - "cn"           # 通用名称
+    - "description"   # 描述
+    - "member"        # 成员 DN 列表
+    - "uniqueMember"  # 唯一成员列表
+  
+  # 系统属性
+  system_attributes:
+    - "uid"           # 用户标识
+    - "userPassword"  # 用户密码
+    - "createTimestamp" # 创建时间戳
+    - "modifyTimestamp" # 修改时间戳
+    - "entryUUID"     # 条目 UUID
+
+# ========== LDAP 对象类示例 ==========
+# 常用 LDAP 对象类：
+ldap_object_classes:
+  # 顶层对象类
+  top:
+    description: "所有 LDAP 条目的顶层对象类"
+    required_attributes: []
+  
+  # 个人对象类
+  person:
+    description: "基础个人信息对象类"
+    required_attributes: ["sn", "cn"]
+    optional_attributes: ["userPassword", "telephoneNumber", "description"]
+  
+  # 组织人员对象类
+  organizationalPerson:
+    description: "组织人员信息对象类"
+    required_attributes: []
+    optional_attributes: ["title", "departmentNumber", "postalAddress"]
+  
+  # 机构组织人员对象类
+  inetOrgPerson:
+    description: "互联网组织人员对象类"
+    required_attributes: []
+    optional_attributes: ["mail", "mobile", "uid", "displayName"]
+  
+  # 组对象类
+  groupOfNames:
+    description: "命名组对象类"
+    required_attributes: ["member", "cn"]
+    optional_attributes: ["description", "businessCategory"]
+  
+  # 组织单位对象类
+  organizationalUnit:
+    description: "组织单位对象类"
+    required_attributes: ["ou"]
+    optional_attributes: ["description", "businessCategory"]
+
+# ========== LDAP 连接配置示例 ==========
+# 不同环境的 LDAP 连接配置：
+ldap_connection_configs:
+  # 开发环境
+  development:
+    server_uri: "ldap://ldap-dev.example.com:389"
+    bind_dn: "cn=admin,dc=dev,dc=example,dc=com"
+    bind_pw: "{{ vault_dev_ldap_password }}"
+    validate_certs: false
+    timeout: 30
+  
+  # 测试环境
+  testing:
+    server_uri: "ldap://ldap-test.example.com:389"
+    bind_dn: "cn=admin,dc=test,dc=example,dc=com"
+    bind_pw: "{{ vault_test_ldap_password }}"
+    validate_certs: true
+    timeout: 60
+  
+  # 生产环境
+  production:
+    server_uri: "ldaps://ldap-prod.example.com:636"
+    bind_dn: "cn=admin,dc=example,dc=com"
+    bind_pw: "{{ vault_prod_ldap_password }}"
+    validate_certs: true
+    timeout: 120
+
+# ========== LDAP 错误处理示例 ==========
+# 常见 LDAP 错误代码和处理方法：
+ldap_error_handling:
+  # 连接错误
+  connection_errors:
+    "81": "服务器无法连接"
+    "91": "连接超时"
+    "92": "网络不可达"
+    solution: "检查服务器地址、网络连接和防火墙设置"
+  
+  # 认证错误
+  auth_errors:
+    "48": "认证方法不支持"
+    "49": "认证凭据无效"
+    "50": "权限不足"
+    solution: "检查绑定 DN、密码和账户权限"
+  
+  # 搜索错误
+  search_errors:
+    "32": "条目不存在"
+    "34": "无效的 DN 语法"
+    "36": "别名问题"
+    solution: "检查搜索基础 DN 和过滤器语法"
+  
+  # 修改错误
+  modify_errors:
+    "19": "约束违反"
+    "20": "属性或值不存在"
+    "53": " unwilling to perform"
+    solution: "检查属性值、对象类和权限设置"
+
+# ========== LDAP 性能优化建议 ==========
+# LDAP 操作性能优化：
+performance_optimization:
+  # 搜索优化
+  search_optimization:
+    - "使用精确的搜索过滤器"
+    - "限制返回的属性数量"
+    - "设置合理的 sizelimit 和 timelimit"
+    - "利用 LDAP 服务器索引"
+    - "避免使用复杂的嵌套查询"
+  
+  # 连接优化
+  connection_optimization:
+    - "使用连接池减少连接开销"
+    - "启用 LDAP 连接缓存"
+    - "使用持久连接"
+    - "合理设置连接超时时间"
+    - "优先使用 LDAPS 连接"
+  
+  # 批量操作优化
+  batch_optimization:
+    - "使用批量操作减少网络往返"
+    - "控制批量操作的大小"
+    - "避免在循环中进行单个操作"
+    - "使用事务模式保证数据一致性"
+    - "实施操作进度监控"
+  
+  # 索引优化
+  index_optimization:
+    - "为常用搜索属性创建索引"
+    - "定期维护和重建索引"
+    - "监控索引使用情况"
+    - "优化索引策略和配置"
+    - "避免过度索引影响写入性能"

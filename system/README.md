@@ -18,14 +18,20 @@
 | [firewalld](#firewalld-防火墙管理) | community.general | RHEL/CentOS 系统的动态防火墙规则管理 | firewalld 服务 |
 | [iptables](#iptables-防火墙与-nat-规则) | community.general | 内核级防火墙规则与 NAT 规则管理 | iptables 工具 |
 | [selinux](#selinux-安全增强) | ansible.posix | 管理 SELinux 安全策略与访问控制 | selinux-policy 包 |
+| [cron](#cron-定时任务管理) | ansible.builtin | 管理 cron 定时任务，支持创建、修改、删除用户的定时任务 | cron 服务 |
+| [authorized_key](#authorized-key-ssh密钥管理) | ansible.builtin | 管理用户的 SSH 授权密钥，支持添加、删除和更新 SSH 公钥 | OpenSSH |
+| [reboot](#reboot-系统重启管理) | ansible.builtin | 重启远程主机，支持等待系统重启完成、验证重启状态 | reboot 命令 |
 
 ## 学习路线
 
 1. **基础系统配置** → `user` & `group`：创建运维账号与权限隔离
-2. **主机标识与本地化** → `hostname`、`timezone`、`locale`：设置主机名、时区与地区设置
-3. **服务生命周期** → `service` & `systemd`：启动、停止、启用服务与单元管理
-4. **安全增强** → `selinux`：启用强制访问控制与安全策略
-5. **网络防护** → `firewalld` 与 `iptables`：配置防火墙规则与安全策略
+2. **访问控制管理** → `authorized_key`：配置 SSH 密钥认证与访问权限
+3. **主机标识与本地化** → `hostname`、`timezone`、`locale`：设置主机名、时区与地区设置
+4. **服务生命周期** → `service` & `systemd`：启动、停止、启用服务与单元管理
+5. **定时任务管理** → `cron`：配置自动化任务与定期维护
+6. **系统维护** → `reboot`：安全重启系统与验证重启状态
+7. **安全增强** → `selinux`：启用强制访问控制与安全策略
+8. **网络防护** → `firewalld` 与 `iptables`：配置防火墙规则与安全策略
 
 ## 与其他章节的关系
 

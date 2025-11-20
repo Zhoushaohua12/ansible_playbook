@@ -1,0 +1,429 @@
+---
+- name: nmcli 模块使用示例演示
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 网络环境检查 ==========
+    - name: 检查 NetworkManager 服务状态
+      ansible.builtin.shell: systemctl is-active NetworkManager
+      register: nm_status
+      changed_when: false
+      ignore_errors: yes
+    
+    - name: 显示 NetworkManager 服务状态
+      ansible.builtin.debug:
+        msg: "NetworkManager 服务状态: {{ '运行中' if nm_status.rc == 0 else '未运行' }}"
+    
+    - name: 检查可用网络接口
+      ansible.builtin.shell: nmcli device status
+      register: network_devices
+      changed_when: false
+    
+    - name: 显示可用网络接口
+      ansible.builtin.debug:
+        msg: |
+          可用网络接口：
+          {{ network_devices.stdout_lines }}
+    
+    - name: 检查当前网络连接
+      ansible.builtin.shell: nmcli connection show
+      register: network_connections
+      changed_when: false
+    
+    - name: 显示当前网络连接
+      ansible.builtin.debug:
+        msg: |
+          当前网络连接：
+          {{ network_connections.stdout_lines }}
+    
+    # ========== 基础以太网配置演示（模拟模式） ==========
+    - name: 演示基础以太网静态 IP 配置
+      ansible.builtin.debug:
+        msg: |
+          === 基础以太网静态 IP 配置示例 ===
+          以下是将要执行的网络配置命令（仅在演示中显示）：
+          
+          - name: 配置以太网接口静态 IP
+            community.general.nmcli:
+              conn_name: "{{ eth_conn_name }}"
+              ifname: "{{ eth_ifname }}"
+              type: ethernet
+              state: present
+              method4: manual
+              ip4: "{{ eth_static_ip }}"
+              gw4: "{{ eth_gateway }}"
+              dns4: "{{ eth_dns_servers }}"
+              autoconnect: yes
+          
+          配置说明：
+          - 连接名称: {{ eth_conn_name }}
+          - 接口名称: {{ eth_ifname }}
+          - 静态 IP: {{ eth_static_ip }}
+          - 网关: {{ eth_gateway }}
+          - DNS 服务器: {{ eth_dns_servers }}
+    
+    # ========== DHCP 配置演示（模拟模式） ==========
+    - name: 演示以太网 DHCP 配置
+      ansible.builtin.debug:
+        msg: |
+          === 以太网 DHCP 配置示例 ===
+          以下是将要执行的网络配置命令（仅在演示中显示）：
+          
+          - name: 配置以太网接口 DHCP
+            community.general.nmcli:
+              conn_name: "{{ dhcp_conn_name }}"
+              ifname: "{{ dhcp_ifname }}"
+              type: ethernet
+              state: present
+              method4: auto
+              autoconnect: yes
+          
+          配置说明：
+          - 连接名称: {{ dhcp_conn_name }}
+          - 接口名称: {{ dhcp_ifname }}
+          - IP 配置方法: auto（自动获取）
+    
+    # ========== 多 IP 地址配置演示（模拟模式） ==========
+    - name: 演示多 IP 地址配置
+      ansible.builtin.debug:
+        msg: |
+          === 多 IP 地址配置示例 ===
+          以下是将要执行的网络配置命令（仅在演示中显示）：
+          
+          - name: 配置多个 IP 地址
+            community.general.nmcli:
+              conn_name: "{{ multi_ip_conn_name }}"
+              ifname: "{{ multi_ip_ifname }}"
+              type: ethernet
+              state: present
+              method4: manual
+              ip4: "{{ multi_ip_addresses }}"
+              gw4: "{{ multi_ip_gateway }}"
+              dns4: "{{ multi_ip_dns }}"
+              autoconnect: yes
+          
+          配置说明：
+          - 连接名称: {{ multi_ip_conn_name }}
+          - 多个 IP 地址: {{ multi_ip_addresses }}
+          - 网关: {{ multi_ip_gateway }}
+    
+    # ========== VLAN 配置演示（模拟模式） ==========
+    - name: 演示 VLAN 配置
+      ansible.builtin.debug:
+        msg: |
+          === VLAN 配置示例 ===
+          以下是将要执行的网络配置命令（仅在演示中显示）：
+          
+          第一步：配置 VLAN 接口
+          - name: 创建 VLAN 接口
+            community.general.nmcli:
+              conn_name: "{{ vlan_conn_name }}"
+              ifname: "{{ vlan_ifname }}"
+              type: vlan
+              vlan_id: {{ vlan_id }}
+              state: present
+              method4: manual
+              ip4: "{{ vlan_ip }}"
+              autoconnect: yes
+          
+          第二步：配置主接口
+          - name: 配置 VLAN 主接口
+            community.general.nmcli:
+              conn_name: "{{ vlan_master_conn }}"
+              ifname: "{{ vlan_master_if }}"
+              type: ethernet
+              state: present
+              method4: disabled
+              autoconnect: yes
+          
+          配置说明：
+          - VLAN ID: {{ vlan_id }}
+          - VLAN 接口: {{ vlan_conn_name }} ({{ vlan_ifname }})
+          - VLAN IP: {{ vlan_ip }}
+          - 主接口: {{ vlan_master_conn }} ({{ vlan_master_if }})
+    
+    # ========== 网桥配置演示（模拟模式） ==========
+    - name: 演示网桥配置
+      ansible.builtin.debug:
+        msg: |
+          === 网桥配置示例 ===
+          以下是将要执行的网络配置命令（仅在演示中显示）：
+          
+          第一步：创建网桥接口
+          - name: 创建网桥接口
+            community.general.nmcli:
+              conn_name: "{{ bridge_conn_name }}"
+              ifname: "{{ bridge_ifname }}"
+              type: bridge
+              state: present
+              method4: manual
+              ip4: "{{ bridge_ip }}"
+              autoconnect: yes
+          
+          第二步：将以太网接口加入网桥
+          - name: 将以太网接口加入网桥
+            community.general.nmcli:
+              conn_name: "{{ bridge_slave_conn }}"
+              ifname: "{{ bridge_slave_if }}"
+              type: ethernet
+              master: "{{ bridge_conn_name }}"
+              slave_type: bridge
+              state: present
+              autoconnect: yes
+          
+          配置说明：
+          - 网桥名称: {{ bridge_conn_name }} ({{ bridge_ifname }})
+          - 网桥 IP: {{ bridge_ip }}
+          - 从接口: {{ bridge_slave_conn }} ({{ bridge_slave_if }})
+    
+    # ========== 绑定配置演示（模拟模式） ==========
+    - name: 演示绑定配置
+      ansible.builtin.debug:
+        msg: |
+          === 绑定配置示例 ===
+          以下是将要执行的网络配置命令（仅在演示中显示）：
+          
+          第一步：创建绑定接口
+          - name: 创建绑定接口
+            community.general.nmcli:
+              conn_name: "{{ bond_conn_name }}"
+              ifname: "{{ bond_ifname }}"
+              type: bond
+              state: present
+              method4: manual
+              ip4: "{{ bond_ip }}"
+              autoconnect: yes
+              mode: "{{ bond_mode }}"
+          
+          第二步：将物理接口加入绑定
+          - name: 将物理接口加入绑定
+            community.general.nmcli:
+              conn_name: "{{ item.conn_name }}"
+              ifname: "{{ item.ifname }}"
+              type: ethernet
+              master: "{{ bond_conn_name }}"
+              slave_type: bond
+              state: present
+              autoconnect: yes
+            loop: "{{ bond_slaves }}"
+          
+          配置说明：
+          - 绑定名称: {{ bond_conn_name }} ({{ bond_ifname }})
+          - 绑定模式: {{ bond_mode }}
+          - 绑定 IP: {{ bond_ip }}
+          - 从接口: {{ bond_slaves | map(attribute='ifname') | join(', ') }}
+    
+    # ========== IPv6 配置演示（模拟模式） ==========
+    - name: 演示 IPv6 配置
+      ansible.builtin.debug:
+        msg: |
+          === IPv6 配置示例 ===
+          以下是将要执行的网络配置命令（仅在演示中显示）：
+          
+          - name: 配置 IPv6 静态地址
+            community.general.nmcli:
+              conn_name: "{{ ipv6_conn_name }}"
+              ifname: "{{ ipv6_ifname }}"
+              type: ethernet
+              state: present
+              method6: manual
+              ip6: "{{ ipv6_address }}"
+              gw6: "{{ ipv6_gateway }}"
+              dns6: "{{ ipv6_dns_servers }}"
+              autoconnect: yes
+          
+          配置说明：
+          - 连接名称: {{ ipv6_conn_name }}
+          - 接口名称: {{ ipv6_ifname }}
+          - IPv6 地址: {{ ipv6_address }}
+          - IPv6 网关: {{ ipv6_gateway }}
+          - IPv6 DNS: {{ ipv6_dns_servers }}
+    
+    # ========== 无线网络配置演示（模拟模式） ==========
+    - name: 演示无线网络配置
+      ansible.builtin.debug:
+        msg: |
+          === 无线网络配置示例 ===
+          以下是将要执行的网络配置命令（仅在演示中显示）：
+          
+          - name: 配置无线网络连接
+            community.general.nmcli:
+              conn_name: "{{ wifi_conn_name }}"
+              ifname: "{{ wifi_ifname }}"
+              type: wifi
+              state: present
+              method4: auto
+              wifi_sec:
+                key-mgmt: "{{ wifi_key_mgmt }}"
+                psk: "{{ vault_wifi_password }}"
+              autoconnect: yes
+            no_log: true
+          
+          配置说明：
+          - 连接名称: {{ wifi_conn_name }}
+          - 无线接口: {{ wifi_ifname }}
+          - 认证方式: {{ wifi_key_mgmt }}
+          - WiFi 密码: [已隐藏，使用 no_log 保护]
+    
+    # ========== 批量网络配置演示（模拟模式） ==========
+    - name: 演示批量网络配置
+      ansible.builtin.debug:
+        msg: |
+          === 批量网络配置示例 ===
+          以下是将要执行的批量网络配置命令（仅在演示中显示）：
+          
+          - name: 批量配置服务器网络接口
+            community.general.nmcli:
+              conn_name: "{{ item.conn_name }}"
+              ifname: "{{ item.ifname }}"
+              type: "{{ item.type }}"
+              state: present
+              method4: "{{ item.method4 }}"
+              ip4: "{{ item.ip4 | default(omit) }}"
+              gw4: "{{ item.gw4 | default(omit) }}"
+              dns4: "{{ item.dns4 | default(omit) }}"
+              autoconnect: yes
+            loop: "{{ batch_network_configs }}"
+            loop_control:
+              label: "{{ item.conn_name }}"
+          
+          批量配置列表：
+          {% for config in batch_network_configs %}
+          - {{ config.conn_name }}: {{ config.ip4 | default('DHCP') }}
+          {% endfor %}
+    
+    # ========== 网络配置验证演示（模拟模式） ==========
+    - name: 演示网络配置验证流程
+      ansible.builtin.debug:
+        msg: |
+          === 网络配置验证流程示例 ===
+          配置完成后的验证步骤：
+          
+          第一步：激活网络连接
+          - name: 激活网络连接
+            ansible.builtin.shell: nmcli connection up {{ eth_conn_name }}
+            when: network_config.changed
+          
+          第二步：验证网络连通性
+          - name: 验证网络连通性
+            ansible.builtin.shell: ping -c 3 {{ test_ping_target }}
+            register: connectivity_test
+          
+          第三步：验证 DNS 解析
+          - name: 验证 DNS 解析
+            ansible.builtin.shell: nslookup {{ test_dns_domain }} {{ test_dns_server }}
+            register: dns_test
+          
+          第四步：显示验证结果
+          - name: 显示验证结果
+            ansible.builtin.debug:
+              msg: |
+                网络连通性: {{ '正常' if connectivity_test.rc == 0 else '异常' }}
+                DNS 解析: {{ '正常' if dns_test.rc == 0 else '异常' }}
+    
+    # ========== 网络配置删除演示（模拟模式） ==========
+    - name: 演示网络配置删除
+      ansible.builtin.debug:
+        msg: |
+          === 网络配置删除示例 ===
+          以下是将要执行的网络配置删除命令（仅在演示中显示）：
+          
+          - name: 删除旧的网络连接
+            community.general.nmcli:
+              conn_name: "{{ old_conn_name }}"
+              state: absent
+          
+          删除说明：
+          - 将删除连接: {{ old_conn_name }}
+          - 注意：删除操作不可逆，请谨慎操作
+    
+    # ========== 网络配置备份和恢复演示（模拟模式） ==========
+    - name: 演示网络配置备份和恢复
+      ansible.builtin.debug:
+        msg: |
+          === 网络配置备份和恢复示例 ===
+          备份当前网络配置：
+          
+          - name: 备份当前网络配置
+            ansible.builtin.shell: |
+              nmcli connection show > {{ backup_file }}
+              nmcli device status >> {{ backup_file }}
+            register: backup_result
+          
+          恢复网络配置（如果需要）：
+          - name: 从备份恢复网络配置
+            ansible.builtin.include_tasks: restore_network_config.yml
+            when: restore_network | default(false)
+            vars:
+              backup_file: "{{ backup_file }}"
+    
+    # ========== 安全和网络最佳实践提醒 ==========
+    - name: nmcli 模块最佳实践提醒
+      ansible.builtin.debug:
+        msg: |
+          === nmcli 模块最佳实践 ===
+          1. 网络配置安全：
+             - 修改网络配置前备份当前设置
+             - 在维护窗口期进行网络变更
+             - 准备网络配置回滚方案
+             - 配置网络状态监控和告警
+          
+          2. 配置验证：
+             - 每次配置后验证网络连通性
+             - 测试 DNS 解析功能
+             - 验证网络服务正常工作
+             - 检查防火墙规则配置
+          
+          3. 高可用性：
+             - 使用网络绑定提高可靠性
+             - 配置多路径网络连接
+             - 实施网络冗余策略
+             - 配置自动故障切换
+          
+          4. 性能优化：
+             - 根据网络环境调整 MTU
+             - 配置合适的网络队列
+             - 优化网络缓冲区设置
+             - 监控网络性能指标
+          
+          5. 安全加固：
+             - 配置 MAC 地址绑定
+             - 使用 VLAN 进行网络隔离
+             - 配置防火墙区域规则
+             - 启用网络访问控制
+          
+          6. 运维管理：
+             - 建立网络配置文档
+             - 实施网络配置变更审批
+             - 定期进行网络配置审计
+             - 建立网络故障应急预案
+    
+    # ========== 总结 ==========
+    - name: nmcli 模块演示完成总结
+      ansible.builtin.debug:
+        msg: |
+          已完成以下 nmcli 模块操作演示：
+          1. 网络环境检查（NetworkManager 状态、接口、连接）
+          2. 基础以太网静态 IP 配置演示
+          3. 以太网 DHCP 配置演示
+          4. 多 IP 地址配置演示
+          5. VLAN 配置演示
+          6. 网桥配置演示
+          7. 绑定配置演示
+          8. IPv6 配置演示
+          9. 无线网络配置演示
+          10. 批量网络配置演示
+          11. 网络配置验证流程演示
+          12. 网络配置删除演示
+          13. 网络配置备份和恢复演示
+          
+          下一步建议：
+          - 根据实际网络环境选择合适的配置方式
+          - 建立网络配置变更的审批流程
+          - 配置网络监控和告警系统
+          - 建立网络故障的应急响应机制
+          - 定期进行网络配置的备份和测试
+          - 建立网络配置的文档和标准流程

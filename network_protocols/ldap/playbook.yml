@@ -1,0 +1,475 @@
+---
+- name: LDAP 协议模块使用示例演示
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== LDAP 连接测试 ==========
+    - name: 测试 LDAP 服务器连接
+      ansible.builtin.debug:
+        msg: |
+          === LDAP 连接测试 ===
+          以下是将要执行的 LDAP 连接测试命令（仅在演示中显示）：
+          
+          - name: 测试 LDAP 服务器连接
+            community.general.ldap_search:
+              server_uri: "{{ ldap_server_uri }}"
+              bind_dn: "{{ ldap_bind_dn }}"
+              bind_pw: "{{ vault_ldap_bind_password }}"
+              dn: "{{ ldap_search_base }}"
+              filter: "(objectClass=*)"
+              attrs: ["namingContexts"]
+              sizelimit: 10
+            no_log: true
+            register: ldap_connection_test
+          
+          测试说明：
+          - 服务器 URI: {{ ldap_server_uri }}
+          - 绑定 DN: {{ ldap_bind_dn }}
+          - 搜索基础: {{ ldap_search_base }}
+          - 过滤器: (objectClass=*)
+          - 目的: 验证 LDAP 服务器连接和认证
+    
+    # ========== 基础 LDAP 搜索演示 ==========
+    - name: 演示基础 LDAP 搜索
+      ansible.builtin.debug:
+        msg: |
+          === 基础 LDAP 搜索示例 ===
+          以下是将要执行的 LDAP 搜索命令（仅在演示中显示）：
+          
+          - name: 搜索所有用户条目
+            community.general.ldap_search:
+              server_uri: "{{ ldap_server_uri }}"
+              bind_dn: "{{ ldap_bind_dn }}"
+              bind_pw: "{{ vault_ldap_bind_password }}"
+              dn: "{{ ldap_users_base }}"
+              filter: "{{ user_search_filter }}"
+              attrs: "{{ user_attributes }}"
+              sizelimit: 100
+              timelimit: 30
+            no_log: true
+            register: ldap_users
+          
+          搜索说明：
+          - 搜索基础: {{ ldap_users_base }}
+          - 过滤器: {{ user_search_filter }}
+          - 返回属性: {{ user_attributes }}
+          - 结果限制: 100 条记录
+          - 超时时间: 30 秒
+    
+    # ========== 特定用户查询演示 ==========
+    - name: 演示特定用户查询
+      ansible.builtin.debug:
+        msg: |
+          === 特定用户查询示例 ===
+          以下是将要执行的 LDAP 用户查询命令（仅在演示中显示）：
+          
+          - name: 查询特定用户信息
+            community.general.ldap_search:
+              server_uri: "{{ ldap_server_uri }}"
+              bind_dn: "{{ ldap_bind_dn }}"
+              bind_pw: "{{ vault_ldap_bind_password }}"
+              dn: "{{ ldap_users_base }}"
+              filter: "(&(objectClass=inetOrgPerson)(uid={{ target_username }}))"
+              attrs: "{{ detailed_user_attributes }}"
+              sizelimit: 1
+            no_log: true
+            register: user_info
+          
+          查询说明：
+          - 目标用户: {{ target_username }}
+          - 过滤器: (&(objectClass=inetOrgPerson)(uid={{ target_username }}))
+          - 详细属性: {{ detailed_user_attributes }}
+          - 结果限制: 1 条记录
+    
+    # ========== 用户认证演示 ==========
+    - name: 演示用户认证流程
+      ansible.builtin.debug:
+        msg: |
+          === 用户认证流程示例 ===
+          以下是将要执行的用户认证命令（仅在演示中显示）：
+          
+          第一步：查询用户 DN
+          - name: 获取用户 DN
+            community.general.ldap_search:
+              server_uri: "{{ ldap_server_uri }}"
+              bind_dn: "{{ ldap_bind_dn }}"
+              bind_pw: "{{ vault_ldap_bind_password }}"
+              dn: "{{ ldap_users_base }}"
+              filter: "(uid={{ auth_username }})"
+              attrs: ["dn"]
+              sizelimit: 1
+            no_log: true
+            register: user_dn
+          
+          第二步：使用用户凭据绑定
+          - name: 验证用户密码
+            community.general.ldap_search:
+              server_uri: "{{ ldap_server_uri }}"
+              bind_dn: "{{ user_dn.results[0].dn }}"
+              bind_pw: "{{ vault_user_password }}"
+              dn: "{{ ldap_users_base }}"
+              filter: "(objectClass=*)"
+              attrs: ["dn"]
+              sizelimit: 1
+            no_log: true
+            register: auth_result
+            failed_when: false
+          
+          认证说明：
+          - 认证用户: {{ auth_username }}
+          - 第一步：使用管理员账户查询用户 DN
+          - 第二步：使用用户凭据尝试绑定
+          - 认证结果: {{ '成功' if auth_result.results is defined else '失败' }}
+    
+    # ========== 创建 LDAP 用户演示 ==========
+    - name: 演示创建 LDAP 用户
+      ansible.builtin.debug:
+        msg: |
+          === 创建 LDAP 用户示例 ===
+          以下是将要执行的 LDAP 用户创建命令（仅在演示中显示）：
+          
+          - name: 创建新的 LDAP 用户
+            community.general.ldap_entry:
+              server_uri: "{{ ldap_server_uri }}"
+              bind_dn: "{{ ldap_bind_dn }}"
+              bind_pw: "{{ vault_ldap_bind_password }}"
+              dn: "uid={{ new_user.uid }},{{ ldap_users_base }}"
+              state: present
+              attributes:
+                objectClass:
+                  - inetOrgPerson
+                  - organizationalPerson
+                  - person
+                  - top
+                uid: "{{ new_user.uid }}"
+                cn: "{{ new_user.cn }}"
+                sn: "{{ new_user.sn }}"
+                givenName: "{{ new_user.givenName }}"
+                mail: "{{ new_user.mail }}"
+                telephoneNumber: "{{ new_user.telephoneNumber }}"
+                departmentNumber: "{{ new_user.departmentNumber }}"
+                userPassword: "{{ vault_new_user_password }}"
+            no_log: true
+            register: user_creation
+          
+          用户创建说明：
+          - 用户 DN: uid={{ new_user.uid }},{{ ldap_users_base }}
+          - 用户标识: {{ new_user.uid }}
+          - 用户姓名: {{ new_user.cn }}
+          - 邮箱地址: {{ new_user.mail }}
+          - 部门编号: {{ new_user.departmentNumber }}
+    
+    # ========== 修改用户属性演示 ==========
+    - name: 演示修改用户属性
+      ansible.builtin.debug:
+        msg: |
+          === 修改用户属性示例 ===
+          以下是将要执行的 LDAP 属性修改命令（仅在演示中显示）：
+          
+          - name: 修改用户邮箱地址
+            community.general.ldap_attr:
+              server_uri: "{{ ldap_server_uri }}"
+              bind_dn: "{{ ldap_bind_dn }}"
+              bind_pw: "{{ vault_ldap_bind_password }}"
+              dn: "uid={{ target_username }},{{ ldap_users_base }}"
+              name: mail
+              values:
+                - "{{ new_email_address }}"
+              state: present
+            no_log: true
+            register: email_update
+          
+          - name: 修改用户电话号码
+            community.general.ldap_attr:
+              server_uri: "{{ ldap_server_uri }}"
+              bind_dn: "{{ ldap_bind_dn }}"
+              bind_pw: "{{ vault_ldap_bind_password }}"
+              dn: "uid={{ target_username }},{{ ldap_users_base }}"
+              name: telephoneNumber
+              values:
+                - "{{ new_phone_number }}"
+              state: exact
+            no_log: true
+            register: phone_update
+          
+          属性修改说明：
+          - 目标用户: {{ target_username }}
+          - 新邮箱: {{ new_email_address }}
+          - 新电话: {{ new_phone_number }}
+          - 邮箱修改: 添加新值（保留现有值）
+          - 电话修改: 替换现有值
+    
+    # ========== 密码管理演示 ==========
+    - name: 演示密码管理
+      ansible.builtin.debug:
+        msg: |
+          === 密码管理示例 ===
+          以下是将要执行的 LDAP 密码管理命令（仅在演示中显示）：
+          
+          - name: 修改用户密码
+            community.general.ldap_passwd:
+              server_uri: "{{ ldap_server_uri }}"
+              bind_dn: "{{ ldap_bind_dn }}"
+              bind_pw: "{{ vault_ldap_bind_password }}"
+              dn: "uid={{ target_username }},{{ ldap_users_base }}"
+              passwd: "{{ vault_new_user_password }}"
+              validate_certs: yes
+            no_log: true
+            register: password_change
+          
+          密码管理说明：
+          - 目标用户: {{ target_username }}
+          - 密码修改: 由管理员执行
+          - 证书验证: 已启用
+          - 安全保护: 使用 no_log 隐藏敏感信息
+    
+    # ========== 组管理演示 ==========
+    - name: 演示组管理
+      ansible.builtin.debug:
+        msg: |
+          === 组管理示例 ===
+          以下是将要执行的 LDAP 组管理命令（仅在演示中显示）：
+          
+          第一步：创建用户组
+          - name: 创建用户组
+            community.general.ldap_entry:
+              server_uri: "{{ ldap_server_uri }}"
+              bind_dn: "{{ ldap_bind_dn }}"
+              bind_pw: "{{ vault_ldap_bind_password }}"
+              dn: "cn={{ group_name }},{{ ldap_groups_base }}"
+              state: present
+              attributes:
+                objectClass:
+                  - groupOfNames
+                  - top
+                cn: "{{ group_name }}"
+                description: "{{ group_description }}"
+                member:
+                  - "uid={{ member_user1 }},{{ ldap_users_base }}"
+                  - "uid={{ member_user2 }},{{ ldap_users_base }}"
+            no_log: true
+            register: group_creation
+          
+          第二步：向组中添加成员
+          - name: 向组中添加新成员
+            community.general.ldap_attr:
+              server_uri: "{{ ldap_server_uri }}"
+              bind_dn: "{{ ldap_bind_dn }}"
+              bind_pw: "{{ vault_ldap_bind_password }}"
+              dn: "cn={{ group_name }},{{ ldap_groups_base }}"
+              name: member
+              values:
+                - "uid={{ new_member }},{{ ldap_users_base }}"
+              state: present
+            no_log: true
+            register: member_addition
+          
+          组管理说明：
+          - 组名称: {{ group_name }}
+          - 组描述: {{ group_description }}
+          - 初始成员: {{ member_user1 }}, {{ member_user2 }}
+          - 新增成员: {{ new_member }}
+    
+    # ========== 批量操作演示 ==========
+    - name: 演示批量用户操作
+      ansible.builtin.debug:
+        msg: |
+          === 批量用户操作示例 ===
+          以下是将要执行的批量 LDAP 操作命令（仅在演示中显示）：
+          
+          - name: 批量创建用户
+            community.general.ldap_entry:
+              server_uri: "{{ ldap_server_uri }}"
+              bind_dn: "{{ ldap_bind_dn }}"
+              bind_pw: "{{ vault_ldap_bind_password }}"
+              dn: "uid={{ item.uid }},{{ ldap_users_base }}"
+              state: present
+              attributes:
+                objectClass:
+                  - inetOrgPerson
+                  - organizationalPerson
+                  - person
+                  - top
+                uid: "{{ item.uid }}"
+                cn: "{{ item.cn }}"
+                sn: "{{ item.sn }}"
+                mail: "{{ item.mail }}"
+                userPassword: "{{ item.password }}"
+            no_log: true
+            loop: "{{ batch_users }}"
+            loop_control:
+              label: "{{ item.uid }}"
+            register: batch_creation
+          
+          批量操作说明：
+          - 批量创建 {{ batch_users | length }} 个用户
+          - 用户列表: {{ batch_users | map(attribute='uid') | join(', ') }}
+          - 操作模式: 逐个创建（非事务性）
+    
+    # ========== 删除操作演示 ==========
+    - name: 演示删除操作
+      ansible.builtin.debug:
+        msg: |
+          === 删除操作示例 ===
+          以下是将要执行的 LDAP 删除命令（仅在演示中显示）：
+          
+          - name: 删除用户条目
+            community.general.ldap_entry:
+              server_uri: "{{ ldap_server_uri }}"
+              bind_dn: "{{ ldap_bind_dn }}"
+              bind_pw: "{{ vault_ldap_bind_password }}"
+              dn: "uid={{ user_to_delete }},{{ ldap_users_base }}"
+              state: absent
+            no_log: true
+            register: user_deletion
+          
+          - name: 删除用户组
+            community.general.ldap_entry:
+              server_uri: "{{ ldap_server_uri }}"
+              bind_dn: "{{ ldap_bind_dn }}"
+              bind_pw: "{{ vault_ldap_bind_password }}"
+              dn: "cn={{ group_to_delete }},{{ ldap_groups_base }}"
+              state: absent
+            no_log: true
+            register: group_deletion
+          
+          删除操作说明：
+          - 删除用户: {{ user_to_delete }}
+          - 删除组: {{ group_to_delete }}
+          - 注意：删除操作不可逆，请谨慎操作
+    
+    # ========== SSL/TLS 安全连接演示 ==========
+    - name: 演示安全连接
+      ansible.builtin.debug:
+        msg: |
+          === SSL/TLS 安全连接示例 ===
+          以下是将要执行的安全 LDAP 连接命令（仅在演示中显示）：
+          
+          - name: 使用 LDAPS 安全连接
+            community.general.ldap_search:
+              server_uri: "{{ ldap_secure_server_uri }}"
+              bind_dn: "{{ ldap_bind_dn }}"
+              bind_pw: "{{ vault_ldap_bind_password }}"
+              dn: "{{ ldap_users_base }}"
+              filter: "(objectClass=inetOrgPerson)"
+              attrs: ["uid", "cn", "mail"]
+              validate_certs: yes
+              sizelimit: 10
+            no_log: true
+            register: secure_search
+          
+          安全连接说明：
+          - 安全 URI: {{ ldap_secure_server_uri }}
+          - 证书验证: 已启用
+          - 加密协议: LDAPS (LDAP over SSL)
+          - 端口: 636 (标准 LDAPS 端口)
+    
+    # ========== 错误处理和验证演示 ==========
+    - name: 演示错误处理
+      ansible.builtin.debug:
+        msg: |
+          === 错误处理和验证示例 ===
+          以下是将要执行的错误处理逻辑（仅在演示中显示）：
+          
+          - name: 安全的 LDAP 操作（带错误处理）
+            community.general.ldap_search:
+              server_uri: "{{ ldap_server_uri }}"
+              bind_dn: "{{ ldap_bind_dn }}"
+              bind_pw: "{{ vault_ldap_bind_password }}"
+              dn: "{{ ldap_users_base }}"
+              filter: "(uid={{ username }})"
+              attrs: ["uid", "cn", "mail"]
+              timelimit: 30
+              sizelimit: 1
+            no_log: true
+            register: ldap_result
+            failed_when: false
+          
+          - name: 检查 LDAP 操作结果
+            ansible.builtin.debug:
+              msg: |
+                LDAP 操作结果：
+                状态: {{ '成功' if ldap_result.results is defined else '失败' }}
+                错误信息: {{ ldap_result.msg | default('无错误') }}
+                结果数量: {{ ldap_result.results | length | default(0) }}
+          
+          - name: 根据结果执行后续操作
+            ansible.builtin.debug:
+              msg: "用户 {{ username }} {{ '存在' if ldap_result.results | length > 0 else '不存在' }}"
+            when: ldap_result.results is defined
+          
+          错误处理说明：
+          - 使用 failed_when: false 防止 playbook 中断
+          - 检查操作结果和错误信息
+          - 根据结果执行条件操作
+          - 提供详细的错误信息用于调试
+    
+    # ========== 安全和最佳实践提醒 ==========
+    - name: LDAP 协议最佳实践提醒
+      ansible.builtin.debug:
+        msg: |
+          === LDAP 协议最佳实践 ===
+          1. 连接安全：
+             - 优先使用 LDAPS 或 StartTLS 加密连接
+             - 启用服务器证书验证
+             - 设置合理的连接和操作超时
+             - 限制 LDAP 服务器的网络访问
+          
+          2. 认证安全：
+             - 使用强密码策略
+             - 定期更换绑定账户密码
+             - 使用最小权限原则配置绑定账户
+             - 使用 Ansible Vault 保护密码
+          
+          3. 操作安全：
+             - 在生产环境操作前充分测试
+             - 使用条件操作避免意外删除
+             - 启用 LDAP 操作审计日志
+             - 实施操作变更审批流程
+          
+          4. 数据安全：
+             - 谨慎处理敏感目录属性
+             - 在日志中隐藏敏感信息
+             - 配置适当的 LDAP 访问控制
+             - 定期备份 LDAP 目录数据
+          
+          5. 性能优化：
+             - 使用精确的搜索过滤器
+             - 限制搜索结果数量
+             - 设置合理的超时时间
+             - 优化索引和查询性能
+          
+          6. 监控告警：
+             - 监控 LDAP 服务器性能
+             - 设置连接失败告警
+             - 监控目录数据变化
+             - 建立故障应急响应机制
+    
+    # ========== 总结 ==========
+    - name: LDAP 协议模块演示完成总结
+      ansible.builtin.debug:
+        msg: |
+          已完成以下 LDAP 协议模块操作演示：
+          1. LDAP 连接测试和基础配置验证
+          2. 基础 LDAP 搜索 - 查询所有用户
+          3. 特定用户查询 - 精确查找用户信息
+          4. 用户认证流程 - 两步验证机制
+          5. 创建 LDAP 用户 - 完整用户条目创建
+          6. 修改用户属性 - 邮箱和电话更新
+          7. 密码管理 - 安全的密码修改
+          8. 组管理 - 用户组创建和成员管理
+          9. 批量用户操作 - 高效的批量处理
+          10. 删除操作 - 用户和组的安全删除
+          11. SSL/TLS 安全连接 - 加密连接演示
+          12. 错误处理和验证 - 健壮的操作处理
+          
+          下一步建议：
+          - 根据实际 LDAP 目录结构调整配置参数
+          - 建立用户生命周期管理的标准流程
+          - 配置 LDAP 操作的监控和告警
+          - 建立用户权限管理的审批机制
+          - 定期进行 LDAP 数据备份和恢复测试
+          - 建立用户目录的文档和标准流程
