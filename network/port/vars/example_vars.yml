@@ -1,0 +1,179 @@
+# port 模块端口健康探测示例变量
+
+# ========== 全局控制 ==========
+# 启用检查模式（仅预览，不实际执行）
+port_check_mode: false
+
+# 启用敏感信息保护（不记录详细日志）
+port_no_log: true
+
+# 当前环境（用于条件检查）
+ansible_environment: "development"
+
+# ========== Web 服务端口检查 ==========
+# 启用 Web 服务端口检查
+port_enable_web_check: true
+
+# Web 服务主机地址
+port_web_host: "127.0.0.1"
+
+# Web 服务端口
+port_web_port: 80
+
+# 期望的端口状态
+port_web_state: "started"
+
+# 最大等待时间（秒）
+port_web_timeout: 30
+
+# 开始检查前的延迟时间（秒）
+port_web_delay: 2
+
+# 检查间隔时间（秒）
+port_web_sleep: 3
+
+# ========== 批量端口检查 ==========
+# 启用批量端口检查
+port_enable_batch_check: true
+
+# 批量检查的端口列表
+port_batch_checks:
+  - host: "127.0.0.1"
+    port: 22
+    state: "started"
+    timeout: 10
+    delay: 0
+    sleep: 1
+  - host: "127.0.0.1"
+    port: 443
+    state: "started"
+    timeout: 20
+    delay: 1
+    sleep: 2
+  - host: "127.0.0.1"
+    port: 3306
+    state: "started"
+    timeout: 15
+    delay: 3
+    sleep: 2
+
+# ========== 数据库端口检查 ==========
+# 启用数据库端口检查
+port_enable_db_check: true
+
+# 数据库主机地址
+port_db_host: "127.0.0.1"
+
+# 数据库端口
+port_db_port: 3306
+
+# 期望的数据库端口状态
+port_db_state: "started"
+
+# 数据库端口检查超时时间
+port_db_timeout: 60
+
+# 单次连接超时时间
+port_db_connect_timeout: 5
+
+# ========== 应用服务端口检查 ==========
+# 启用应用服务端口检查
+port_enable_app_check: true
+
+# 应用服务主机地址
+port_app_host: "127.0.0.1"
+
+# 应用服务端口
+port_app_port: 8080
+
+# 期望的应用端口状态
+port_app_state: "started"
+
+# 应用端口检查超时时间
+port_app_timeout: 120
+
+# 应用启动延迟时间（给应用充分的启动时间）
+port_app_delay: 10
+
+# 应用端口检查间隔
+port_app_sleep: 5
+
+# ========== 端口关闭检查 ==========
+# 启用端口关闭状态检查
+port_enable_stopped_check: false
+
+# 需要检查是否关闭的端口列表
+port_stopped_checks:
+  - host: "127.0.0.1"
+    port: 9999
+    timeout: 5
+  - host: "127.0.0.1"
+    port: 8888
+    timeout: 10
+
+# ========== 生产环境检查 ==========
+# 启用生产环境关键服务检查
+port_enable_production_check: false
+
+# 生产环境关键服务检查列表
+port_production_checks:
+  - service_name: "Web Frontend"
+    host: "web-prod.example.com"
+    port: 443
+    timeout: 60
+    delay: 5
+  - service_name: "API Gateway"
+    host: "api-prod.example.com"
+    port: 8443
+    timeout: 45
+    delay: 3
+  - service_name: "Database Master"
+    host: "db-master.example.com"
+    port: 5432
+    timeout: 90
+    delay: 10
+
+# ========== 重要提示 ==========
+# ⚠️ 警告：这些变量仅用于演示，生产环境请根据实际需求调整
+# 1. 主机地址配置：
+#    - 127.0.0.1 用于本地测试
+#    - 生产环境请使用实际的服务器 IP 或域名
+#    - 确保控制节点能够访问目标主机的指定端口
+# 2. 超时时间设置：
+#    - 快速服务（SSH、Web）: 10-30 秒
+#    - 中等服务（应用服务器）: 30-60 秒
+#    - 重度服务（数据库、消息队列）: 60-120 秒
+# 3. delay 参数用途：
+#    - 给服务充足的启动时间
+#    - 避免过早检查导致假失败
+#    - 根据服务启动特性调整
+# 4. sleep 参数用途：
+#    - 控制检查频率，避免对服务造成压力
+#    - 快速检查：1-2 秒
+#    - 慢速检查：5-10 秒
+# 5. state 参数说明：
+#    - started: 端口已开放（服务已启动）
+#    - stopped: 端口已关闭（服务已停止）
+#    - drained: 端口开放但无活跃连接
+# 6. 安全注意事项：
+#    - 使用 delegate_to: localhost 从控制节点检查远程服务
+#    - 启用 no_log: true 保护敏感信息
+#    - 在生产环境使用 check_mode: false 前先测试
+#    - 确保网络连通性和防火墙规则允许检查
+# 7. 生产环境建议：
+#    - 设置更长的超时时间，避免误报
+#    - 使用更保守的检查间隔
+#    - 配置告警机制处理检查失败
+#    - 定期验证检查逻辑的有效性
+# 8. 批量检查优化：
+#    - 按服务重要性分组检查
+#    - 使用合理的超时时间避免整体任务阻塞
+#    - 考虑使用 async 进行并行检查提高效率
+# 9. 错误处理：
+#    - 使用 ignore_errors: true 避免单点失败影响整体任务
+#    - 配置 failed_when 进行精确的错误判断
+#    - 记录检查结果用于后续分析和告警
+# 10. 监控集成：
+#     - 将检查结果集成到监控系统
+#     - 设置自动恢复机制
+#     - 建立检查失败的通知流程

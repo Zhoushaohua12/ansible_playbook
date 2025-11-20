@@ -1,0 +1,219 @@
+---
+- name: port 模块端口健康探测示例
+  hosts: all
+  become: false
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 基础端口健康检查 ==========
+    - name: 检查 Web 服务端口可用性
+      ansible.builtin.wait_for:
+        host: "{{ port_web_host }}"
+        port: "{{ port_web_port }}"
+        state: "{{ port_web_state }}"
+        timeout: "{{ port_web_timeout }}"
+        delay: "{{ port_web_delay }}"
+        sleep: "{{ port_web_sleep }}"
+      delegate_to: localhost
+      register: web_port_check
+      when: port_enable_web_check | bool
+      check_mode: "{{ port_check_mode }}"
+      no_log: "{{ port_no_log }}"
+
+    - name: 显示 Web 端口检查结果
+      ansible.builtin.debug:
+        msg: |
+          Web 服务端口检查完成
+          目标: {{ port_web_host }}:{{ port_web_port }}
+          状态: {{ web_port_check.state | default('未执行') }}
+          耗时: {{ web_port_check.elapsed | default(0) }} 秒
+      when: 
+        - port_enable_web_check | bool
+        - web_port_check is defined
+
+    # ========== 批量端口检查 ==========
+    - name: 批量检查多个服务端口
+      ansible.builtin.wait_for:
+        host: "{{ item.host }}"
+        port: "{{ item.port }}"
+        state: "{{ item.state | default('started') }}"
+        timeout: "{{ item.timeout | default(30) }}"
+        delay: "{{ item.delay | default(0) }}"
+        sleep: "{{ item.sleep | default(1) }}"
+      delegate_to: localhost
+      register: batch_port_results
+      loop: "{{ port_batch_checks }}"
+      loop_control:
+        label: "{{ item.host }}:{{ item.port }}"
+      when: 
+        - port_enable_batch_check | bool
+        - port_batch_checks is defined
+        - port_batch_checks | length > 0
+      check_mode: "{{ port_check_mode }}"
+      no_log: "{{ port_no_log }}"
+
+    - name: 显示批量端口检查摘要
+      ansible.builtin.debug:
+        msg: |
+          批量端口检查完成
+          总检查数: {{ batch_port_results.results | length }}
+          成功数: {{ batch_port_results.results | selectattr('state', 'equalto', 'started') | list | length }}
+          失败数: {{ batch_port_results.results | selectattr('failed', 'equalto', true) | list | length }}
+      when: 
+        - port_enable_batch_check | bool
+        - batch_port_results is defined
+
+    # ========== 数据库端口检查 ==========
+    - name: 检查数据库服务端口
+      ansible.builtin.wait_for:
+        host: "{{ port_db_host }}"
+        port: "{{ port_db_port }}"
+        state: "{{ port_db_state }}"
+        timeout: "{{ port_db_timeout }}"
+        connect_timeout: "{{ port_db_connect_timeout }}"
+      delegate_to: localhost
+      register: db_port_check
+      when: 
+        - port_enable_db_check | bool
+        - port_db_host is defined
+      check_mode: "{{ port_check_mode }}"
+      no_log: "{{ port_no_log }}"
+      ignore_errors: true
+
+    - name: 显示数据库端口检查结果
+      ansible.builtin.debug:
+        msg: |
+          数据库端口检查完成
+          目标: {{ port_db_host }}:{{ port_db_port }}
+          状态: {{ db_port_check.state | default('未执行') }}
+          {% if db_port_check.failed is defined and db_port_check.failed %}
+          警告: 数据库端口检查失败，请检查服务状态
+          {% endif %}
+      when: port_enable_db_check | bool
+
+    # ========== 应用服务端口检查 ==========
+    - name: 检查应用服务端口（包含启动延迟）
+      ansible.builtin.wait_for:
+        host: "{{ port_app_host }}"
+        port: "{{ port_app_port }}"
+        state: "{{ port_app_state }}"
+        timeout: "{{ port_app_timeout }}"
+        delay: "{{ port_app_delay }}"
+        sleep: "{{ port_app_sleep }}"
+      delegate_to: localhost
+      register: app_port_check
+      when: 
+        - port_enable_app_check | bool
+        - port_app_host is defined
+      check_mode: "{{ port_check_mode }}"
+      no_log: "{{ port_no_log }}"
+
+    - name: 显示应用端口检查结果
+      ansible.builtin.debug:
+        msg: |
+          应用服务端口检查完成
+          目标: {{ port_app_host }}:{{ port_app_port }}
+          状态: {{ app_port_check.state | default('未执行') }}
+          耗时: {{ app_port_check.elapsed | default(0) }} 秒
+          {% if app_port_check.elapsed is defined and app_port_check.elapsed > port_app_delay %}
+          注意: 检查耗时超过预期延迟时间
+          {% endif %}
+      when: port_enable_app_check | bool
+
+    # ========== 端口关闭检查 ==========
+    - name: 检查端口是否已关闭
+      ansible.builtin.wait_for:
+        host: "{{ item.host }}"
+        port: "{{ item.port }}"
+        state: stopped
+        timeout: "{{ item.timeout | default(10) }}"
+      delegate_to: localhost
+      register: stopped_port_results
+      loop: "{{ port_stopped_checks }}"
+      loop_control:
+        label: "{{ item.host }}:{{ item.port }}"
+      when: 
+        - port_enable_stopped_check | bool
+        - port_stopped_checks is defined
+        - port_stopped_checks | length > 0
+      check_mode: "{{ port_check_mode }}"
+      no_log: "{{ port_no_log }}"
+      ignore_errors: true
+
+    - name: 显示端口关闭检查结果
+      ansible.builtin.debug:
+        msg: |
+          端口关闭检查完成
+          检查数: {{ stopped_port_results.results | length }}
+          已关闭: {{ stopped_port_results.results | selectattr('state', 'equalto', 'stopped') | list | length }}
+          仍开放: {{ stopped_port_results.results | selectattr('state', 'equalto', 'started') | list | length }}
+      when: 
+        - port_enable_stopped_check | bool
+        - stopped_port_results is defined
+
+    # ========== 条件性端口检查 ==========
+    - name: 生产环境关键服务检查
+      ansible.builtin.wait_for:
+        host: "{{ item.host }}"
+        port: "{{ item.port }}"
+        state: started
+        timeout: "{{ item.timeout | default(60) }}"
+        delay: "{{ item.delay | default(5) }}"
+      delegate_to: localhost
+      register: prod_service_check
+      loop: "{{ port_production_checks }}"
+      loop_control:
+        label: "{{ item.service_name }}"
+      when: 
+        - port_enable_production_check | bool
+        - ansible_environment == "production"
+        - port_production_checks is defined
+      check_mode: "{{ port_check_mode }}"
+      no_log: "{{ port_no_log }}"
+
+    - name: 显示生产环境检查结果
+      ansible.builtin.debug:
+        msg: |
+          生产环境关键服务检查完成
+          检查服务: {{ item.service_name }}
+          状态: {{ item.state | default('未执行') }}
+      loop: "{{ prod_service_check.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.service_name }}"
+      when: 
+        - port_enable_production_check | bool
+        - ansible_environment == "production"
+        - prod_service_check is defined
+
+    # ========== 总结 ==========
+    - name: 显示端口健康检查完成总结
+      ansible.builtin.debug:
+        msg: |
+          port 模块端口健康探测演示完成！
+          
+          已执行的检查项：
+          {% if port_enable_web_check %}
+          ✓ Web 服务端口检查 ({{ port_web_host }}:{{ port_web_port }})
+          {% endif %}
+          {% if port_enable_batch_check %}
+          ✓ 批量端口检查 ({{ port_batch_checks | length }} 个端口)
+          {% endif %}
+          {% if port_enable_db_check %}
+          ✓ 数据库端口检查 ({{ port_db_host }}:{{ port_db_port }})
+          {% endif %}
+          {% if port_enable_app_check %}
+          ✓ 应用服务端口检查 ({{ port_app_host }}:{{ port_app_port }})
+          {% endif %}
+          {% if port_enable_stopped_check %}
+          ✓ 端口关闭检查 ({{ port_stopped_checks | length }} 个端口)
+          {% endif %}
+          {% if port_enable_production_check and ansible_environment == "production" %}
+          ✓ 生产环境关键服务检查 ({{ port_production_checks | length }} 个服务)
+          {% endif %}
+          
+          安全提示：
+          - 所有检查均使用 delegate_to: localhost 从控制节点执行
+          - 敏感信息已通过 no_log 参数保护
+          - 支持通过 check_mode 进行安全预览

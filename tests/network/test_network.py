@@ -6,18 +6,24 @@ from typing import Dict
 import pytest
 import yaml
 
-MODULES = ["firewalld", "ufw", "iptables", "wait_for"]
+MODULES = ["firewalld", "ufw", "iptables", "wait_for", "port", "route", "interface"]
 FQCN_EXPECTATIONS = {
     "firewalld": "community.general.firewalld",
     "ufw": "community.general.ufw",
     "iptables": "community.general.iptables",
     "wait_for": "ansible.builtin.wait_for",
+    "port": "ansible.builtin.wait_for",
+    "route": "ansible.posix.route",
+    "interface": "community.general.nmcli",
 }
 EXTERNAL_DEPS = {
     "firewalld": "community.general collection",
     "ufw": "community.general collection",
     "iptables": "community.general collection",
     "wait_for": "ansible.builtin (内置)",
+    "port": "ansible.builtin (内置)",
+    "route": "ansible.posix collection",
+    "interface": "community.general collection",
 }
 
 
@@ -46,6 +52,9 @@ class TestNetworkReadme(TestNetworkFixtures):
         assert "ufw" in content, "network/README.md 应包含 ufw 模块说明"
         assert "iptables" in content, "network/README.md 应包含 iptables 模块说明"
         assert "wait_for" in content, "network/README.md 应包含 wait_for 模块说明"
+        assert "port" in content, "network/README.md 应包含 port 模块说明"
+        assert "route" in content, "network/README.md 应包含 route 模块说明"
+        assert "interface" in content, "network/README.md 应包含 interface 模块说明"
 
     def test_network_readme_contains_system_firewall_distinction(
         self, network_root: Path
@@ -66,7 +75,7 @@ class TestNetworkReadme(TestNetworkFixtures):
 class TestModuleDocumentation(TestNetworkFixtures):
     """校验各网络模块 README 的章节与内容"""
 
-    REQUIRED_SECTIONS = ["模块用途", "主要参数", "返回值", "使用情境"]
+    REQUIRED_SECTIONS = ["模块用途", "主要参数", "返回值", "使用情境", "适用场景"]
 
     def test_module_readmes_exist(self, module_dirs: Dict[str, Path]) -> None:
         for name, path in module_dirs.items():
@@ -79,7 +88,15 @@ class TestModuleDocumentation(TestNetworkFixtures):
         for name, path in module_dirs.items():
             content = (path / "README.md").read_text(encoding="utf-8")
             for section in self.REQUIRED_SECTIONS:
-                assert section in content, f"{name} README.md 缺少 {section} 章节"
+                # Check for both "使用情境" and "适用场景" to handle different naming conventions
+                if section == "使用情境":
+                    has_section = "使用情境" in content or "适用场景" in content
+                elif section == "适用场景":
+                    has_section = "使用情境" in content or "适用场景" in content
+                else:
+                    has_section = section in content
+                
+                assert has_section, f"{name} README.md 缺少 {section} 章节"
             has_chinese = any("\u4e00" <= ch <= "\u9fff" for ch in content)
             assert has_chinese, f"{name} README.md 需要包含中文内容"
 
@@ -160,6 +177,57 @@ class TestPlaybooks(TestNetworkFixtures):
                     f"{name} playbook 应引用 vars/example_vars.yml"
                 )
 
+    def test_port_playbook_contains_delegate_to_and_timeout(
+        self, module_dirs: Dict[str, Path]
+    ) -> None:
+        """检查 port 模块包含 delegate_to、timeout/sleep/state 参数"""
+        port_path = module_dirs["port"]
+        content = (port_path / "playbook.yml").read_text(encoding="utf-8")
+        assert "delegate_to: localhost" in content, (
+            "port playbook 应使用 delegate_to: localhost"
+        )
+        assert "timeout" in content, "port playbook 应包含 timeout 参数"
+        assert "sleep" in content, "port playbook 应包含 sleep 参数"
+        assert "state" in content, "port playbook 应包含 state 参数"
+        assert "vars_files" in content, "port playbook 应引用 vars 文件"
+
+    def test_route_playbook_contains_ansible_posix_route(
+        self, module_dirs: Dict[str, Path]
+    ) -> None:
+        """检查 route 模块包含 ansible.posix.route、state、metric 参数"""
+        route_path = module_dirs["route"]
+        content = (route_path / "playbook.yml").read_text(encoding="utf-8")
+        assert "ansible.posix.route" in content, (
+            "route playbook 应使用 ansible.posix.route"
+        )
+        assert "state" in content, "route playbook 应包含 state 参数"
+        assert "metric" in content, "route playbook 应包含 metric 参数"
+        assert "vars_files" in content, "route playbook 应引用 vars 文件"
+
+    def test_interface_playbook_contains_nmcli_and_handlers(
+        self, module_dirs: Dict[str, Path]
+    ) -> None:
+        """检查 interface 模块包含 community.general.nmcli、become: true、notify/handlers"""
+        interface_path = module_dirs["interface"]
+        content = (interface_path / "playbook.yml").read_text(encoding="utf-8")
+        assert "community.general.nmcli" in content, (
+            "interface playbook 应使用 community.general.nmcli"
+        )
+        assert "become: true" in content, "interface playbook 应使用 become: true"
+        assert "handlers:" in content, "interface playbook 应包含 handlers"
+        assert "notify:" in content, "interface playbook 应使用 notify"
+
+    def test_new_modules_require_chinese_comments(
+        self, module_dirs: Dict[str, Path]
+    ) -> None:
+        """检查新模块 playbook 包含中文注释"""
+        for name in ["port", "route", "interface"]:
+            if name in module_dirs:
+                path = module_dirs[name]
+                content = (path / "playbook.yml").read_text(encoding="utf-8")
+                has_chinese = any("\u4e00" <= ch <= "\u9fff" for ch in content)
+                assert has_chinese, f"{name} playbook 需要使用中文任务名或注释"
+
 
 class TestVarsFiles(TestNetworkFixtures):
     """校验示例变量的注释、安全提示与语法"""
@@ -203,6 +271,51 @@ class TestVarsFiles(TestNetworkFixtures):
                     or "端口" in content
                     or "服务" in content
                 ), f"{name} example_vars.yml 应包含端口或服务配置"
+
+    def test_port_vars_contain_timeout_and_warning(
+        self, module_dirs: Dict[str, Path]
+    ) -> None:
+        """检查 port 模块变量文件包含超时配置和安全警告"""
+        port_path = module_dirs["port"]
+        content = (port_path / "vars" / "example_vars.yml").read_text(
+            encoding="utf-8"
+        )
+        assert "timeout" in content, "port example_vars.yml 应包含 timeout 配置"
+        assert "sleep" in content, "port example_vars.yml 应包含 sleep 配置"
+        assert "delegate_to" in content, "port example_vars.yml 应包含 delegate_to 说明"
+        assert any(keyword in content for keyword in self.WARNING_KEYWORDS), (
+            "port example_vars.yml 需包含安全警告"
+        )
+
+    def test_route_vars_contain_metric_and_warning(
+        self, module_dirs: Dict[str, Path]
+    ) -> None:
+        """检查 route 模块变量文件包含 metric 配置和安全警告"""
+        route_path = module_dirs["route"]
+        content = (route_path / "vars" / "example_vars.yml").read_text(
+            encoding="utf-8"
+        )
+        assert "metric" in content, "route example_vars.yml 应包含 metric 配置"
+        assert "gw" in content, "route example_vars.yml 应包含 gw 配置"
+        assert "dest" in content, "route example_vars.yml 应包含 dest 配置"
+        assert any(keyword in content for keyword in self.WARNING_KEYWORDS), (
+            "route example_vars.yml 需包含安全警告"
+        )
+
+    def test_interface_vars_contain_autoconnect_and_warning(
+        self, module_dirs: Dict[str, Path]
+    ) -> None:
+        """检查 interface 模块变量文件包含 autoconnect 配置和安全警告"""
+        interface_path = module_dirs["interface"]
+        content = (interface_path / "vars" / "example_vars.yml").read_text(
+            encoding="utf-8"
+        )
+        assert "autoconnect" in content, "interface example_vars.yml 应包含 autoconnect 配置"
+        assert "ip4" in content, "interface example_vars.yml 应包含 ip4 配置"
+        assert "method4" in content, "interface example_vars.yml 应包含 method4 配置"
+        assert any(keyword in content for keyword in self.WARNING_KEYWORDS), (
+            "interface example_vars.yml 需包含安全警告"
+        )
 
 
 class TestNetworkModuleIntegration(TestNetworkFixtures):

@@ -1,0 +1,334 @@
+# interface 模块网络接口管理示例变量
+
+# ========== 全局控制 ==========
+# 启用接口配置的详细输出
+interface_verbose_output: true
+
+# 是否重新加载 NetworkManager 服务
+interface_reload_networkmanager: false
+
+# 是否显示当前网络连接
+interface_show_connections: true
+
+# 是否显示网络设备状态
+interface_show_devices: true
+
+# ========== 管理网络接口配置 ==========
+# 启用管理网络接口配置
+interface_enable_mgmt: true
+
+# 管理网络连接名称
+interface_mgmt_conn: "mgmt-eth0"
+
+# 管理网络接口名称
+interface_mgmt_ifname: "eth0"
+
+# 是否自动连接
+interface_mgmt_autoconnect: true
+
+# 管理 IP 地址配置
+interface_mgmt_ip4: "192.168.1.100/24"
+
+# 管理网络网关
+interface_mgmt_gw4: "192.168.1.1"
+
+# 管理 DNS 服务器
+interface_mgmt_dns4: ["8.8.8.8", "8.8.4.4"]
+
+# IPv4 配置方法
+interface_mgmt_method4: "manual"
+
+# 管理接口状态
+interface_mgmt_state: "present"
+
+# ========== 业务网络接口配置 ==========
+# 启用业务网络接口配置
+interface_enable_business: true
+
+# 业务网络连接名称
+interface_business_conn: "business-eth1"
+
+# 业务网络接口名称
+interface_business_ifname: "eth1"
+
+# 是否自动连接
+interface_business_autoconnect: true
+
+# IPv4 配置方法（auto 表示 DHCP）
+interface_business_method4: "auto"
+
+# 业务接口状态
+interface_business_state: "present"
+
+# ========== 网桥接口配置 ==========
+# 启用网桥接口配置
+interface_enable_bridge: true
+
+# 网桥连接名称
+interface_bridge_conn: "br0"
+
+# 网桥接口名称
+interface_bridge_ifname: "br0"
+
+# 是否自动连接
+interface_bridge_autoconnect: true
+
+# 网桥 IP 地址
+interface_bridge_ip4: "192.168.100.1/24"
+
+# 网桥 IPv4 配置方法
+interface_bridge_method4: "manual"
+
+# 网桥状态
+interface_bridge_state: "present"
+
+# 网桥 slave 连接名称
+interface_bridge_slave_conn: "eth0-br0"
+
+# 网桥 slave 物理接口
+interface_bridge_slave_ifname: "eth0"
+
+# 网桥 slave 是否自动连接
+interface_bridge_slave_autoconnect: true
+
+# 网桥 slave 状态
+interface_bridge_slave_state: "present"
+
+# ========== 绑定接口配置 ==========
+# 启用绑定接口配置
+interface_enable_bond: true
+
+# 绑定连接名称
+interface_bond_conn: "bond0"
+
+# 绑定接口名称
+interface_bond_ifname: "bond0"
+
+# 是否自动连接
+interface_bond_autoconnect: true
+
+# 绑定 IP 地址
+interface_bond_ip4: "192.168.1.200/24"
+
+# 绑定网关
+interface_bond_gw4: "192.168.1.1"
+
+# 绑定 IPv4 配置方法
+interface_bond_method4: "manual"
+
+# 绑定模式（active-backup, balance-rr, 802.3ad 等）
+interface_bond_mode: "active-backup"
+
+# 绑定状态
+interface_bond_state: "present"
+
+# 绑定主接口连接名称
+interface_bond_primary_conn: "eth0-bond0"
+
+# 绑定主物理接口
+interface_bond_primary_ifname: "eth0"
+
+# 绑定主接口是否自动连接
+interface_bond_primary_autoconnect: true
+
+# 绑定主接口状态
+interface_bond_primary_state: "present"
+
+# 绑定备用接口连接名称
+interface_bond_secondary_conn: "eth1-bond0"
+
+# 绑定备用物理接口
+interface_bond_secondary_ifname: "eth1"
+
+# 绑定备用接口是否自动连接
+interface_bond_secondary_autoconnect: true
+
+# 绑定备用接口状态
+interface_bond_secondary_state: "present"
+
+# ========== VLAN 接口配置 ==========
+# 启用 VLAN 接口配置
+interface_enable_vlan: true
+
+# VLAN 连接名称
+interface_vlan_conn: "vlan100"
+
+# VLAN 接口名称
+interface_vlan_ifname: "eth0.100"
+
+# 是否自动连接
+interface_vlan_autoconnect: true
+
+# VLAN IP 地址
+interface_vlan_ip4: "192.168.100.10/24"
+
+# VLAN IPv4 配置方法
+interface_vlan_method4: "manual"
+
+# VLAN ID
+interface_vlan_id: 100
+
+# VLAN 父接口
+interface_vlan_parent: "eth0"
+
+# VLAN 状态
+interface_vlan_state: "present"
+
+# ========== 批量接口配置 ==========
+# 启用批量接口配置
+interface_enable_batch: true
+
+# 批量接口配置列表
+interface_batch_configs:
+  - conn_name: "static-eth2"
+    ifname: "eth2"
+    type: "ethernet"
+    autoconnect: true
+    ip4: "192.168.2.100/24"
+    gw4: "192.168.2.1"
+    dns4: ["8.8.8.8"]
+    method4: "manual"
+    state: "present"
+  - conn_name: "dhcp-eth3"
+    ifname: "eth3"
+    type: "ethernet"
+    autoconnect: true
+    method4: "auto"
+    state: "present"
+  - conn_name: "backup-eth4"
+    ifname: "eth4"
+    type: "ethernet"
+    autoconnect: false
+    ip4: "10.0.0.100/24"
+    method4: "manual"
+    state: "present"
+
+# ========== 系统特定接口配置 ==========
+# 启用 RHEL/CentOS 特定接口配置
+interface_enable_rhel_specific: false
+
+# RHEL 系统特定接口列表
+interface_rhel_specific:
+  - conn_name: "rhel-eth0"
+    ifname: "eth0"
+    type: "ethernet"
+    autoconnect: true
+    ip4: "192.168.10.100/24"
+    method4: "manual"
+    state: "present"
+
+# 启用 Ubuntu/Debian 特定接口配置
+interface_enable_debian_specific: false
+
+# Debian 系统特定接口列表
+interface_debian_specific:
+  - conn_name: "debian-eth0"
+    ifname: "eth0"
+    type: "ethernet"
+    autoconnect: true
+    ip4: "192.168.20.100/24"
+    method4: "manual"
+    state: "present"
+
+# ========== 接口状态管理 ==========
+# 启用接口状态管理
+interface_enable_state_management: false
+
+# 需要激活的网络连接列表
+interface_connections_up:
+  - conn_name: "mgmt-eth0"
+  - conn_name: "business-eth1"
+
+# 需要停用的网络连接列表
+interface_connections_down:
+  - conn_name: "old-connection"
+  - conn_name: "backup-eth4"
+
+# ========== 接口清理配置 ==========
+# 启用接口清理
+interface_enable_cleanup: false
+
+# 需要删除的旧网络连接列表
+interface_cleanup_connections:
+  - conn_name: "old-eth0"
+  - conn_name: "old-eth1"
+  - conn_name: "temp-connection"
+
+# ========== 接口验证配置 ==========
+# 启用接口验证
+interface_enable_verification: true
+
+# 需要验证的关键接口列表
+interface_verification_list:
+  - conn_name: "mgmt-eth0"
+    ip4: "192.168.1.100/24"
+  - conn_name: "br0"
+    ip4: "192.168.100.1/24"
+  - conn_name: "bond0"
+    ip4: "192.168.1.200/24"
+
+# ========== 重要提示 ==========
+# ⚠️ 警告：这些变量仅用于演示，生产环境请根据实际网络环境调整
+# 1. 接口名称配置：
+#    - ifname 必须是系统中存在的物理接口名称
+#    - 使用 ansible_interfaces 验证接口存在性
+#    - 不同系统的接口命名规则可能不同（eth0、ens33、enp0s3 等）
+# 2. IP 地址配置：
+#    - ip4 使用 CIDR 格式（如 192.168.1.100/24）
+#    - 确保网关地址在同一网段内
+#    - 避免使用已分配的 IP 地址
+# 3. 网络拓扑理解：
+#    - 充分了解网络拓扑结构
+#    - 避免配置冲突的 IP 地址
+#    - 考虑网络冗余和故障切换
+# 4. 系统兼容性：
+#    - 不同 Linux 发行版的网络配置可能不同
+#    - 确保系统支持相应的网络接口类型
+#    - 检查内核模块是否已加载
+# 5. 安全注意事项：
+#    - 接口配置需要 root 权限（become: true）
+#    - 错误的配置可能导致网络中断
+#    - 生产环境操作前务必备份现有配置
+#    - 建议通过控制台或带外管理进行操作
+# 6. 网桥配置：
+#    - 网桥用于虚拟化和容器网络
+#    - 确保物理接口正确加入网桥
+#    - 注意网桥的 STP 配置
+# 7. 绑定配置：
+#    - 绑定用于提高网络可靠性和带宽
+#    - 选择合适的绑定模式（active-backup、balance-rr 等）
+#    - 确保交换机支持相应的绑定协议
+# 8. VLAN 配置：
+#    - VLAN ID 必须与网络设备配置一致
+#    - 确保父接口支持 VLAN 功能
+#    - 注意 VLAN 标记的正确性
+# 9. DHCP vs 静态 IP：
+#    - DHCP 适合客户端和动态环境
+#    - 静态 IP 适合服务器和固定设备
+#    - 生产服务器建议使用静态 IP
+# 10. DNS 配置：
+#     - 配置可靠的 DNS 服务器
+#     - 考虑配置备用 DNS 服务器
+#     - 确保 DNS 解析的可用性
+# 11. 自动连接设置：
+#     - 关键接口启用自动连接
+#     - 备用接口可禁用自动连接
+#     - 考虑系统启动时的网络需求
+# 12. 测试验证：
+#     - 配置后测试网络连通性
+#     - 验证 IP 地址分配和网关可达性
+#     - 测试 DNS 解析功能
+# 13. 监控告警：
+#     - 监控网络接口状态
+#     - 配置接口故障告警
+#     - 定期检查网络配置的一致性
+# 14. 故障排查：
+#     - 使用 nmcli connection show 查看连接状态
+#     - 使用 nmcli device show 查看设备信息
+#     - 检查 NetworkManager 服务状态
+#     - 查看系统日志中的网络相关错误
+# 15. 生产环境建议：
+#     - 分阶段部署网络配置变更
+#     - 使用配置管理工具确保一致性
+#     - 建立网络配置的版本控制
+#     - 准备网络故障的应急响应方案

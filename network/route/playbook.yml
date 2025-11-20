@@ -1,0 +1,299 @@
+---
+- name: route 模块静态路由管理示例
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 基础路由配置 ==========
+    - name: 添加默认路由（主网关）
+      ansible.posix.route:
+        dest: "{{ route_default_dest }}"
+        gw: "{{ route_default_gw }}"
+        state: "{{ route_default_state }}"
+      register: default_route_result
+      when: route_enable_default | bool
+      notify: 
+        - 显示路由变更
+        - 重新加载网络配置
+
+    - name: 添加网络段路由
+      ansible.posix.route:
+        dest: "{{ route_network_dest }}"
+        gw: "{{ route_network_gw }}"
+        netmask: "{{ route_network_netmask }}"
+        state: "{{ route_network_state }}"
+      register: network_route_result
+      when: route_enable_network | bool
+      notify: 显示路由变更
+
+    # ========== 多接口路由配置 ==========
+    - name: 配置管理网络路由（指定接口）
+      ansible.posix.route:
+        dest: "{{ route_mgmt_dest }}"
+        gw: "{{ route_mgmt_gw }}"
+        dev: "{{ route_mgmt_dev }}"
+        metric: "{{ route_mgmt_metric }}"
+        state: "{{ route_mgmt_state }}"
+      register: mgmt_route_result
+      when: 
+        - route_enable_mgmt | bool
+        - route_mgmt_dev in ansible_interfaces
+      notify: 显示路由变更
+
+    - name: 配置业务网络路由（指定接口）
+      ansible.posix.route:
+        dest: "{{ route_business_dest }}"
+        gw: "{{ route_business_gw }}"
+        dev: "{{ route_business_dev }}"
+        metric: "{{ route_business_metric }}"
+        state: "{{ route_business_state }}"
+      register: business_route_result
+      when: 
+        - route_enable_business | bool
+        - route_business_dev in ansible_interfaces
+      notify: 显示路由变更
+
+    # ========== 批量路由配置 ==========
+    - name: 批量添加静态路由
+      ansible.posix.route:
+        dest: "{{ item.dest }}"
+        gw: "{{ item.gw }}"
+        dev: "{{ item.dev | default(omit) }}"
+        metric: "{{ item.metric | default(100) }}"
+        netmask: "{{ item.netmask | default(omit) }}"
+        state: "{{ item.state | default('present') }}"
+      register: batch_route_results
+      loop: "{{ route_batch_routes }}"
+      loop_control:
+        label: "{{ item.dest }}"
+      when: 
+        - route_enable_batch | bool
+        - route_batch_routes is defined
+        - route_batch_routes | length > 0
+      notify: 显示路由变更
+
+    - name: 显示批量路由配置摘要
+      ansible.builtin.debug:
+        msg: |
+          批量路由配置完成
+          处理路由数: {{ batch_route_results.results | length }}
+          变更路由数: {{ batch_route_results.results | selectattr('changed', 'equalto', true) | list | length }}
+      when: 
+        - route_enable_batch | bool
+        - batch_route_results is defined
+
+    # ========== 系统兼容性配置 ==========
+    - name: RHEL/CentOS 系统路由配置
+      ansible.posix.route:
+        dest: "{{ item.dest }}"
+        gw: "{{ item.gw }}"
+        metric: "{{ item.metric | default(100) }}"
+        state: present
+      register: rhel_routes
+      loop: "{{ route_rhel_specific }}"
+      loop_control:
+        label: "{{ item.dest }}"
+      when: 
+        - route_enable_rhel_specific | bool
+        - ansible_os_family == "RedHat"
+        - route_rhel_specific is defined
+      notify: 显示路由变更
+
+    - name: Ubuntu/Debian 系统路由配置
+      ansible.posix.route:
+        dest: "{{ item.dest }}"
+        gw: "{{ item.gw }}"
+        metric: "{{ item.metric | default(100) }}"
+        state: present
+      register: debian_routes
+      loop: "{{ route_debian_specific }}"
+      loop_control:
+        label: "{{ item.dest }}"
+      when: 
+        - route_enable_debian_specific | bool
+        - ansible_os_family == "Debian"
+        - route_debian_specific is defined
+      notify: 显示路由变更
+
+    # ========== 路由优先级管理 ==========
+    - name: 配置主路由（高优先级）
+      ansible.posix.route:
+        dest: "{{ route_primary_dest }}"
+        gw: "{{ route_primary_gw }}"
+        metric: "{{ route_primary_metric }}"
+        state: "{{ route_primary_state }}"
+      register: primary_route_result
+      when: 
+        - route_enable_primary | bool
+        - route_primary_dest is defined
+        - route_primary_gw is defined
+      notify: 显示路由变更
+
+    - name: 配置备份路由（低优先级）
+      ansible.posix.route:
+        dest: "{{ route_backup_dest }}"
+        gw: "{{ route_backup_gw }}"
+        metric: "{{ route_backup_metric }}"
+        state: "{{ route_backup_state }}"
+      register: backup_route_result
+      when: 
+        - route_enable_backup | bool
+        - route_backup_dest is defined
+        - route_backup_gw is defined
+      notify: 显示路由变更
+
+    # ========== 路由清理 ==========
+    - name: 删除指定的旧路由
+      ansible.posix.route:
+        dest: "{{ item.dest }}"
+        gw: "{{ item.gw }}"
+        state: absent
+      register: cleanup_results
+      loop: "{{ route_cleanup_routes }}"
+      loop_control:
+        label: "{{ item.dest }}"
+      when: 
+        - route_enable_cleanup | bool
+        - route_cleanup_routes is defined
+        - route_cleanup_routes | length > 0
+      notify: 显示路由变更
+
+    - name: 显示路由清理结果
+      ansible.builtin.debug:
+        msg: |
+          路由清理完成
+          清理路由数: {{ cleanup_results.results | length }}
+          成功删除: {{ cleanup_results.results | selectattr('changed', 'equalto', true) | list | length }}
+      when: 
+        - route_enable_cleanup | bool
+        - cleanup_results is defined
+
+    # ========== 路由验证 ==========
+    - name: 验证关键路由是否存在
+      ansible.builtin.shell: |
+        ip route show {{ item.dest }} | grep -q "{{ item.gw }}"
+      register: route_verification
+      loop: "{{ route_verification_routes }}"
+      loop_control:
+        label: "{{ item.dest }}"
+      failed_when: route_verification.rc != 0
+      when: 
+        - route_enable_verification | bool
+        - route_verification_routes is defined
+      ignore_errors: true
+
+    - name: 显示路由验证结果
+      ansible.builtin.debug:
+        msg: |
+          路由验证结果 - {{ item.item.dest }}:
+          {% if item.rc == 0 %}
+          ✓ 路由存在且正确
+          {% else %}
+          ✗ 路由不存在或配置错误
+          {% endif %}
+      loop: "{{ route_verification.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.dest }}"
+      when: 
+        - route_enable_verification | bool
+        - route_verification is defined
+
+    # ========== 显示当前路由表 ==========
+    - name: 获取当前路由表信息
+      ansible.builtin.shell: |
+        ip route show
+      register: current_routing_table
+      changed_when: false
+      when: route_show_routing_table | bool
+
+    - name: 显示当前路由表
+      ansible.builtin.debug:
+        var: current_routing_table.stdout_lines
+      when: 
+        - route_show_routing_table | bool
+        - current_routing_table is defined
+
+  handlers:
+    - name: 显示路由变更
+      ansible.builtin.debug:
+        msg: |
+          路由配置变更完成
+          {% if default_route_result is defined and default_route_result.changed %}
+          ✓ 默认路由已更新: {{ route_default_dest }} via {{ route_default_gw }}
+          {% endif %}
+          {% if network_route_result is defined and network_route_result.changed %}
+          ✓ 网络路由已更新: {{ route_network_dest }} via {{ route_network_gw }}
+          {% endif %}
+          {% if mgmt_route_result is defined and mgmt_route_result.changed %}
+          ✓ 管理网络路由已更新: {{ route_mgmt_dest }} via {{ route_mgmt_gw }} (dev: {{ route_mgmt_dev }})
+          {% endif %}
+          {% if business_route_result is defined and business_route_result.changed %}
+          ✓ 业务网络路由已更新: {{ route_business_dest }} via {{ route_business_gw }} (dev: {{ route_business_dev }})
+          {% endif %}
+          {% if primary_route_result is defined and primary_route_result.changed %}
+          ✓ 主路由已更新: {{ route_primary_dest }} via {{ route_primary_gw }} (metric: {{ route_primary_metric }})
+          {% endif %}
+          {% if backup_route_result is defined and backup_route_result.changed %}
+          ✓ 备份路由已更新: {{ route_backup_dest }} via {{ route_backup_gw }} (metric: {{ route_backup_metric }})
+          {% endif %}
+      listen: 显示路由变更
+
+    - name: 重新加载网络配置
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: reloaded
+      loop:
+        - NetworkManager
+        - networking
+      failed_when: false
+      when: route_reload_network | bool
+      listen: 重新加载网络配置
+
+    - name: 显示路由管理完成总结
+      ansible.builtin.debug:
+        msg: |
+          route 模块静态路由管理演示完成！
+          
+          已执行的配置项：
+          {% if route_enable_default %}
+          ✓ 默认路由配置 ({{ route_default_dest }} via {{ route_default_gw }})
+          {% endif %}
+          {% if route_enable_network %}
+          ✓ 网络段路由配置 ({{ route_network_dest }} via {{ route_network_gw }})
+          {% endif %}
+          {% if route_enable_mgmt %}
+          ✓ 管理网络路由配置 ({{ route_mgmt_dest }} via {{ route_mgmt_gw }})
+          {% endif %}
+          {% if route_enable_business %}
+          ✓ 业务网络路由配置 ({{ route_business_dest }} via {{ route_business_gw }})
+          {% endif %}
+          {% if route_enable_batch %}
+          ✓ 批量路由配置 ({{ route_batch_routes | length }} 条路由)
+          {% endif %}
+          {% if route_enable_rhel_specific and ansible_os_family == "RedHat" %}
+          ✓ RHEL 系统特定路由配置
+          {% endif %}
+          {% if route_enable_debian_specific and ansible_os_family == "Debian" %}
+          ✓ Debian 系统特定路由配置
+          {% endif %}
+          {% if route_enable_primary %}
+          ✓ 主路由配置 (metric: {{ route_primary_metric }})
+          {% endif %}
+          {% if route_enable_backup %}
+          ✓ 备份路由配置 (metric: {{ route_backup_metric }})
+          {% endif %}
+          {% if route_enable_cleanup %}
+          ✓ 路由清理 ({{ route_cleanup_routes | length }} 条旧路由)
+          {% endif %}
+          {% if route_enable_verification %}
+          ✓ 路由验证检查
+          {% endif %}
+          
+          安全提示：
+          - 所有路由操作都需要 root 权限
+          - 生产环境请先在测试环境验证
+          - 建议备份现有路由配置
+          - 配置变更后验证网络连通性

@@ -1,0 +1,411 @@
+---
+- name: interface 模块网络接口管理示例
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 基础以太网接口配置 ==========
+    - name: 配置管理网络接口（静态 IP）
+      community.general.nmcli:
+        conn_name: "{{ interface_mgmt_conn }}"
+        ifname: "{{ interface_mgmt_ifname }}"
+        type: "ethernet"
+        autoconnect: "{{ interface_mgmt_autoconnect }}"
+        ip4: "{{ interface_mgmt_ip4 }}"
+        gw4: "{{ interface_mgmt_gw4 }}"
+        dns4: "{{ interface_mgmt_dns4 }}"
+        method4: "{{ interface_mgmt_method4 }}"
+        state: "{{ interface_mgmt_state }}"
+      register: mgmt_interface_result
+      when: 
+        - interface_enable_mgmt | bool
+        - interface_mgmt_ifname in ansible_interfaces
+      notify: 
+        - 显示接口变更
+        - 重新加载 NetworkManager
+
+    - name: 配置业务网络接口（DHCP）
+      community.general.nmcli:
+        conn_name: "{{ interface_business_conn }}"
+        ifname: "{{ interface_business_ifname }}"
+        type: "ethernet"
+        autoconnect: "{{ interface_business_autoconnect }}"
+        method4: "{{ interface_business_method4 }}"
+        state: "{{ interface_business_state }}"
+      register: business_interface_result
+      when: 
+        - interface_enable_business | bool
+        - interface_business_ifname in ansible_interfaces
+      notify: 显示接口变更
+
+    # ========== 网桥接口配置 ==========
+    - name: 创建虚拟化网桥接口
+      community.general.nmcli:
+        conn_name: "{{ interface_bridge_conn }}"
+        ifname: "{{ interface_bridge_ifname }}"
+        type: "bridge"
+        autoconnect: "{{ interface_bridge_autoconnect }}"
+        ip4: "{{ interface_bridge_ip4 }}"
+        method4: "{{ interface_bridge_method4 }}"
+        state: "{{ interface_bridge_state }}"
+      register: bridge_interface_result
+      when: interface_enable_bridge | bool
+      notify: 
+        - 显示接口变更
+        - 重新加载 NetworkManager
+
+    - name: 将物理接口加入网桥
+      community.general.nmcli:
+        conn_name: "{{ interface_bridge_slave_conn }}"
+        ifname: "{{ interface_bridge_slave_ifname }}"
+        type: "ethernet"
+        master: "{{ interface_bridge_conn }}"
+        slave_type: "bridge"
+        autoconnect: "{{ interface_bridge_slave_autoconnect }}"
+        state: "{{ interface_bridge_slave_state }}"
+      register: bridge_slave_result
+      when: 
+        - interface_enable_bridge | bool
+        - interface_bridge_slave_ifname in ansible_interfaces
+        - interface_bridge_conn is defined
+      notify: 显示接口变更
+
+    # ========== 绑定接口配置 ==========
+    - name: 创建网络绑定接口
+      community.general.nmcli:
+        conn_name: "{{ interface_bond_conn }}"
+        ifname: "{{ interface_bond_ifname }}"
+        type: "bond"
+        autoconnect: "{{ interface_bond_autoconnect }}"
+        ip4: "{{ interface_bond_ip4 }}"
+        gw4: "{{ interface_bond_gw4 }}"
+        method4: "{{ interface_bond_method4 }}"
+        mode: "{{ interface_bond_mode }}"
+        state: "{{ interface_bond_state }}"
+      register: bond_interface_result
+      when: interface_enable_bond | bool
+      notify: 
+        - 显示接口变更
+        - 重新加载 NetworkManager
+
+    - name: 将物理接口加入绑定（主接口）
+      community.general.nmcli:
+        conn_name: "{{ interface_bond_primary_conn }}"
+        ifname: "{{ interface_bond_primary_ifname }}"
+        type: "ethernet"
+        master: "{{ interface_bond_conn }}"
+        slave_type: "bond"
+        autoconnect: "{{ interface_bond_primary_autoconnect }}"
+        state: "{{ interface_bond_primary_state }}"
+      register: bond_primary_result
+      when: 
+        - interface_enable_bond | bool
+        - interface_bond_primary_ifname in ansible_interfaces
+        - interface_bond_conn is defined
+      notify: 显示接口变更
+
+    - name: 将物理接口加入绑定（备用接口）
+      community.general.nmcli:
+        conn_name: "{{ interface_bond_secondary_conn }}"
+        ifname: "{{ interface_bond_secondary_ifname }}"
+        type: "ethernet"
+        master: "{{ interface_bond_conn }}"
+        slave_type: "bond"
+        autoconnect: "{{ interface_bond_secondary_autoconnect }}"
+        state: "{{ interface_bond_secondary_state }}"
+      register: bond_secondary_result
+      when: 
+        - interface_enable_bond | bool
+        - interface_bond_secondary_ifname in ansible_interfaces
+        - interface_bond_conn is defined
+      notify: 显示接口变更
+
+    # ========== VLAN 接口配置 ==========
+    - name: 创建 VLAN 接口
+      community.general.nmcli:
+        conn_name: "{{ interface_vlan_conn }}"
+        ifname: "{{ interface_vlan_ifname }}"
+        type: "vlan"
+        autoconnect: "{{ interface_vlan_autoconnect }}"
+        ip4: "{{ interface_vlan_ip4 }}"
+        method4: "{{ interface_vlan_method4 }}"
+        vlanid: "{{ interface_vlan_id }}"
+        vlandev: "{{ interface_vlan_parent }}"
+        state: "{{ interface_vlan_state }}"
+      register: vlan_interface_result
+      when: 
+        - interface_enable_vlan | bool
+        - interface_vlan_parent in ansible_interfaces
+      notify: 
+        - 显示接口变更
+        - 重新加载 NetworkManager
+
+    # ========== 批量接口配置 ==========
+    - name: 批量配置网络接口
+      community.general.nmcli:
+        conn_name: "{{ item.conn_name }}"
+        ifname: "{{ item.ifname }}"
+        type: "{{ item.type | default('ethernet') }}"
+        autoconnect: "{{ item.autoconnect | default(true) }}"
+        ip4: "{{ item.ip4 | default(omit) }}"
+        gw4: "{{ item.gw4 | default(omit) }}"
+        dns4: "{{ item.dns4 | default(omit) }}"
+        method4: "{{ item.method4 | default('manual') }}"
+        state: "{{ item.state | default('present') }}"
+      register: batch_interface_results
+      loop: "{{ interface_batch_configs }}"
+      loop_control:
+        label: "{{ item.conn_name }}"
+      when: 
+        - interface_enable_batch | bool
+        - interface_batch_configs is defined
+        - interface_batch_configs | length > 0
+      notify: 显示接口变更
+
+    - name: 显示批量接口配置摘要
+      ansible.builtin.debug:
+        msg: |
+          批量接口配置完成
+          处理接口数: {{ batch_interface_results.results | length }}
+          变更接口数: {{ batch_interface_results.results | selectattr('changed', 'equalto', true) | list | length }}
+      when: 
+        - interface_enable_batch | bool
+        - batch_interface_results is defined
+
+    # ========== 系统兼容性配置 ==========
+    - name: RHEL/CentOS 系统特定接口配置
+      community.general.nmcli:
+        conn_name: "{{ item.conn_name }}"
+        ifname: "{{ item.ifname }}"
+        type: "{{ item.type }}"
+        autoconnect: "{{ item.autoconnect }}"
+        ip4: "{{ item.ip4 }}"
+        method4: "{{ item.method4 }}"
+        state: "{{ item.state }}"
+      register: rhel_interface_results
+      loop: "{{ interface_rhel_specific }}"
+      loop_control:
+        label: "{{ item.conn_name }}"
+      when: 
+        - interface_enable_rhel_specific | bool
+        - ansible_os_family == "RedHat"
+        - interface_rhel_specific is defined
+      notify: 显示接口变更
+
+    - name: Ubuntu/Debian 系统特定接口配置
+      community.general.nmcli:
+        conn_name: "{{ item.conn_name }}"
+        ifname: "{{ item.ifname }}"
+        type: "{{ item.type }}"
+        autoconnect: "{{ item.autoconnect }}"
+        ip4: "{{ item.ip4 }}"
+        method4: "{{ item.method4 }}"
+        state: "{{ item.state }}"
+      register: debian_interface_results
+      loop: "{{ interface_debian_specific }}"
+      loop_control:
+        label: "{{ item.conn_name }}"
+      when: 
+        - interface_enable_debian_specific | bool
+        - ansible_os_family == "Debian"
+        - interface_debian_specific is defined
+      notify: 显示接口变更
+
+    # ========== 接口状态管理 ==========
+    - name: 激活指定的网络连接
+      community.general.nmcli:
+        conn_name: "{{ item.conn_name }}"
+        state: "up"
+      register: up_results
+      loop: "{{ interface_connections_up }}"
+      loop_control:
+        label: "{{ item.conn_name }}"
+      when: 
+        - interface_enable_state_management | bool
+        - interface_connections_up is defined
+      notify: 显示接口变更
+
+    - name: 停用指定的网络连接
+      community.general.nmcli:
+        conn_name: "{{ item.conn_name }}"
+        state: "down"
+      register: down_results
+      loop: "{{ interface_connections_down }}"
+      loop_control:
+        label: "{{ item.conn_name }}"
+      when: 
+        - interface_enable_state_management | bool
+        - interface_connections_down is defined
+      notify: 显示接口变更
+
+    # ========== 接口清理 ==========
+    - name: 删除指定的旧网络连接
+      community.general.nmcli:
+        conn_name: "{{ item.conn_name }}"
+        state: "absent"
+      register: cleanup_results
+      loop: "{{ interface_cleanup_connections }}"
+      loop_control:
+        label: "{{ item.conn_name }}"
+      when: 
+        - interface_enable_cleanup | bool
+        - interface_cleanup_connections is defined
+        - interface_cleanup_connections | length > 0
+      notify: 显示接口变更
+
+    - name: 显示接口清理结果
+      ansible.builtin.debug:
+        msg: |
+          网络连接清理完成
+          清理连接数: {{ cleanup_results.results | length }}
+          成功删除: {{ cleanup_results.results | selectattr('changed', 'equalto', true) | list | length }}
+      when: 
+        - interface_enable_cleanup | bool
+        - cleanup_results is defined
+
+    # ========== 接口验证 ==========
+    - name: 验证关键网络接口配置
+      ansible.builtin.shell: |
+        nmcli connection show {{ item.conn_name }} | grep -q "ipv4.addresses:{{ item.ip4 }}"
+      register: interface_verification
+      loop: "{{ interface_verification_list }}"
+      loop_control:
+        label: "{{ item.conn_name }}"
+      failed_when: interface_verification.rc != 0
+      when: 
+        - interface_enable_verification | bool
+        - interface_verification_list is defined
+      ignore_errors: true
+
+    - name: 显示接口验证结果
+      ansible.builtin.debug:
+        msg: |
+          接口验证结果 - {{ item.item.conn_name }}:
+          {% if item.rc == 0 %}
+          ✓ 接口配置正确 (IP: {{ item.item.ip4 }})
+          {% else %}
+          ✗ 接口配置不存在或错误
+          {% endif %}
+      loop: "{{ interface_verification.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.conn_name }}"
+      when: 
+        - interface_enable_verification | bool
+        - interface_verification is defined
+
+    # ========== 显示当前网络配置 ==========
+    - name: 获取当前网络连接信息
+      ansible.builtin.shell: |
+        nmcli connection show --active
+      register: current_connections
+      changed_when: false
+      when: interface_show_connections | bool
+
+    - name: 显示当前网络连接
+      ansible.builtin.debug:
+        var: current_connections.stdout_lines
+      when: 
+        - interface_show_connections | bool
+        - current_connections is defined
+
+    - name: 获取网络设备状态
+      ansible.builtin.shell: |
+        nmcli device status
+      register: device_status
+      changed_when: false
+      when: interface_show_devices | bool
+
+    - name: 显示网络设备状态
+      ansible.builtin.debug:
+        var: device_status.stdout_lines
+      when: 
+        - interface_show_devices | bool
+        - device_status is defined
+
+  handlers:
+    - name: 显示接口变更
+      ansible.builtin.debug:
+        msg: |
+          网络接口配置变更完成
+          {% if mgmt_interface_result is defined and mgmt_interface_result.changed %}
+          ✓ 管理接口已配置: {{ interface_mgmt_conn }} ({{ interface_mgmt_ip4 }})
+          {% endif %}
+          {% if business_interface_result is defined and business_interface_result.changed %}
+          ✓ 业务接口已配置: {{ interface_business_conn }} (DHCP)
+          {% endif %}
+          {% if bridge_interface_result is defined and bridge_interface_result.changed %}
+          ✓ 网桥接口已创建: {{ interface_bridge_conn }} ({{ interface_bridge_ip4 }})
+          {% endif %}
+          {% if bridge_slave_result is defined and bridge_slave_result.changed %}
+          ✓ 物理接口已加入网桥: {{ interface_bridge_slave_ifname }} → {{ interface_bridge_conn }}
+          {% endif %}
+          {% if bond_interface_result is defined and bond_interface_result.changed %}
+          ✓ 绑定接口已创建: {{ interface_bond_conn }} ({{ interface_bond_ip4 }})
+          {% endif %}
+          {% if bond_primary_result is defined and bond_primary_result.changed %}
+          ✓ 主接口已加入绑定: {{ interface_bond_primary_ifname }} → {{ interface_bond_conn }}
+          {% endif %}
+          {% if bond_secondary_result is defined and bond_secondary_result.changed %}
+          ✓ 备用接口已加入绑定: {{ interface_bond_secondary_ifname }} → {{ interface_bond_conn }}
+          {% endif %}
+          {% if vlan_interface_result is defined and vlan_interface_result.changed %}
+          ✓ VLAN 接口已创建: {{ interface_vlan_conn }} (VLAN {{ interface_vlan_id }})
+          {% endif %}
+      listen: 显示接口变更
+
+    - name: 重新加载 NetworkManager
+      ansible.builtin.systemd:
+        name: NetworkManager
+        state: reloaded
+      when: interface_reload_networkmanager | bool
+      listen: 重新加载 NetworkManager
+
+    - name: 显示接口管理完成总结
+      ansible.builtin.debug:
+        msg: |
+          interface 模块网络接口管理演示完成！
+          
+          已执行的配置项：
+          {% if interface_enable_mgmt %}
+          ✓ 管理网络接口配置 ({{ interface_mgmt_conn }}: {{ interface_mgmt_ip4 }})
+          {% endif %}
+          {% if interface_enable_business %}
+          ✓ 业务网络接口配置 ({{ interface_business_conn }}: DHCP)
+          {% endif %}
+          {% if interface_enable_bridge %}
+          ✓ 网桥接口配置 ({{ interface_bridge_conn }})
+          {% endif %}
+          {% if interface_enable_bond %}
+          ✓ 绑定接口配置 ({{ interface_bond_conn }})
+          {% endif %}
+          {% if interface_enable_vlan %}
+          ✓ VLAN 接口配置 ({{ interface_vlan_conn }})
+          {% endif %}
+          {% if interface_enable_batch %}
+          ✓ 批量接口配置 ({{ interface_batch_configs | length }} 个接口)
+          {% endif %}
+          {% if interface_enable_rhel_specific and ansible_os_family == "RedHat" %}
+          ✓ RHEL 系统特定接口配置
+          {% endif %}
+          {% if interface_enable_debian_specific and ansible_os_family == "Debian" %}
+          ✓ Debian 系统特定接口配置
+          {% endif %}
+          {% if interface_enable_state_management %}
+          ✓ 接口状态管理
+          {% endif %}
+          {% if interface_enable_cleanup %}
+          ✓ 接口清理 ({{ interface_cleanup_connections | length }} 个旧连接)
+          {% endif %}
+          {% if interface_enable_verification %}
+          ✓ 接口配置验证
+          {% endif %}
+          
+          安全提示：
+          - 所有接口操作都需要 root 权限
+          - 生产环境请先在测试环境验证
+          - 建议备份现有网络配置
+          - 接口变更可能影响网络连通性
+          - 使用控制台或带外管理进行操作
