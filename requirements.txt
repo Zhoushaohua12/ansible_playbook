@@ -1,0 +1,40 @@
+# 本项目所需的 Python 依赖库
+# 安装方式: pip install -r requirements.txt
+
+# 云平台 SDK
+boto3>=1.26.0
+botocore>=1.29.0
+azure-identity>=1.13.0
+google-auth>=2.16.0
+openstacksdk>=0.103.0
+aliyun-python-sdk-core>=2.13.36
+
+# 虚拟化库
+libvirt-python>=9.0.0
+lxml>=4.9.0
+pyvmomi>=8.0.0
+
+# 容器库
+docker>=6.0.0
+
+# 数据库库
+psycopg2-binary>=2.9.0
+PyMySQL>=1.0.0
+pymongo>=4.0.0
+
+# 监控和日志库
+datadog>=0.47.0
+zabbix-api>=0.4.0
+elasticsearch>=8.0.0
+splunk-sdk>=1.6.0
+requests>=2.28.0
+pyyaml>=6.0
+
+# 网络库
+jinja2>=3.0.0
+netaddr>=0.10.0
+
+# 其他工具库
+cryptography>=38.0.0
+pexpect>=4.9.0
+paramiko>=3.0.0

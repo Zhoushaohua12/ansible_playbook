@@ -1,5 +1,5 @@
 ---
-# ⚠ 警告：此文件包含示例配置，生产环境必须使用 Ansible Vault 加密敏感信息 ⚠
+# ⚠️ 本文件仅为示例，占位符必须使用 Ansible Vault 或环境变量替换
 
 # 示例服务名（占位符，请替换为实际服务）
 expect_demo_service: "api.example.com"

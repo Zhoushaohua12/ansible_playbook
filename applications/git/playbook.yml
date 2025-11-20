@@ -25,7 +25,7 @@
       register: main_app_clone
       when: deploy_main_app | bool
       notify: 
-        - handle main app update
+        - 主应用代码已更新
 
     - name: 克隆配置仓库（环境配置）
       ansible.builtin.git:
@@ -170,22 +170,22 @@
           - 复杂应用: {{ complex_app_clone.changed | default(false) }} ({{ complex_app_clone.after | default('N/A') }})
 
   handlers:
-    - name: handle main app update
+    - name: 主应用代码已更新
       ansible.builtin.debug:
         msg: "主应用代码已更新，触发后续处理流程"
-      listen: handle main app update
+      listen: ["主应用代码已更新", "handle main app update"]
 
-    - name: restart app service
+    - name: 应用服务已重启
       ansible.builtin.service:
         name: "{{ app_service_name }}"
         state: restarted
         enabled: true
-      listen: restart app service
+      listen: ["应用服务已重启", "restart app service"]
       when: manage_app_service | bool
 
-    - name: reload web server
+    - name: Web服务已重载
       ansible.builtin.service:
         name: "{{ web_server_name }}"
         state: reloaded
-      listen: reload web server
+      listen: ["Web服务已重载", "reload web server"]
       when: manage_web_server | bool

@@ -12,14 +12,14 @@
         cache_valid_time: "{{ cache_valid_time }}"
       when: ansible_os_family == "Debian"
       notify: 
-        - cache updated
+        - 缓存已更新
 
     - name: 安装基础系统工具（跨平台）
       ansible.builtin.package:
         name: "{{ base_tools[ansible_os_family] }}"
         state: present
       notify: 
-        - base tools installed
+        - 基础工具已安装
 
     - name: 安装 Web 服务器软件
       ansible.builtin.package:
@@ -27,7 +27,7 @@
         state: "{{ web_server_state }}"
       register: web_server_install
       notify: 
-        - web server installed
+        - Web服务已安装
 
     - name: 安装数据库服务包
       ansible.builtin.package:
@@ -35,7 +35,7 @@
         state: present
       when: install_database | bool
       notify: 
-        - database installed
+        - 数据库已安装
 
     - name: 安装开发工具链
       ansible.builtin.package:
@@ -151,17 +151,17 @@
       when: generate_report | bool
 
   handlers:
-    - name: cache updated
+    - name: 缓存已更新
       ansible.builtin.debug:
         msg: "包缓存已更新"
-      listen: cache updated
+      listen: ["缓存已更新", "cache updated"]
 
-    - name: base tools installed
+    - name: 基础工具已安装
       ansible.builtin.debug:
         msg: "基础工具安装完成"
-      listen: base tools installed
+      listen: ["基础工具已安装", "base tools installed"]
 
-    - name: web server installed
+    - name: Web服务已安装
       ansible.builtin.service:
         name: "{{ web_server_service[ansible_os_family] }}"
         state: started
@@ -169,9 +169,9 @@
       when: 
         - web_server_install.changed | default(false)
         - manage_web_service | bool
-      listen: web server installed
+      listen: ["Web服务已安装", "web server installed"]
 
-    - name: database installed
+    - name: 数据库已安装
       ansible.builtin.service:
         name: "{{ database_service[ansible_os_family] }}"
         state: started
@@ -179,4 +179,4 @@
       when: 
         - install_database | bool
         - manage_database_service | bool
-      listen: database installed
+      listen: ["数据库已安装", "database installed"]

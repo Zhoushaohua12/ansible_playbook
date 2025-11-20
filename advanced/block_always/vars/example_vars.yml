@@ -1,5 +1,5 @@
 ---
-# ⚠ 仅为演示所用，请根据环境调整文件路径与策略
+# ⚠️ 本文件仅为示例，占位符必须使用 Ansible Vault 或环境变量替换
 
 # 是否启用高风险操作
 enable_risky_operations: true

@@ -2,6 +2,28 @@
 
 本仓库收录了面向中文读者的 Ansible 示例与知识卡片，帮助你在日常运维和自动化项目中迅速定位所需特性。所有示例均可直接运行或作为模板套用到现有 Playbook 中。
 
+## 依赖管理
+
+本项目维护统一的依赖清单，包括 Ansible Collections 和 Python 库：
+
+- **[`collections/requirements.yml`](collections/requirements.yml)**：所有示例所需的 Ansible Collections 集合，包含云平台（AWS、Azure、GCP、OpenStack、阿里云）、虚拟化（libvirt、VMware）、容器（Kubernetes、Docker）、消息队列、数据库、监控等。
+  - **安装方式**：`ansible-galaxy collection install -r collections/requirements.yml`
+
+- **[`requirements.txt`](requirements.txt)**：所有示例所需的 Python 依赖库，包括各云平台 SDK、虚拟化库、数据库库、监控库等。
+  - **安装方式**：`pip install -r requirements.txt`
+
+## 审计与规范
+
+本项目遵循统一的代码风格和最佳实践规范：
+
+- **[`AUDIT_REPORT.md`](AUDIT_REPORT.md)**：详细的项目审计报告，包含规范检查结果、问题清单（按优先级分类）和改进建议。涵盖 playbook 规范、安全处理、变量文件警示、handler 中文化等重要规范。
+
+所有 Playbook 示例均遵循以下规范：
+- 统一使用中文任务名、handler 名称和注释
+- 变量文件 (`vars/example_vars.yml`) 文件头必须包含 `⚠️ 本文件仅为示例，占位符必须使用 Ansible Vault 或环境变量替换` 警示
+- 敏感信息使用 `vault_*` 前缀，配合 Ansible Vault 加密
+- 所有涉及系统变更的 playbook 均提供 `--check` 模式示例
+
 ## 仓库结构
 - `advanced/`：高级特性讲解与示例 Playbook。
 - `applications/`：应用管理模块（软件包/容器/源码部署）的实践指南。
@@ -129,10 +151,17 @@
 `cloud/` 目录聚焦多云与私有云资源交付，包含 AWS EC2、Azure VM、GCP Compute、OpenStack Server、阿里云 ECS 等模块，帮助团队在 Dry Run 状态下验证算力、网络、标签和配额策略。所有 playbook 默认引用 `vars/example_vars.yml` 并在任务中设置 `check_mode: true` 与 `no_log: true`，方便在无真实凭证时练习。
 
 ### 依赖安装与认证
+本章节依赖的 Collections 和 Python 库已在根目录的 `collections/requirements.yml` 和 `requirements.txt` 中统一定义，可通过以下方式一键安装：
+
 ```bash
-ansible-galaxy collection install community.aws azure.azcollection google.cloud openstack.cloud alibaba.cloud
-pip install boto3 botocore azure-identity google-auth openstacksdk aliyun-python-sdk-core
+# 安装所有 Ansible Collections
+ansible-galaxy collection install -r collections/requirements.yml
+
+# 安装所有 Python 依赖库
+pip install -r requirements.txt
 ```
+
+云平台特定的认证方式：
 - AWS 建议通过 `aws configure` 或 SSO profile，切勿把 Access Key 写入仓库。
 - Azure 使用 Service Principal (`az ad sp create-for-rbac --sdk-auth`)，密钥应放入 Vault。
 - GCP 采用 Service Account JSON，并结合 `env`/Vault 提供文件路径。
@@ -158,11 +187,20 @@ pip install boto3 botocore azure-identity google-auth openstacksdk aliyun-python
 `virtualization/` 专注本地虚拟化（libvirt/qemu-img）与企业虚拟化（VMware vSphere）场景，既可在笔记本/实验室模拟，也能在生产级集群中 Dry Run 主机纳管流程。该章节强调“先在本地模板演练 → 再迁移到 cloud/ 章节”的混合云学习路径。
 
 ### 依赖安装
+本章节依赖的 Collections 和 Python 库已在根目录的 `collections/requirements.yml` 和 `requirements.txt` 中统一定义，可通过以下方式安装相关依赖：
+
 ```bash
-ansible-galaxy collection install community.libvirt community.vmware community.general
-pip install libvirt-python lxml pyvmomi
+# 安装所有 Ansible Collections
+ansible-galaxy collection install -r collections/requirements.yml
+
+# 安装所有 Python 依赖库
+pip install -r requirements.txt
+
+# 同时需要在目标主机安装系统级虚拟化工具
 sudo apt/yum install -y libvirt-daemon qemu-kvm qemu-img
 ```
+
+虚拟化部署特定要求：
 - libvirt 示例使用 `qemu:///system` 或 `qemu+ssh://` URI，需具备本地虚拟化权限。
 - VMware 示例需 vCenter API 账号与可信证书，可通过环境变量注入。
 - qemu-img 示例要求在非生产目录准备测试镜像，并在变量中写明占位路径。
@@ -287,28 +325,17 @@ ansible-playbook applications/[module]/playbook.yml --check
 - **备份恢复**：自动化数据库备份和恢复流程
 
 ### 环境依赖
-在使用数据库模块前，需要安装对应的 Ansible Collection 和 Python 库：
+本章节依赖的 Collections 和 Python 库已在根目录的 `collections/requirements.yml` 和 `requirements.txt` 中统一定义，可通过以下方式安装：
 
 ```bash
-# 安装 Ansible Collections
-ansible-galaxy collection install community.mysql
-ansible-galaxy collection install community.postgresql
-ansible-galaxy collection install community.mongodb
+# 安装所有 Ansible Collections
+ansible-galaxy collection install -r collections/requirements.yml
 
-# 在目标数据库主机安装 Python 库
-# MySQL 客户端库（任选其一）
-pip install PyMySQL
-# 或
-pip install mysqlclient
-
-# PostgreSQL 客户端库
-pip install psycopg2-binary
-
-# MongoDB 客户端库
-pip install pymongo
+# 安装所有 Python 依赖库
+pip install -r requirements.txt
 ```
 
-⚠️ **重要提示**：Python 库需要安装在**目标数据库主机**上，而非 Ansible 控制节点。
+⚠️ **重要提示**：Python 库需要安装在**目标数据库主机**上，而非 Ansible 控制节点。特别是 MySQL 需要 PyMySQL 或 mysqlclient、PostgreSQL 需要 psycopg2-binary、MongoDB 需要 pymongo。
 
 ### 模块特性
 每个数据库管理模块都包含完整的运维示例：
@@ -368,12 +395,14 @@ ansible-playbook database/mysql_user/playbook.yml -i hosts.ini
 ### 环境依赖
 
 #### 必需的 Ansible Collections
-```bash
-# 安装防火墙模块集合
-ansible-galaxy collection install community.general
+本章节依赖的 Collections 已在根目录的 `collections/requirements.yml` 中统一定义，可通过以下方式安装：
 
-# wait_for 模块内置于 ansible.builtin，无需额外安装
+```bash
+# 安装所有 Ansible Collections
+ansible-galaxy collection install -r collections/requirements.yml
 ```
+
+注：wait_for 模块内置于 ansible.builtin，无需额外安装。
 
 #### 系统工具安装
 ```bash
