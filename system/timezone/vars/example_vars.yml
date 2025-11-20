@@ -1,0 +1,49 @@
+# timezone 模块配置变量示例
+
+# ========== 基础时区配置 ==========
+# 目标时区名称（格式为 大陆/城市）
+desired_timezone: Asia/Shanghai
+
+# 硬件时钟模式（UTC 或 local）
+hwclock_mode: UTC
+
+# ========== 数据中心选项 ==========
+# 是否使用 UTC 作为数据中心标准时区
+use_utc_timezone: false
+
+# ========== 地理位置相关配置 ==========
+# 部署地区标识（用于多地区部署时动态选择时区）
+deployment_region: asia
+
+# 按地区的时区映射
+timezone_by_region:
+  asia: Asia/Shanghai
+  us: America/New_York
+  eu: Europe/London
+  jp: Asia/Tokyo
+  sg: Asia/Singapore
+  hk: Asia/Hong_Kong
+  br: America/Sao_Paulo
+  au: Australia/Sydney
+
+# ========== NTP 时间同步相关 ==========
+# NTP 服务名称（systemd 服务）
+ntp_service_name: chronyd
+
+# 是否验证 NTP 时间同步状态
+verify_ntp_sync: true
+
+# ========== 安全提示 ==========
+# ⚠️  重要事项：
+# 1. 修改时区是系统级操作，需要 become 权限（root 或 sudo）
+# 2. 时区变更可能影响已运行的应用程序，建议在低峰期执行
+# 3. 对于使用硬件时钟的系统，确保 BIOS/UEFI 中的时间也已同步
+# 4. 分布式系统中应统一使用 UTC 作为标准时区，避免时间混乱
+# 5. 修改时区后，应验证 NTP 时间同步状态是否正常
+# 6. Java 等某些应用可能缓存时区信息，需要重启才能生效
+
+# ⚠️  在生产环境使用前的建议：
+# - 使用 --check 模式预览变更：ansible-playbook playbook.yml --check
+# - 确保已配置 NTP 时间同步服务
+# - 对关键系统进行变更前做好备份和验证计划
+# - 跨多主机部署时，确保所有主机时区一致

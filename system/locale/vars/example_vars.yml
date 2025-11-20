@@ -1,0 +1,55 @@
+# locale 模块配置变量示例
+
+# ========== 基础 Locale 配置 ==========
+# 系统默认 Locale
+desired_locale: zh_CN.UTF-8
+
+# ========== 多 Locale 配置 ==========
+# 系统需要生成的 Locale 列表
+required_locales:
+  - en_US.UTF-8
+  - zh_CN.UTF-8
+
+# ========== 国际化应用配置 ==========
+# 是否启用多语言 Locale
+enable_multilingual: false
+
+# 多语言应用支持的 Locale 列表
+multilingual_locales:
+  - en_US.UTF-8
+  - zh_CN.UTF-8
+  - ja_JP.UTF-8
+  - ko_KR.UTF-8
+  - de_DE.UTF-8
+  - fr_FR.UTF-8
+
+# ========== 地理位置相关配置 ==========
+# 部署地区标识
+deployment_region: china
+
+# 按地区的 Locale 映射
+locale_by_region:
+  china: zh_CN.UTF-8
+  taiwan: zh_TW.UTF-8
+  hongkong: zh_HK.UTF-8
+  us: en_US.UTF-8
+  uk: en_GB.UTF-8
+  japan: ja_JP.UTF-8
+  korea: ko_KR.UTF-8
+  germany: de_DE.UTF-8
+  france: fr_FR.UTF-8
+
+# ========== 安全提示 ==========
+# ⚠️  重要事项：
+# 1. 生成 Locale 需要 root 或 sudo 权限
+# 2. Locale 生成过程会占用磁盘空间，仅生成必需的 Locale
+# 3. 推荐使用 UTF-8 编码以支持全球文字，避免遗留编码（如 GB2312）
+# 4. 系统 Locale 变更后，需要重启应用或设置环境变量才能生效
+# 5. 在 Docker 容器中生成大量 Locale 会增加镜像大小，应选择最小化配置
+# 6. 数据库、应用程序与系统 Locale 编码必须一致，否则可能导致乱码
+
+# ⚠️  在生产环境使用前的建议：
+# - 使用 --check 模式预览变更：ansible-playbook playbook.yml --check
+# - 在测试环境验证应用程序与新 Locale 的兼容性
+# - 对于大规模部署，先在小范围内验证效果
+# - 监控应用日志，确保中文字符显示正常

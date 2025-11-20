@@ -1,0 +1,150 @@
+---
+- name: timezone 模块使用示例演示
+  hosts: localhost
+  gather_facts: true
+  check_mode: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 基础时区配置 ==========
+    - name: 设置系统时区为目标时区
+      ansible.builtin.timezone:
+        name: "{{ desired_timezone }}"
+        hwclock: "{{ hwclock_mode }}"
+      become: yes
+      register: timezone_result
+    
+    - name: 显示时区设置结果
+      ansible.builtin.debug:
+        msg: |
+          时区已设置为: {{ desired_timezone }}
+          硬件时钟模式: {{ hwclock_mode }}
+          结果: {{ timezone_result }}
+    
+    # ========== UTC 标准时区配置 ==========
+    - name: 设置数据中心标准时区为 UTC
+      ansible.builtin.timezone:
+        name: UTC
+        hwclock: UTC
+      become: yes
+      when: use_utc_timezone | default(false)
+    
+    - name: 显示 UTC 时区配置信息
+      ansible.builtin.debug:
+        msg: "数据中心标准时区已设置为 UTC，所有时间记录使用 UTC+0"
+      when: use_utc_timezone | default(false)
+    
+    # ========== 地理位置相关时区配置 ==========
+    - name: 根据地理位置设置时区
+      ansible.builtin.timezone:
+        name: "{{ timezone_by_region[deployment_region] | default('Asia/Shanghai') }}"
+        hwclock: UTC
+      become: yes
+      register: region_timezone_result
+      when: deployment_region is defined
+    
+    - name: 显示地理位置时区配置
+      ansible.builtin.debug:
+        msg: |
+          部署地区: {{ deployment_region }}
+          对应时区: {{ timezone_by_region[deployment_region] | default('Asia/Shanghai') }}
+      when: deployment_region is defined
+    
+    # ========== 验证时区设置 ==========
+    - name: 获取当前系统时区信息
+      ansible.builtin.shell: |
+        echo "=== 系统时区信息 ==="
+        timedatectl status 2>/dev/null || date +"%Z %z" && echo "当前时区: $(cat /etc/timezone 2>/dev/null)"
+      register: current_timezone
+      changed_when: false
+    
+    - name: 显示当前时区信息
+      ansible.builtin.debug:
+        msg: "{{ current_timezone.stdout_lines }}"
+    
+    # ========== 时间同步检查 ==========
+    - name: 检查 NTP 时间同步状态
+      ansible.builtin.shell: |
+        if command -v timedatectl &> /dev/null; then
+          timedatectl status | grep -E "System clock|NTP service|synchronized" || echo "timedatectl 不可用"
+        else
+          ntpstat 2>/dev/null || echo "NTP 状态工具不可用"
+        fi
+      register: ntp_status
+      changed_when: false
+      ignore_errors: yes
+    
+    - name: 显示 NTP 状态
+      ansible.builtin.debug:
+        msg: "{{ ntp_status.stdout_lines }}"
+    
+    # ========== 硬件时钟验证 ==========
+    - name: 验证硬件时钟
+      ansible.builtin.shell: |
+        if command -v hwclock &> /dev/null; then
+          echo "硬件时钟: $(hwclock --show 2>/dev/null || echo '无法读取')"
+        else
+          echo "硬件时钟工具不可用"
+        fi
+      register: hwclock_info
+      changed_when: false
+      become: yes
+      ignore_errors: yes
+    
+    - name: 显示硬件时钟信息
+      ansible.builtin.debug:
+        msg: "{{ hwclock_info.stdout_lines }}"
+    
+    # ========== 时区变更后的验证 ==========
+    - name: 收集更新后的时间事实
+      ansible.builtin.setup:
+        filter: ansible_date_time
+      register: datetime_facts
+      when: timezone_result.changed | default(false)
+    
+    - name: 显示时间戳信息
+      ansible.builtin.debug:
+        msg: |
+          当前时间戳: {{ ansible_date_time.iso8601 }}
+          当前时区: {{ ansible_date_time.tz }}
+          系统时间: {{ ansible_date_time.iso8601_basic_short }}
+      when: datetime_facts is defined
+    
+    # ========== 常见时区列表演示 ==========
+    - name: 列出常用时区示例
+      ansible.builtin.debug:
+        msg: |
+          常用时区列表示例：
+          亚太地区:
+            - Asia/Shanghai（中国）
+            - Asia/Tokyo（日本）
+            - Asia/Singapore（新加坡）
+            - Asia/Hong_Kong（香港）
+          
+          欧洲地区:
+            - Europe/London（英国）
+            - Europe/Paris（法国）
+            - Europe/Berlin（德国）
+            - UTC（协调世界时）
+          
+          美洲地区:
+            - America/New_York（美国东部）
+            - America/Los_Angeles（美国西部）
+            - America/Toronto（加拿大）
+            - America/Sao_Paulo（巴西）
+    
+    # ========== 时区配置总结 ==========
+    - name: 时区配置完成总结
+      ansible.builtin.debug:
+        msg: |
+          时区配置已完成：
+          1. 设置系统时区: {{ desired_timezone }}
+          2. 硬件时钟模式: {{ hwclock_mode }}
+          3. 验证当前时区: $(timedatectl | grep 'Time zone')
+          4. 检查 NTP 同步状态: timedatectl status | grep synchronized
+          
+          建议后续步骤：
+          - 在生产环境前使用 --check 模式预览变更
+          - 与 NTP 服务（chronyd/ntpd）协同工作
+          - 定期验证分布式系统中各主机的时间一致性

@@ -1,0 +1,189 @@
+---
+- name: locale 模块使用示例演示
+  hosts: localhost
+  gather_facts: false
+  check_mode: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 基础 Locale 生成 ==========
+    - name: 生成默认系统 Locale
+      community.general.locale_gen:
+        name: "{{ desired_locale }}"
+        state: present
+      become: yes
+      register: locale_result
+    
+    - name: 显示 Locale 生成结果
+      ansible.builtin.debug:
+        msg: |
+          已生成 Locale: {{ desired_locale }}
+          结果: {{ locale_result }}
+    
+    # ========== 生成多个 Locale ==========
+    - name: 生成必需的多个 Locale
+      community.general.locale_gen:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ required_locales }}"
+      become: yes
+      register: locale_multi_result
+    
+    - name: 显示多 Locale 生成结果
+      ansible.builtin.debug:
+        msg: |
+          已生成以下 Locale:
+          {% for item in required_locales %}
+          - {{ item }}
+          {% endfor %}
+    
+    # ========== 特定语言 Locale 生成 ==========
+    - name: 为国际化应用生成多语言 Locale
+      community.general.locale_gen:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ multilingual_locales }}"
+      become: yes
+      when: enable_multilingual | default(false)
+    
+    - name: 显示国际化 Locale 配置
+      ansible.builtin.debug:
+        msg: |
+          多语言 Locale 配置完成：
+          {% for locale in multilingual_locales %}
+          - {{ locale }}
+          {% endfor %}
+      when: enable_multilingual | default(false)
+    
+    # ========== 验证已安装的 Locale ==========
+    - name: 列出系统中所有已生成的 Locale
+      ansible.builtin.shell: |
+        echo "=== 已生成的 Locale 列表 ==="
+        locale -a
+      register: available_locales
+      changed_when: false
+    
+    - name: 显示已安装 Locale 列表
+      ansible.builtin.debug:
+        msg: "{{ available_locales.stdout_lines }}"
+    
+    # ========== 验证特定 Locale ==========
+    - name: 检查目标 Locale 是否已生成
+      ansible.builtin.shell: |
+        locale -a | grep -E "{{ desired_locale | replace('.', '\\.') }}" && echo "已生成"
+      register: locale_check
+      changed_when: false
+      ignore_errors: yes
+    
+    - name: 显示 Locale 验证结果
+      ansible.builtin.debug:
+        msg: |
+          检查 Locale {{ desired_locale }} 的结果:
+          {{ locale_check.stdout_lines | default(["未找到该 Locale"]) }}
+    
+    # ========== 获取当前系统 Locale ==========
+    - name: 获取当前系统 Locale 信息
+      ansible.builtin.shell: |
+        echo "=== 当前系统 Locale 设置 ==="
+        echo "LANG: $LANG"
+        echo "LC_ALL: $LC_ALL"
+        echo "LC_TIME: $LC_TIME"
+        echo "LC_NUMERIC: $LC_NUMERIC"
+        echo "LC_MONETARY: $LC_MONETARY"
+        echo "LC_MESSAGES: $LC_MESSAGES"
+      register: current_locale_env
+      changed_when: false
+    
+    - name: 显示当前 Locale 环境变量
+      ansible.builtin.debug:
+        msg: "{{ current_locale_env.stdout_lines }}"
+    
+    # ========== 检查 Locale 相关包 ==========
+    - name: 验证 Locale 相关包的安装状态
+      ansible.builtin.shell: |
+        echo "=== 检查 Locale 相关包 ==="
+        if command -v localedef &> /dev/null; then
+          echo "localedef 已安装"
+        else
+          echo "localedef 未安装"
+        fi
+        
+        if command -v locale-gen &> /dev/null; then
+          echo "locale-gen 已安装"
+        else
+          echo "locale-gen 未安装"
+        fi
+      register: locale_tools_check
+      changed_when: false
+    
+    - name: 显示 Locale 工具状态
+      ansible.builtin.debug:
+        msg: "{{ locale_tools_check.stdout_lines }}"
+    
+    # ========== 按区域配置 Locale ==========
+    - name: 根据部署区域生成对应 Locale
+      community.general.locale_gen:
+        name: "{{ locale_by_region[deployment_region] }}"
+        state: present
+      become: yes
+      when: deployment_region is defined
+      register: regional_locale_result
+    
+    - name: 显示区域 Locale 配置
+      ansible.builtin.debug:
+        msg: |
+          部署区域: {{ deployment_region }}
+          对应 Locale: {{ locale_by_region[deployment_region] }}
+          配置状态: {{ 'changed' if regional_locale_result.changed else 'unchanged' }}
+      when: deployment_region is defined
+    
+    # ========== 字符编码验证 ==========
+    - name: 验证系统字符编码支持
+      ansible.builtin.shell: |
+        echo "=== 字符编码验证 ==="
+        echo "系统默认编码: $(locale charmap)"
+        echo "支持的编码: $(locale -m | head -5)"
+      register: charset_info
+      changed_when: false
+    
+    - name: 显示字符编码信息
+      ansible.builtin.debug:
+        msg: "{{ charset_info.stdout_lines }}"
+    
+    # ========== 常见 Locale 参考 ==========
+    - name: 显示常见 Locale 列表参考
+      ansible.builtin.debug:
+        msg: |
+          常见 Locale 参考（language_COUNTRY.ENCODING）：
+          
+          中文:
+            - zh_CN.UTF-8（简体中文 - 中国）
+            - zh_TW.UTF-8（繁体中文 - 台湾）
+            - zh_HK.UTF-8（繁体中文 - 香港）
+          
+          英文:
+            - en_US.UTF-8（美国英文）
+            - en_GB.UTF-8（英国英文）
+            - en_AU.UTF-8（澳大利亚英文）
+          
+          其他语言:
+            - ja_JP.UTF-8（日本语）
+            - ko_KR.UTF-8（韩语）
+            - de_DE.UTF-8（德语）
+            - fr_FR.UTF-8（法语）
+            - ru_RU.UTF-8（俄语）
+    
+    # ========== Locale 配置总结 ==========
+    - name: Locale 配置完成总结
+      ansible.builtin.debug:
+        msg: |
+          Locale 配置已完成：
+          1. 生成系统 Locale: {{ desired_locale }}
+          2. 验证已安装 Locale: locale -a
+          3. 检查字符编码: locale charmap
+          
+          下一步建议：
+          - 在 /etc/locale.conf 或 /etc/default/locale 设置系统默认 Locale
+          - 对于应用程序，通过环境变量设置特定 Locale
+          - 验证数据库和应用程序与 Locale 编码的兼容性

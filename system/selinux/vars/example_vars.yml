@@ -1,0 +1,68 @@
+# selinux 模块配置变量示例
+
+# ========== 基础 SELinux 配置 ==========
+# SELinux 工作状态（enforcing 强制、permissive 宽容、disabled 禁用）
+desired_selinux_state: permissive
+
+# SELinux 策略类型（targeted 常用、mls 多级、strict 最严）
+selinux_policy_type: targeted
+
+# ========== 分阶段启用配置 ==========
+# 是否启用分阶段启用策略（disabled 或 permissive -> enforcing）
+enable_selinux_gradual: false
+
+# 是否启用 SELinux 强制模式（需要谨慎，建议先使用 permissive）
+enable_selinux_enforcing: false
+
+# ========== 审计配置 ==========
+# 是否启用 auditd 审计守护进程
+enable_audit_daemon: false
+
+# 审计日志保留天数
+audit_log_retention_days: 30
+
+# ========== SELinux 布尔值配置 ==========
+# SELinux 布尔值设置示例（可选）
+# selinux_booleans:
+#   - name: "httpd_can_network_connect"
+#     value: on
+#   - name: "httpd_can_sendmail"
+#     value: off
+
+# ========== 文件上下文配置 ==========
+# 是否启用文件上下文管理
+manage_file_contexts: false
+
+# 文件上下文规则示例（可选）
+# file_contexts_custom:
+#   - target: "/opt/myapp(/.*)?"
+#     setype: "user_home_t"
+
+# ========== 安全提示 ==========
+# ⚠️  严重警告 - SELinux 配置错误可能导致系统无法启动：
+# 1. 从 disabled 切换到 enforcing 需要分阶段进行：
+#    - 第 1 步：设置为 permissive，收集审计日志
+#    - 第 2 步：监控 1-2 周，分析违规情况
+#    - 第 3 步：根据需要生成自定义规则
+#    - 第 4 步：才能切换到 enforcing
+# 2. 不要直接在生产环境从 disabled 切换到 enforcing！
+# 3. 启用 SELinux 前必须充分测试应用兼容性
+# 4. permissive 和 enforcing 之间可以立即切换，但 disabled 需要重启
+
+# ⚠️  系统兼容性注意：
+# 1. SELinux 仅在 RHEL/CentOS/Fedora 等 Red Hat 系列系统上支持
+# 2. 其他 Linux 发行版（如 Ubuntu、Debian）可能不支持 SELinux
+# 3. 需要安装 selinux-policy、selinux-utils、policycoreutils 等包
+
+# ⚠️  应用兼容性问题：
+# 1. 某些应用可能无法在 enforcing 模式下正常运行
+# 2. 启用 SELinux 后如果应用无法启动，检查审计日志
+# 3. 可能需要生成自定义 SELinux 规则以支持特定应用
+
+# ⚠️  在生产环境使用前的建议：
+# - 使用 --check 模式预览变更：ansible-playbook playbook.yml --check
+# - 在测试环境充分验证 SELinux 对应用的影响
+# - 准备回滚方案（切换到 permissive 或 disabled）
+# - 配置审计系统（auditd）用于日志记录与分析
+# - 定期检查审计日志中的 SELinux 违规事件
+# - 对于微服务架构，考虑容器的 SELinux 上下文管理

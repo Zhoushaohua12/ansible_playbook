@@ -652,6 +652,31 @@ system:
        summary: "设置主机名和域名配置，自动更新 /etc/hostname 和 /etc/hosts，支持标准化命名规范"
        external_deps:
          - "ansible.builtin collection"
+     - id: timezone
+       name: Timezone 时区配置
+       doc: system/timezone/README.md
+       example: system/timezone/playbook.yml
+       summary: "设置系统时区，支持多种时区与硬件时钟同步，确保分布式系统时间一致性"
+       external_deps:
+         - "ansible.builtin collection"
+         - "时区数据库（/usr/share/zoneinfo/）"
+     - id: locale
+       name: Locale 地区设置
+       doc: system/locale/README.md
+       example: system/locale/playbook.yml
+       summary: "生成与管理系统区域设置，支持多语言环境、字符编码与地区本地化配置"
+       external_deps:
+         - "community.general collection"
+         - "glibc-langpack（RHEL/CentOS）或 locales 包（Debian/Ubuntu）"
+     - id: selinux
+       name: SELinux 安全增强
+       doc: system/selinux/README.md
+       example: system/selinux/playbook.yml
+       summary: "管理 SELinux 安全策略与访问控制，支持强制、宽容、禁用模式，提升系统安全性"
+       external_deps:
+         - "ansible.posix collection"
+         - "selinux-policy、selinux-utils、policycoreutils 包"
+         - "仅支持 RHEL/CentOS/Fedora 等 Red Hat 系列"
 
 message_queue:
   title: 消息队列管理

@@ -7,7 +7,7 @@ import pytest
 import yaml
 
 # 系统管理模块列表
-MODULES = ["user", "group", "service", "systemd", "firewalld", "iptables", "hostname"]
+MODULES = ["user", "group", "service", "systemd", "hostname", "timezone", "locale", "firewalld", "iptables", "selinux"]
 
 # 各模块对应的 FQCN（Fully Qualified Collection Name）期望值
 FQCN_EXPECTATIONS = {
@@ -15,9 +15,12 @@ FQCN_EXPECTATIONS = {
     "group": "ansible.builtin.group",
     "service": "ansible.builtin.service",
     "systemd": "ansible.posix.systemd",
+    "hostname": "ansible.builtin.hostname",
+    "timezone": "ansible.builtin.timezone",
+    "locale": "community.general.locale_gen",
     "firewalld": "community.general.firewalld",
     "iptables": "community.general.iptables",
-    "hostname": "ansible.builtin.hostname",
+    "selinux": "ansible.posix.selinux",
 }
 
 
@@ -273,4 +276,89 @@ class TestSystemRootDocumentation(TestSystemFixtures):
         # 应该说明不同模块的关系
         assert "关系" in content or "协同" in content or "结合" in content, (
             "system/README.md 应说明模块间的关系"
+        )
+
+
+class TestNewSystemModules(TestSystemFixtures):
+    """新增系统模块（timezone、locale、selinux）的特定测试"""
+
+    def test_timezone_module_specific_content(self, module_dirs: Dict[str, Path]) -> None:
+        """验证 timezone 模块包含特定内容"""
+        timezone_path = module_dirs["timezone"]
+        readme = (timezone_path / "README.md").read_text(encoding="utf-8")
+        playbook = (timezone_path / "playbook.yml").read_text(encoding="utf-8")
+        vars_file = (timezone_path / "vars" / "example_vars.yml").read_text(encoding="utf-8")
+        
+        # 检查 README 中的关键词
+        assert "时区" in readme, "timezone 模块 README 应提及时区"
+        assert "UTC" in readme, "timezone 模块 README 应提及 UTC"
+        
+        # 检查 playbook 中的 FQCN
+        assert "ansible.builtin.timezone" in playbook, "timezone playbook 应使用 FQCN"
+        
+        # 检查 playbook 中的 vars_files
+        assert "vars_files" in playbook, "timezone playbook 应引用 vars_files"
+        
+        # 检查 playbook 中的 check_mode
+        assert "check_mode" in playbook, "timezone playbook 应包含 check_mode"
+        
+        # 检查变量文件中的关键变量和警告
+        assert "desired_timezone" in vars_file, "timezone vars 应包含 desired_timezone 变量"
+        assert "⚠️" in vars_file or "警告" in vars_file or "注意" in vars_file, (
+            "timezone vars 应包含安全提示"
+        )
+
+    def test_locale_module_specific_content(self, module_dirs: Dict[str, Path]) -> None:
+        """验证 locale 模块包含特定内容"""
+        locale_path = module_dirs["locale"]
+        readme = (locale_path / "README.md").read_text(encoding="utf-8")
+        playbook = (locale_path / "playbook.yml").read_text(encoding="utf-8")
+        vars_file = (locale_path / "vars" / "example_vars.yml").read_text(encoding="utf-8")
+        
+        # 检查 README 中的关键词
+        assert "区域" in readme or "Locale" in readme, "locale 模块 README 应提及区域或 Locale"
+        assert "UTF-8" in readme or "编码" in readme, "locale 模块 README 应提及字符编码"
+        
+        # 检查 playbook 中的 FQCN
+        assert "community.general.locale_gen" in playbook, "locale playbook 应使用 FQCN"
+        
+        # 检查 playbook 中的 vars_files
+        assert "vars_files" in playbook, "locale playbook 应引用 vars_files"
+        
+        # 检查 playbook 中的 check_mode
+        assert "check_mode" in playbook, "locale playbook 应包含 check_mode"
+        
+        # 检查变量文件中的关键变量和警告
+        assert "desired_locale" in vars_file, "locale vars 应包含 desired_locale 变量"
+        assert "⚠️" in vars_file or "警告" in vars_file or "注意" in vars_file, (
+            "locale vars 应包含安全提示"
+        )
+
+    def test_selinux_module_specific_content(self, module_dirs: Dict[str, Path]) -> None:
+        """验证 selinux 模块包含特定内容"""
+        selinux_path = module_dirs["selinux"]
+        readme = (selinux_path / "README.md").read_text(encoding="utf-8")
+        playbook = (selinux_path / "playbook.yml").read_text(encoding="utf-8")
+        vars_file = (selinux_path / "vars" / "example_vars.yml").read_text(encoding="utf-8")
+        
+        # 检查 README 中的关键词
+        assert "SELinux" in readme, "selinux 模块 README 应提及 SELinux"
+        assert "安全" in readme or "策略" in readme, "selinux 模块 README 应提及安全或策略"
+        assert "enforcing" in readme or "permissive" in readme, (
+            "selinux 模块 README 应提及 SELinux 工作模式"
+        )
+        
+        # 检查 playbook 中的 FQCN
+        assert "ansible.posix.selinux" in playbook, "selinux playbook 应使用 FQCN"
+        
+        # 检查 playbook 中的 vars_files
+        assert "vars_files" in playbook, "selinux playbook 应引用 vars_files"
+        
+        # 检查 playbook 中的 check_mode
+        assert "check_mode" in playbook, "selinux playbook 应包含 check_mode"
+        
+        # 检查变量文件中的关键变量和警告
+        assert "desired_selinux_state" in vars_file, "selinux vars 应包含 desired_selinux_state 变量"
+        assert "⚠️" in vars_file or "警告" in vars_file or "注意" in vars_file, (
+            "selinux vars 应包含安全提示"
         )
