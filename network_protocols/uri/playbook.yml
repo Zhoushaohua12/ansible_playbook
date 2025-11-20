@@ -1,0 +1,168 @@
+---
+- name: URI 模块 REST API 调用示例
+  hosts: localhost
+  gather_facts: no
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 简单 GET 请求 ==========
+    - name: 执行 HTTP GET 请求
+      ansible.builtin.uri:
+        url: "{{ uri_target_url }}"
+        method: GET
+        validate_certs: "{{ uri_validate_certs }}"
+        timeout: "{{ uri_request_timeout }}"
+      register: get_response
+      when: uri_enable_basic_test | default(true)
+    
+    - name: 显示 GET 响应
+      ansible.builtin.debug:
+        msg: |
+          HTTP 状态码：{{ get_response.status }}
+          响应时间：{{ get_response.elapsed }} 秒
+          响应头：{{ get_response.headers }}
+      when: get_response is defined
+    
+    # ========== 带认证的 GET 请求 ==========
+    - name: 执行带 Token 认证的 API 请求
+      ansible.builtin.uri:
+        url: "{{ uri_api_endpoint }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ uri_api_token }}"
+          Accept: "application/json"
+        validate_certs: "{{ uri_validate_certs }}"
+        timeout: "{{ uri_request_timeout }}"
+      register: auth_response
+      no_log: true  # ⚠️ 隐藏 token 等敏感信息
+      when: uri_api_token is defined
+    
+    - name: 显示已认证请求的响应（不显示敏感头）
+      ansible.builtin.debug:
+        msg: |
+          认证请求状态码：{{ auth_response.status }}
+          响应大小：{{ auth_response.headers.get('Content-Length', 'Unknown') }} 字节
+      when: auth_response is defined
+    
+    # ========== POST 请求 ==========
+    - name: 执行 POST 请求（JSON 数据）
+      ansible.builtin.uri:
+        url: "{{ uri_post_endpoint }}"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+        body_format: json
+        body: "{{ uri_post_data }}"
+        validate_certs: "{{ uri_validate_certs }}"
+        timeout: "{{ uri_request_timeout }}"
+      register: post_response
+      when: uri_enable_post_test | default(false)
+    
+    - name: 显示 POST 响应
+      ansible.builtin.debug:
+        msg: "POST 请求状态码：{{ post_response.status }}"
+      when: post_response is defined
+    
+    # ========== 状态码验证 ==========
+    - name: 验证响应状态码是否符合预期
+      ansible.builtin.uri:
+        url: "{{ uri_health_check_url }}"
+        method: GET
+        status_code: "{{ uri_expected_status_code }}"
+        validate_certs: "{{ uri_validate_certs }}"
+      register: health_check
+      failed_when: false
+    
+    - name: 诊断健康检查结果
+      ansible.builtin.debug:
+        msg: |
+          健康检查结果：
+          - 状态码：{{ health_check.status }}
+          - 期望状态码：{{ uri_expected_status_code }}
+          - 检查通过：{{ health_check is succeeded }}
+    
+    # ========== 错误处理 ==========
+    - name: 执行可能失败的请求
+      ansible.builtin.uri:
+        url: "{{ uri_unreliable_endpoint }}"
+        method: GET
+        validate_certs: "{{ uri_validate_certs }}"
+        timeout: 5
+      register: unreliable_response
+      ignore_errors: yes
+      when: uri_enable_error_test | default(false)
+    
+    - name: 诊断失败原因
+      ansible.builtin.debug:
+        msg: |
+          请求状态：
+          - 成功：{{ unreliable_response is succeeded }}
+          - 状态码：{{ unreliable_response.status | default('N/A') }}
+          - 错误信息：{{ unreliable_response.msg | default('无错误') }}
+      when: unreliable_response is defined
+    
+    # ========== 响应数据提取 ==========
+    - name: GET 请求并提取 JSON 响应
+      ansible.builtin.uri:
+        url: "{{ uri_json_endpoint }}"
+        method: GET
+        return_content: yes
+        validate_certs: "{{ uri_validate_certs }}"
+      register: json_response
+      when: uri_enable_json_parse | default(false)
+    
+    - name: 解析 JSON 响应
+      ansible.builtin.set_fact:
+        parsed_response: "{{ json_response.json }}"
+      when: json_response is defined
+    
+    - name: 显示解析的 JSON 数据
+      ansible.builtin.debug:
+        var: parsed_response
+      when: parsed_response is defined
+    
+    # ========== 超时与重试 ==========
+    - name: 带重试的 API 请求
+      ansible.builtin.uri:
+        url: "{{ uri_retry_endpoint }}"
+        method: GET
+        validate_certs: "{{ uri_validate_certs }}"
+        timeout: 10
+      register: retry_response
+      retries: 3
+      delay: 2
+      until: retry_response is succeeded
+      when: uri_enable_retry_test | default(false)
+    
+    - name: 显示重试结果
+      ansible.builtin.debug:
+        msg: "重试成功，总耗时：{{ retry_response.attempts * 2 + retry_response.elapsed }} 秒"
+      when: retry_response is defined and retry_response is succeeded
+    
+    # ========== SSL 证书验证演示 ==========
+    - name: 强制验证 SSL 证书
+      ansible.builtin.uri:
+        url: "{{ uri_https_endpoint }}"
+        method: GET
+        validate_certs: true
+        timeout: 10
+      register: ssl_verified
+      when: uri_enable_ssl_test | default(false)
+    
+    - name: 显示 SSL 验证结果
+      ansible.builtin.debug:
+        msg: "SSL 证书验证通过，连接安全"
+      when: ssl_verified is succeeded
+    
+    # ========== 最终总结 ==========
+    - name: 总结 API 调用情况
+      ansible.builtin.debug:
+        msg: |
+          URI 模块测试完成总结：
+          - 基础 GET 请求：{{ 'PASS' if get_response is defined else 'SKIP' }}
+          - 认证请求：{{ 'PASS' if auth_response is defined else 'SKIP' }}
+          - POST 请求：{{ 'PASS' if post_response is defined else 'SKIP' }}
+          - 状态码验证：{{ 'PASS' if health_check.status == uri_expected_status_code else 'FAIL' }}
+          - 错误处理：{{ 'PASS' if unreliable_response is defined else 'SKIP' }}
+      run_once: yes

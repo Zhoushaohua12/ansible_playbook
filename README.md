@@ -12,6 +12,7 @@
 - `message_queue/`：消息队列管理（RabbitMQ、Kafka）的自动化配置与管理示例。
 - `monitoring/`：主流监控系统的 Ansible 集成示例（Nagios、Datadog、Zabbix、Prometheus、Splunk、ELK）。
 - `network/`：网络配置与防火墙管理（firewalld、ufw、iptables、wait_for）的完整指南。
+- `network_protocols/`：网络协议层通信（ICMP/ping、HTTP/uri、DNS/dig）的模块实践，强调安全验证与敏感信息保护。
 - `storage/`：磁盘、LVM 与文件系统管理的演练场景。
 - `system/`：系统管理模块（user、group、service、systemd、firewalld、iptables、hostname）的完整指南。
 - `virtualization/`：本地/企业虚拟化（libvirt、VMware、qemu-img）演练，展示与云资源协同的最佳实践。
@@ -29,6 +30,7 @@
 - [消息队列管理指南](message_queue/README.md)
 - [监控模块总览](monitoring/README.md)
 - [网络模块实践指南](network/README.md)
+- [网络协议层通信指南](network_protocols/README.md)
 - [存储模块实践指南](storage/README.md)
 - [系统管理模块指南](system/README.md)
 - [虚拟化资源指南](virtualization/README.md)

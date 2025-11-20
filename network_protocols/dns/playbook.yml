@@ -1,0 +1,206 @@
+---
+- name: DNS 模块 DNS 查询示例
+  hosts: localhost
+  gather_facts: no
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 基础 DNS A 记录查询 ==========
+    - name: 查询 DNS A 记录（主机名到 IP 映射）
+      community.general.dig:
+        name: "{{ dns_target_domain }}"
+        rdtype: A
+      register: a_record
+      when: dns_enable_a_record_query | default(true)
+    
+    - name: 显示 A 记录查询结果
+      ansible.builtin.debug:
+        msg: |
+          域名：{{ dns_target_domain }}
+          A 记录：{{ a_record.result | join(', ') if a_record.result else '无记录' }}
+      when: a_record is defined
+    
+    # ========== AAAA 记录查询（IPv6） ==========
+    - name: 查询 DNS AAAA 记录（IPv6 地址）
+      community.general.dig:
+        name: "{{ dns_target_domain }}"
+        rdtype: AAAA
+      register: aaaa_record
+      when: dns_enable_aaaa_record_query | default(false)
+    
+    - name: 显示 AAAA 记录查询结果
+      ansible.builtin.debug:
+        msg: |
+          域名：{{ dns_target_domain }}
+          AAAA 记录（IPv6）：{{ aaaa_record.result | join(', ') if aaaa_record.result else '无 IPv6 记录' }}
+      when: aaaa_record is defined and aaaa_record.result
+    
+    # ========== CNAME 记录查询 ==========
+    - name: 查询 CNAME 记录（别名记录）
+      community.general.dig:
+        name: "{{ dns_cname_query_domain }}"
+        rdtype: CNAME
+      register: cname_record
+      when: dns_enable_cname_query | default(false)
+    
+    - name: 显示 CNAME 记录查询结果
+      ansible.builtin.debug:
+        msg: |
+          域名：{{ dns_cname_query_domain }}
+          CNAME 记录：{{ cname_record.result | join(', ') if cname_record.result else '无 CNAME 记录' }}
+      when: cname_record is defined
+    
+    # ========== MX 记录查询 ==========
+    - name: 查询 MX 记录（邮件服务器）
+      community.general.dig:
+        name: "{{ dns_mx_query_domain }}"
+        rdtype: MX
+      register: mx_record
+      when: dns_enable_mx_query | default(false)
+    
+    - name: 显示 MX 记录查询结果
+      ansible.builtin.debug:
+        msg: |
+          域名：{{ dns_mx_query_domain }}
+          MX 记录：{{ mx_record.result | join(', ') if mx_record.result else '无 MX 记录' }}
+      when: mx_record is defined
+    
+    # ========== NS 记录查询 ==========
+    - name: 查询 NS 记录（权威 DNS 服务器）
+      community.general.dig:
+        name: "{{ dns_ns_query_domain }}"
+        rdtype: NS
+      register: ns_record
+      when: dns_enable_ns_query | default(false)
+    
+    - name: 显示 NS 记录查询结果
+      ansible.builtin.debug:
+        msg: |
+          域名：{{ dns_ns_query_domain }}
+          NS 记录：{{ ns_record.result | join(', ') if ns_record.result else '无 NS 记录' }}
+      when: ns_record is defined
+    
+    # ========== TXT 记录查询 ==========
+    - name: 查询 TXT 记录（文本记录，如 SPF、DKIM）
+      community.general.dig:
+        name: "{{ dns_txt_query_domain }}"
+        rdtype: TXT
+      register: txt_record
+      when: dns_enable_txt_query | default(false)
+    
+    - name: 显示 TXT 记录查询结果
+      ansible.builtin.debug:
+        msg: |
+          域名：{{ dns_txt_query_domain }}
+          TXT 记录：{{ txt_record.result | join(', ') if txt_record.result else '无 TXT 记录' }}
+      when: txt_record is defined
+    
+    # ========== 指定 DNS 服务器查询 ==========
+    - name: 指定特定 DNS 服务器查询
+      community.general.dig:
+        name: "{{ dns_target_domain }}"
+        rdtype: A
+        nameserver: "{{ dns_nameserver }}"
+      register: custom_dns_query
+      when: dns_enable_custom_nameserver | default(false)
+    
+    - name: 显示自定义 DNS 服务器查询结果
+      ansible.builtin.debug:
+        msg: |
+          DNS 服务器：{{ dns_nameserver }}
+          查询结果：{{ custom_dns_query.result | join(', ') if custom_dns_query.result else '无记录' }}
+      when: custom_dns_query is defined
+    
+    # ========== 多个 DNS 服务器对比 ==========
+    - name: 从 Google DNS 查询
+      community.general.dig:
+        name: "{{ dns_target_domain }}"
+        rdtype: A
+        nameserver: "{{ dns_google_nameserver }}"
+      register: google_dns_result
+      when: dns_enable_dns_comparison | default(false)
+    
+    - name: 从 Cloudflare DNS 查询
+      community.general.dig:
+        name: "{{ dns_target_domain }}"
+        rdtype: A
+        nameserver: "{{ dns_cloudflare_nameserver }}"
+      register: cloudflare_dns_result
+      when: dns_enable_dns_comparison | default(false)
+    
+    - name: 显示 DNS 服务器对比结果
+      ansible.builtin.debug:
+        msg: |
+          DNS 查询对比：
+          - Google DNS ({{ dns_google_nameserver }}): {{ google_dns_result.result | join(', ') if google_dns_result.result else '无记录' }}
+          - Cloudflare DNS ({{ dns_cloudflare_nameserver }}): {{ cloudflare_dns_result.result | join(', ') if cloudflare_dns_result.result else '无记录' }}
+          - 一致性检查：{{ google_dns_result.result == cloudflare_dns_result.result }}
+      when: 
+        - google_dns_result is defined
+        - cloudflare_dns_result is defined
+    
+    # ========== DNS 解析验证 ==========
+    - name: 验证 DNS 记录是否符合预期
+      ansible.builtin.debug:
+        msg: "✓ DNS 记录验证通过：{{ dns_target_domain }} 指向 {{ a_record.result[0] }}"
+      when:
+        - a_record is defined
+        - a_record.result
+        - a_record.result[0] == dns_expected_ip_address
+    
+    - name: 警告：DNS 记录与预期不符
+      ansible.builtin.debug:
+        msg: |
+          ⚠️ DNS 记录验证失败：
+          - 期望 IP：{{ dns_expected_ip_address }}
+          - 实际 IP：{{ a_record.result[0] if a_record.result else '无记录' }}
+      when:
+        - a_record is defined
+        - a_record.result
+        - a_record.result[0] != dns_expected_ip_address
+    
+    # ========== 超时与错误处理 ==========
+    - name: 执行可能超时的 DNS 查询
+      community.general.dig:
+        name: "{{ dns_slow_domain }}"
+        rdtype: A
+        timeout: "{{ dns_query_timeout }}"
+      register: slow_dns_query
+      ignore_errors: yes
+      when: dns_enable_slow_query_test | default(false)
+    
+    - name: 显示超时查询结果
+      ansible.builtin.debug:
+        msg: |
+          查询状态：{{ 'SUCCESS' if slow_dns_query is succeeded else 'TIMEOUT/ERROR' }}
+          详情：{{ slow_dns_query.msg | default('无错误信息') }}
+      when: slow_dns_query is defined
+    
+    # ========== DNS 区域查询 ==========
+    - name: 查询 DNS 区域信息
+      community.general.dig:
+        name: "{{ dns_zone_domain }}"
+        rdtype: NS
+      register: zone_info
+      when: dns_enable_zone_query | default(false)
+    
+    - name: 显示区域权威服务器
+      ansible.builtin.debug:
+        msg: |
+          区域：{{ dns_zone_domain }}
+          权威 DNS 服务器：{{ zone_info.result | join(', ') if zone_info.result else '无记录' }}
+      when: zone_info is defined
+    
+    # ========== 最终总结 ==========
+    - name: 总结 DNS 查询情况
+      ansible.builtin.debug:
+        msg: |
+          DNS 查询测试完成总结：
+          - A 记录查询：{{ 'PASS' if a_record is defined else 'SKIP' }}
+          - IPv6 查询：{{ 'PASS' if aaaa_record is defined else 'SKIP' }}
+          - CNAME 查询：{{ 'PASS' if cname_record is defined else 'SKIP' }}
+          - MX 记录查询：{{ 'PASS' if mx_record is defined else 'SKIP' }}
+          - 自定义 DNS 服务器查询：{{ 'PASS' if custom_dns_query is defined else 'SKIP' }}
+          - DNS 服务器对比：{{ 'PASS' if google_dns_result is defined else 'SKIP' }}
+      run_once: yes
