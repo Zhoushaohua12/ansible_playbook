@@ -6,6 +6,13 @@ from typing import Dict
 import pytest
 import yaml
 
+from tests.utils.assertions import (
+    assert_handlers_and_notifies_use_chinese,
+    assert_playbook_contains_no_log_task,
+    assert_playbook_has_common_controls,
+    assert_warning_header,
+)
+
 MODULES = ["ping", "uri", "dns", "ldap"]
 FQCN_EXPECTATIONS = {
     "ping": "ansible.builtin.ping",
@@ -301,6 +308,25 @@ class TestVarsFiles(TestNetworkProtocolsFixtures):
             assert (
                 "TSIG" in content or "Vault" in content or "秘钥" in content
             ), "dns example_vars.yml 应提及 TSIG 认证或密钥保护"
+
+
+class TestNetworkProtocolsPolicies(TestNetworkProtocolsFixtures):
+    """统一校验网络协议模块的 playbook/vars 规范"""
+
+    def test_playbooks_declare_controls(self, module_dirs: Dict[str, Path]) -> None:
+        for name, path in module_dirs.items():
+            playbook = path / "playbook.yml"
+            assert_playbook_has_common_controls(playbook)
+            assert_handlers_and_notifies_use_chinese(playbook)
+
+    def test_uri_playbook_masks_sensitive_data(self, module_dirs: Dict[str, Path]) -> None:
+        playbook = module_dirs["uri"] / "playbook.yml"
+        assert_playbook_contains_no_log_task(playbook)
+
+    def test_vars_have_warning_header(self, module_dirs: Dict[str, Path]) -> None:
+        for name, path in module_dirs.items():
+            vars_file = path / "vars" / "example_vars.yml"
+            assert_warning_header(vars_file)
 
 
 class TestNetworkProtocolsIntegration(TestNetworkProtocolsFixtures):

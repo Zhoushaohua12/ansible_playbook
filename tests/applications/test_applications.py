@@ -6,6 +6,14 @@ from typing import Dict
 import pytest
 import yaml
 
+from tests.utils.assertions import (
+    assert_handlers_and_notifies_use_chinese,
+    assert_playbook_contains_no_log_task,
+    assert_playbook_has_common_controls,
+    assert_vars_contain_vault_reference,
+    assert_warning_header,
+)
+
 MODULES = ["docker_container", "docker_image", "kubernetes", "pip", "npm", "git", "package", "yum", "apt"]
 FQCN_EXPECTATIONS = {
     "docker_container": "community.docker.docker_container",
@@ -361,3 +369,35 @@ class TestMultiModulePlaybooks(TestApplicationsFixtures):
         assert "ansible.builtin.apt" in content, "apt playbook 应包含 apt 任务"
         # 检查中文注释
         assert "APT" in content, "apt playbook 应包含中文 APT 相关注释"
+
+
+class TestApplicationsPolicies(TestApplicationsFixtures):
+    """聚合 playbook/vars 的统一策略校验"""
+
+    SENSITIVE_MODULES = {"docker_container", "docker_image", "kubernetes"}
+    VAULT_PLACEHOLDERS = {
+        "docker_container": ["vault_redis_password", "vault_app_database_url", "vault_app_secret_key"],
+    }
+
+    def test_playbooks_declare_controls(self, module_dirs: Dict[str, Path]) -> None:
+        for name, path in module_dirs.items():
+            playbook = path / "playbook.yml"
+            assert playbook.exists(), f"{name} 缺少 playbook.yml"
+            assert_playbook_has_common_controls(playbook)
+            assert_handlers_and_notifies_use_chinese(playbook)
+
+    def test_sensitive_playbooks_mask_secrets(self, module_dirs: Dict[str, Path]) -> None:
+        for name in self.SENSITIVE_MODULES:
+            playbook = module_dirs[name] / "playbook.yml"
+            assert_playbook_contains_no_log_task(playbook)
+
+    def test_vars_files_have_warning_header(self, module_dirs: Dict[str, Path]) -> None:
+        for name, path in module_dirs.items():
+            vars_file = path / "vars" / "example_vars.yml"
+            assert vars_file.exists(), f"{name} 缺少 vars/example_vars.yml"
+            assert_warning_header(vars_file)
+
+    def test_sensitive_vars_use_vault_placeholder(self, module_dirs: Dict[str, Path]) -> None:
+        for name, placeholders in self.VAULT_PLACEHOLDERS.items():
+            vars_file = module_dirs[name] / "vars" / "example_vars.yml"
+            assert_vars_contain_vault_reference(vars_file, placeholders)

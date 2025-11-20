@@ -6,6 +6,12 @@ from typing import Dict
 import pytest
 import yaml
 
+from tests.utils.assertions import (
+    assert_handlers_and_notifies_use_chinese,
+    assert_playbook_has_common_controls,
+    assert_warning_header,
+)
+
 # 系统管理模块列表
 MODULES = ["user", "group", "service", "systemd", "hostname", "timezone", "locale", "firewalld", "iptables", "selinux", "auditd", "pam_hardening", "kernel_tuning", "cron", "authorized_key", "reboot"]
 
@@ -465,3 +471,18 @@ class TestNewSystemModules(TestSystemFixtures):
         assert "⚠️" in vars_file or "警告" in vars_file or "注意" in vars_file, (
             "kernel_tuning vars 应包含安全提示"
         )
+
+
+class TestSystemPolicies(TestSystemFixtures):
+    """统一校验 system 模块的 playbook/vars 策略"""
+
+    def test_playbooks_have_common_controls(self, module_dirs: Dict[str, Path]) -> None:
+        for name, path in module_dirs.items():
+            playbook = path / "playbook.yml"
+            assert_playbook_has_common_controls(playbook)
+            assert_handlers_and_notifies_use_chinese(playbook)
+
+    def test_vars_have_standard_warning_header(self, module_dirs: Dict[str, Path]) -> None:
+        for name, path in module_dirs.items():
+            vars_file = path / "vars" / "example_vars.yml"
+            assert_warning_header(vars_file)

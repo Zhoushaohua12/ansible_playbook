@@ -2,6 +2,7 @@
 - name: auditd 审计系统配置示例演示
   hosts: localhost
   gather_facts: true
+  become: true
   check_mode: true
   vars_files:
     - vars/example_vars.yml

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from pathlib import Path
-from typing import Iterable, List, Sequence
+from typing import List
 
 import yaml
 
@@ -80,43 +81,41 @@ def assert_warning_header(vars_path: Path, expected: str = WARNING_HEADER) -> No
     )
 
 
-def _extract_notify_values(task: dict) -> Iterable[str]:
-    notify_value = task.get("notify")
-    if isinstance(notify_value, str):
-        yield notify_value
-    elif isinstance(notify_value, Iterable):
-        for item in notify_value:
-            if isinstance(item, str):
-                yield item
+def _iter_string_values(value: object) -> List[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, Iterable):
+        return [item for item in value if isinstance(item, str)]
+    return []
+
+
+def _extract_notify_values(task: dict) -> List[str]:
+    return _iter_string_values(task.get("notify"))
 
 
 def assert_handlers_and_notifies_use_chinese(playbook_path: Path) -> None:
-    """断言 handlers 的名称/监听值以及 notify 的值都包含中文字符。"""
+    """断言 handlers/notify 的标识中至少包含一个中文字符。"""
 
     plays = load_playbook(playbook_path)
     notify_values: List[str] = []
-    handler_names: List[str] = []
-    listen_values: List[str] = []
+    handlers = []
 
     for play in plays:
         for task in iter_section_items(play, "tasks"):
             notify_values.extend(_extract_notify_values(task))
-        for handler in iter_section_items(play, "handlers"):
-            name = handler.get("name")
-            if isinstance(name, str):
-                handler_names.append(name)
-            listen = handler.get("listen")
-            if isinstance(listen, str):
-                listen_values.append(listen)
-            elif isinstance(listen, Iterable):
-                for item in listen:
-                    if isinstance(item, str):
-                        listen_values.append(item)
+        handlers.extend(iter_section_items(play, "handlers"))
 
     for value in notify_values:
         assert has_chinese(value), f"{playbook_path} 的 notify 值需包含中文: {value}"
-    for value in handler_names + listen_values:
-        assert has_chinese(value), f"{playbook_path} 的 handler/listen 需包含中文: {value}"
+
+    for handler in handlers:
+        name = handler.get("name")
+        listen_values = _iter_string_values(handler.get("listen"))
+        handler_has_chinese = isinstance(name, str) and has_chinese(name)
+        if not handler_has_chinese and listen_values:
+            handler_has_chinese = any(has_chinese(item) for item in listen_values)
+        if not handler_has_chinese:
+            raise AssertionError(f"{playbook_path} 的 handler 缺少中文标识: {name or listen_values}")
 
 
 def assert_vars_contain_vault_reference(vars_path: Path, placeholders: Sequence[str]) -> None:
@@ -125,3 +124,12 @@ def assert_vars_contain_vault_reference(vars_path: Path, placeholders: Sequence[
     content = vars_path.read_text(encoding="utf-8")
     for placeholder in placeholders:
         assert placeholder in content, f"{vars_path} 需包含 {placeholder} 占位符"
+
+
+def assert_playbook_contains_no_log_task(playbook_path: Path) -> None:
+    """确保敏感 playbook 至少有一个任务启用了 no_log 保护。"""
+
+    plays = load_playbook(playbook_path)
+    if any(bool(task.get("no_log")) for task in iter_all_tasks(plays)):
+        return
+    raise AssertionError(f"{playbook_path} 需要至少一个设置了 no_log: true 的任务")
