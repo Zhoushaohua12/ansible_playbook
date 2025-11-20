@@ -14,7 +14,7 @@
 - `network/`：网络配置与防火墙管理（firewalld、ufw、iptables、wait_for、port、route、interface）的完整指南。
 - `network_protocols/`：网络协议层通信（ICMP/ping、HTTP/uri、DNS/dig）的模块实践，强调安全验证与敏感信息保护。
 - `storage/`：磁盘、LVM 与文件系统管理的演练场景。
-- `system/`：系统管理模块（user、group、service、systemd、hostname、timezone、locale、firewalld、iptables、selinux）的完整指南。
+- `system/`：系统管理模块（user、group、service、systemd、hostname、timezone、locale、firewalld、iptables、selinux、auditd、pam_hardening、kernel_tuning）的完整指南。
 - `virtualization/`：本地/企业虚拟化（libvirt、VMware、qemu-img）演练，展示与云资源协同的最佳实践。
 - `web/`：Web 服务器（Nginx、Apache）配置与管理示例。
 - `metadata/modules.yaml`：用于索引特性与文档的元数据。

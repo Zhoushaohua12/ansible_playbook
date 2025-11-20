@@ -1,0 +1,303 @@
+---
+- name: replace 模块使用示例演示
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 准备测试文件 ==========
+    - name: 创建测试配置文件
+      ansible.builtin.copy:
+        content: |
+          # 应用配置文件示例
+          [database]
+          host = localhost
+          port = 3306
+          username = admin
+          password = old_password
+          
+          [server]
+          host = 0.0.0.0
+          port = 8080
+          debug = false
+          workers = 4
+          
+          [logging]
+          level = INFO
+          file = /var/log/app.log
+          max_size = 100MB
+          backup_count = 5
+        dest: "{{ test_config_file }}"
+        mode: '0644'
+    
+    - name: 显示测试配置文件内容
+      ansible.builtin.debug:
+        msg: |
+          测试配置文件内容：
+          {{ lookup('file', test_config_file) }}
+    
+    # ========== 基础替换演示 ==========
+    - name: 基础替换 - 修改数据库端口
+      ansible.builtin.replace:
+        path: "{{ test_config_file }}"
+        regexp: '^port\s*=\s*\d+$'
+        replace: 'port = {{ new_db_port }}'
+        backup: yes
+    
+    - name: 显示基础替换结果
+      ansible.builtin.debug:
+        msg: "已将数据库端口替换为 {{ new_db_port }}"
+    
+    # ========== 备份功能演示 ==========
+    - name: 检查备份文件是否创建
+      ansible.builtin.stat:
+        path: "{{ test_config_file }}.backup"
+      register: backup_file
+    
+    - name: 显示备份文件信息
+      ansible.builtin.debug:
+        msg: |
+          备份文件状态：
+          存在: {{ backup_file.stat.exists | default(false) }}
+          路径: {{ backup_file.stat.path | default('未创建') }}
+      when: backup_file.stat is defined
+    
+    # ========== 正则表达式高级用法演示 ==========
+    - name: 正则表达式组替换 - 修改服务器配置
+      ansible.builtin.replace:
+        path: "{{ test_config_file }}"
+        regexp: '^host\s*=\s*(.+)$'
+        replace: 'host = {{ new_server_host }}'
+        backup: yes
+    
+    - name: 显示正则组替换结果
+      ansible.builtin.debug:
+        msg: "已将服务器主机替换为 {{ new_server_host }}"
+    
+    # ========== 多行替换演示 ==========
+    - name: 多行替换 - 更新整个数据库配置段
+      ansible.builtin.replace:
+        path: "{{ test_config_file }}"
+        regexp: '^\[database\](?:\n\s+.*)+?'
+        replace: |
+          [database]
+          host = {{ new_db_host }}
+          port = {{ new_db_port }}
+          username = {{ new_db_user }}
+          password = {{ new_db_password }}
+          charset = utf8mb4
+          pool_size = 20
+        backup: yes
+    
+    - name: 显示多行替换结果
+      ansible.builtin.debug:
+        msg: "已更新整个数据库配置段"
+    
+    # ========== 条件替换演示 ==========
+    - name: 条件替换 - 根据环境启用调试模式
+      ansible.builtin.replace:
+        path: "{{ test_config_file }}"
+        regexp: '^debug\s*=\s*.+$'
+        replace: 'debug = true'
+        backup: yes
+      when: enable_debug | default(false)
+    
+    - name: 显示条件替换结果
+      ansible.builtin.debug:
+        msg: "调试模式 {{ '已启用' if enable_debug | default(false) else '保持原样' }}"
+    
+    # ========== 边界控制替换演示 ==========
+    - name: 边界控制替换 - 只在 logging 段内替换
+      ansible.builtin.replace:
+        path: "{{ test_config_file }}"
+        regexp: '^level\s*=\s*.+$'
+        replace: 'level = {{ new_log_level }}'
+        backup: yes
+        before: '^# End of file'
+        after: '^\[logging\]'
+    
+    - name: 显示边界控制替换结果
+      ansible.builtin.debug:
+        msg: "已将日志级别替换为 {{ new_log_level }}"
+    
+    # ========== 敏感信息替换演示（带安全保护） ==========
+    - name: 敏感信息替换 - 更新密码
+      ansible.builtin.replace:
+        path: "{{ test_config_file }}"
+        regexp: '^password\s*=\s*.+$'
+        replace: 'password = {{ vault_new_password }}'
+        backup: yes
+      no_log: true
+      register: password_replace
+    
+    - name: 显示密码替换结果（不显示实际密码）
+      ansible.builtin.debug:
+        msg: "密码已安全更新（no_log 保护）"
+      when: password_replace.changed | default(false)
+    
+    # ========== 批量替换演示 ==========
+    - name: 批量替换 - 更新多个配置项
+      ansible.builtin.replace:
+        path: "{{ test_config_file }}"
+        regexp: '{{ item.regexp }}'
+        replace: '{{ item.replace }}'
+        backup: yes
+      loop: "{{ batch_replacements }}"
+      loop_control:
+        label: "{{ item.description }}"
+    
+    - name: 显示批量替换结果
+      ansible.builtin.debug:
+        msg: "已完成 {{ batch_replacements | length }} 项批量替换"
+    
+    # ========== 验证功能演示 ==========
+    - name: 创建验证脚本
+      ansible.builtin.copy:
+        content: |
+          #!/bin/bash
+          CONFIG_FILE="$1"
+          if [ -f "$CONFIG_FILE" ]; then
+            # 检查配置文件格式
+            if grep -q "^\[.*\]" "$CONFIG_FILE"; then
+              echo "配置文件格式正确"
+              exit 0
+            else
+              echo "配置文件格式错误：缺少配置段"
+              exit 1
+            fi
+          else
+            echo "配置文件不存在：$CONFIG_FILE"
+            exit 1
+          fi
+        dest: "{{ validate_script }}"
+        mode: '0755'
+    
+    - name: 带验证的替换 - 更新工作进程数
+      ansible.builtin.replace:
+        path: "{{ test_config_file }}"
+        regexp: '^workers\s*=\s*\d+$'
+        replace: 'workers = {{ new_workers_count }}'
+        backup: yes
+        validate: "{{ validate_script }} %s"
+    
+    - name: 显示验证替换结果
+      ansible.builtin.debug:
+        msg: "已将工作进程数替换为 {{ new_workers_count }} 并验证配置文件格式"
+    
+    # ========== 文件权限和编码演示 ==========
+    - name: 替换并设置文件权限
+      ansible.builtin.replace:
+        path: "{{ test_config_file }}"
+        regexp: '^backup_count\s*=\s*\d+$'
+        replace: 'backup_count = {{ new_backup_count }}'
+        backup: yes
+        mode: '0600'  # 更严格的权限
+        encoding: 'utf-8'
+    
+    - name: 显示权限设置结果
+      ansible.builtin.debug:
+        msg: "已将备份次数替换为 {{ new_backup_count }} 并设置文件权限为 0600"
+    
+    # ========== 显示最终配置文件内容 ==========
+    - name: 读取最终配置文件内容
+      ansible.builtin.slurp:
+        src: "{{ test_config_file }}"
+      register: final_config
+    
+    - name: 显示最终配置文件
+      ansible.builtin.debug:
+        msg: |
+          最终配置文件内容：
+          {{ final_config.content | b64decode }}
+    
+    # ========== 错误处理和回滚演示 ==========
+    - name: 演示错误处理逻辑（模拟失败场景）
+      ansible.builtin.debug:
+        msg: |
+          === 错误处理和回滚演示 ===
+          如果替换操作失败，可以使用以下逻辑进行回滚：
+          
+          - name: 执行替换操作
+            ansible.builtin.replace:
+              path: "{{ test_config_file }}"
+              regexp: 'some_pattern'
+              replace: 'some_replacement'
+              backup: yes
+            register: replace_result
+          
+          - name: 检查替换结果
+            ansible.builtin.debug:
+              msg: "替换结果: {{ replace_result.msg }}"
+          
+          - name: 如果失败则回滚
+            ansible.builtin.copy:
+              src: "{{ replace_result.backup }}"
+              dest: "{{ test_config_file }}"
+            when: replace_result.failed | default(false)
+    
+    # ========== 清理演示文件 ==========
+    - name: 清理测试文件
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ test_config_file }}"
+        - "{{ validate_script }}"
+        - "{{ test_config_file }}.backup"
+      ignore_errors: yes
+    
+    # ========== 安全和最佳实践提醒 ==========
+    - name: replace 模块最佳实践提醒
+      ansible.builtin.debug:
+        msg: |
+          === replace 模块最佳实践 ===
+          1. 正则表达式使用：
+             - 使用精确的正则表达式避免误替换
+             - 在生产环境前充分测试正则表达式
+             - 使用 ^ 和 $ 锚定符提高匹配精确度
+          
+          2. 备份和验证：
+             - 重要配置文件修改前启用备份
+             - 使用 validate 参数验证配置文件语法
+             - 保留备份文件便于故障恢复
+          
+          3. 安全考虑：
+             - 敏感信息替换使用 no_log: true
+             - 使用 Ansible Vault 保护敏感替换内容
+             - 设置适当的文件权限
+          
+          4. 性能优化：
+             - 大文件替换时考虑使用更高效的方法
+             - 批量操作时使用 loop 控制结构
+             - 避免在循环中进行不必要的文件操作
+          
+          5. 错误处理：
+             - 使用 register 捕获操作结果
+             - 实现适当的错误处理和回滚机制
+             - 记录操作日志便于审计和故障排查
+    
+    # ========== 总结 ==========
+    - name: replace 模块演示完成总结
+      ansible.builtin.debug:
+        msg: |
+          已完成以下 replace 模块操作演示：
+          1. 基础替换 - 修改配置参数
+          2. 备份功能演示 - 自动创建备份文件
+          3. 正则表达式高级用法 - 使用正则组替换
+          4. 多行替换 - 更新整个配置段
+          5. 条件替换 - 根据变量条件执行替换
+          6. 边界控制替换 - 在指定范围内替换
+          7. 敏感信息替换 - 带 no_log 安全保护
+          8. 批量替换 - 一次性替换多个配置项
+          9. 验证功能 - 使用验证脚本检查配置
+          10. 文件权限和编码设置
+          11. 错误处理和回滚策略演示
+          12. 清理测试文件
+          
+          下一步建议：
+          - 根据实际需求选择合适的正则表达式
+          - 建立配置文件修改的审批流程
+          - 配置配置文件的监控和告警
+          - 定期备份重要配置文件
+          - 建立配置文件修改的文档和标准流程

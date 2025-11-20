@@ -1,0 +1,312 @@
+# ⚠️ 本文件仅为示例，占位符必须使用 Ansible Vault 或环境变量替换
+
+# ========== 测试文件配置 ==========
+# 测试配置文件路径
+test_config_file: "/tmp/test_config.ini"
+
+# 新配置文件路径
+new_config_file: "/tmp/app_config.ini"
+
+# 部署脚本路径
+deploy_script: "/tmp/deploy.sh"
+
+# 配置验证脚本路径
+validate_script: "/tmp/validate_config.sh"
+
+# Web 配置文件路径
+web_config_1: "/tmp/web01_config.conf"
+web_config_2: "/tmp/web02_config.conf"
+
+# ========== 基础插入配置 ==========
+# 服务器配置
+server_host: "app.example.com"
+server_port: "8080"
+server_workers: "4"
+
+# ========== 位置控制插入配置 ==========
+# 数据库配置
+db_host: "db.example.com"
+db_port: "5432"
+db_user: "app_user"
+db_name: "app_database"
+
+# 敏感数据库密码（应使用 Ansible Vault）
+vault_db_password: "{{ vault_app_db_password }}"
+
+# ========== 条件插入配置 ==========
+# 是否启用调试模式
+enable_debug: true
+
+# ========== 自定义标记配置 ==========
+# SSL 配置
+ssl_cert_path: "/etc/ssl/certs/app.crt"
+ssl_key_path: "/etc/ssl/private/app.key"
+
+# ========== 复杂标记管理配置 ==========
+# 应用名称
+app_name: "myapp"
+
+# 监控配置
+alert_webhook_url: "https://hooks.slack.com/services/XXXXX/YYYYY/ZZZZZ"
+
+# ========== 文件创建和属性设置配置 ==========
+# 应用配置
+app_version: "2.1.0"
+app_environment: "production"
+
+# 功能开关
+enable_feature_c: true
+
+# 文件所有者和组
+file_owner: "appuser"
+file_group: "appuser"
+
+# ========== 验证功能配置 ==========
+# 性能配置
+max_memory_mb: "1024"
+cpu_limit: "2"
+connection_pool_size: "20"
+cache_size_mb: "256"
+
+# ========== 脚本代码插入配置 ==========
+# 应用端口
+app_port: "8080"
+
+# ========== 安全提示 ==========
+# ⚠️  特别注意：
+# 1. 敏感信息（如密码、密钥、API token 等）必须使用 Ansible Vault 加密存储
+# 2. 标记格式要保持唯一性，避免在同一个文件中出现重复标记
+# 3. 重要配置文件修改前必须启用备份功能
+# 4. 建议使用 validate 参数验证配置文件语法正确性
+# 5. 生产环境部署前，一定要使用 --check 模式预览：
+#    ansible-playbook files/blockinfile/playbook.yml --check
+# 6. 对于关键系统文件（如 sudoers、crontab），建议使用专门的验证工具
+# 7. 建立配置文件修改的审批和回滚流程
+
+# ========== 常用标记格式示例 ==========
+# 常用标记格式模板：
+marker_formats:
+  # 标准格式
+  standard: "# {mark} ANSIBLE MANAGED BLOCK"
+  
+  # 带应用名称
+  with_app: "# {mark} {{ app_name }} CONFIG BLOCK"
+  
+  # 带时间戳
+  with_timestamp: "# {mark} CONFIG - {{ ansible_date_time.iso8601 }}"
+  
+  # 带环境信息
+  with_env: "# {mark} {{ app_environment }} CONFIG BLOCK"
+  
+  # 带版本信息
+  with_version: "# {mark} v{{ app_version }} CONFIG"
+  
+  # 自定义格式
+  custom: "### {mark} CUSTOM BLOCK ###"
+  
+  # XML 格式
+  xml_format: "<!-- {mark} ANSIBLE MANAGED BLOCK -->"
+  
+  # Shell 脚本格式
+  shell_format: "# {mark} SHELL MANAGED BLOCK"
+
+# ========== 插入位置示例 ==========
+# 常用插入位置：
+insert_positions:
+  # 文件开头
+  beginning_of_file: "BOF"
+  
+  # 文件末尾
+  end_of_file: "EOF"
+  
+  # 特定注释后
+  after_comment: "^# Configuration Section"
+  
+  # 特定配置节后
+  after_section: "^\[global\]"
+  
+  # 特定行内容后
+  after_specific_line: "# 配置文件结束"
+  
+  # 空行后
+  after_empty_line: "^\s*$"
+  
+  # 特定模式匹配后
+  after_pattern: "^host\s*=.*"
+
+# ========== 配置文件类型示例 ==========
+# 不同类型配置文件的插入策略：
+config_file_strategies:
+  # INI 格式文件
+  ini_files:
+    marker: "# {mark} CONFIG BLOCK"
+    insert_position: "EOF"
+    validation: "python -c \"import configparser; configparser.ConfigParser().read('%s')\""
+  
+  # YAML 格式文件
+  yaml_files:
+    marker: "# {mark} CONFIG BLOCK"
+    insert_position: "EOF"
+    validation: "python -c \"import yaml; yaml.safe_load(open('%s'))\""
+  
+  # JSON 格式文件
+  json_files:
+    marker: "// {mark} CONFIG BLOCK"
+    insert_position: "EOF"
+    validation: "python -c \"import json; json.load(open('%s'))\""
+  
+  # Shell 脚本文件
+  shell_scripts:
+    marker: "# {mark} FUNCTION BLOCK"
+    insert_position: "EOF"
+    validation: "bash -n %s"
+  
+  # Python 脚本文件
+  python_scripts:
+    marker: "# {mark} CODE BLOCK"
+    insert_position: "EOF"
+    validation: "python -m py_compile %s"
+  
+  # XML 文件
+  xml_files:
+    marker: "<!-- {mark} CONFIG BLOCK -->"
+    insert_position: "EOF"
+    validation: "xmllint --noout %s"
+
+# ========== 验证命令示例 ==========
+# 常用配置文件验证命令：
+validation_commands:
+  # Sudoers 文件验证
+  sudoers: "visudo -cf %s"
+  
+  # Crontab 文件验证
+  crontab: "crontab %s"
+  
+  # Nginx 配置验证
+  nginx: "nginx -t %s"
+  
+  # Apache 配置验证
+  apache: "apache2ctl configtest"  # Ubuntu/Debian
+  # apache: "httpd -t %s"         # RHEL/CentOS
+  
+  # SSH 配置验证
+  ssh: "sshd -t %s"
+  
+  # PHP 配置验证
+  php: "php -l %s"
+  
+  # Shell 脚本语法验证
+  shell_syntax: "bash -n %s"
+  
+  # Python 脚本语法验证
+  python_syntax: "python -m py_compile %s"
+
+# ========== 备份策略示例 ==========
+# 备份文件管理策略：
+backup_strategies:
+  # 时间戳备份
+  timestamp:
+    enabled: true
+    retention_days: 30
+    format: ".%Y%m%d_%H%M%S.backup"
+  
+  # 版本备份
+  version:
+    enabled: true
+    retention_count: 10
+    format: ".v{{ app_version }}.backup"
+  
+  # 简单备份
+  simple:
+    enabled: true
+    overwrite: true
+    format: ".backup"
+
+# ========== 错误处理示例 ==========
+# 常见错误类型和处理方法：
+error_handling:
+  # 标记冲突错误
+  marker_conflict:
+    symptom: "文件中已存在相同标记"
+    solution: "使用唯一的标记格式，包含应用名称或时间戳"
+  
+  # 插入位置错误
+  insert_position_error:
+    symptom: "插入位置不正确或匹配失败"
+    solution: "检查 insertafter/insertbefore 参数，确保正则表达式正确"
+  
+  # 权限错误
+  permission_error:
+    symptom: "权限不足，无法修改文件"
+    solution: "使用 become: yes 提升权限，检查文件权限设置"
+  
+  # 验证失败
+  validation_failed:
+    symptom: "配置文件验证失败"
+    solution: "检查插入内容格式，确保符合配置文件语法要求"
+  
+  # 文件不存在
+  file_not_found:
+    symptom: "目标文件不存在"
+    solution: "使用 create: yes 参数自动创建文件"
+
+# ========== 高级用法示例 ==========
+# 高级使用场景：
+advanced_usage:
+  # 动态标记生成
+  dynamic_markers:
+    description: "根据变量动态生成标记"
+    example: |
+      marker: "# {mark} {{ app_name }}-{{ app_environment }}-{{ ansible_date_time.epoch }}"
+  
+  # 条件块插入
+  conditional_blocks:
+    description: "根据条件插入不同的配置块"
+    example: |
+      when: app_environment == 'production'
+      block: |
+        # 生产环境配置
+        debug = false
+        log_level = ERROR
+  
+  # 嵌套配置管理
+  nested_config:
+    description: "管理复杂的嵌套配置结构"
+    example: |
+      block: |
+        [section1]
+        setting1 = value1
+        [section1.subsection1]
+        setting2 = value2
+  
+  # 多环境配置
+  multi_environment:
+    description: "为不同环境管理不同配置"
+    example: |
+      when: app_environment in ['development', 'staging', 'production']
+      block: |
+        # {{ app_environment }} 环境配置
+        environment = {{ app_environment }}
+
+# ========== 性能优化建议 ==========
+# 大文件或批量操作的性能优化：
+performance_tips:
+  # 大文件处理
+  large_files:
+    suggestion: "对于大文件，考虑使用更高效的文本处理工具"
+    alternative_tools: ["sed", "awk", "python script"]
+  
+  # 批量操作
+  batch_operations:
+    suggestion: "使用 loop 控制结构进行批量文件操作"
+    optimization: "设置合理的 serial 参数避免并发问题"
+  
+  # 网络文件系统
+  network_filesystems:
+    suggestion: "在网络文件系统上操作时增加超时时间"
+    consideration: "考虑网络延迟和带宽限制"
+  
+  # 内存使用
+  memory_usage:
+    suggestion: "处理大量文件时注意内存使用"
+    optimization: "分批处理避免内存溢出"

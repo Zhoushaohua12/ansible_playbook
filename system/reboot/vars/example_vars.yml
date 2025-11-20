@@ -1,0 +1,225 @@
+# ⚠️ 本文件仅为示例，占位符必须使用 Ansible Vault 或环境变量替换
+
+# ========== 基础重启配置 ==========
+# 基础重启消息
+basic_reboot_message: "系统将进行重启以应用更新"
+
+# ========== 超时控制配置 ==========
+# 超时控制重启消息
+timeout_reboot_message: "系统将进行重启（带超时控制）"
+
+# 重启总超时时间（秒）
+reboot_timeout: 600  # 10分钟
+
+# SSH连接超时时间（秒）
+connect_timeout: 120  # 2分钟
+
+# 重启前延迟时间（秒）
+pre_reboot_delay: 10  # 10秒
+
+# 重启后延迟时间（秒）
+post_reboot_delay: 30  # 30秒
+
+# ========== 验证命令配置 ==========
+# 带验证的重启消息
+test_reboot_message: "系统将进行重启并验证功能"
+
+# 验证重启超时时间（秒）
+test_reboot_timeout: 900  # 15分钟
+
+# 重启后验证命令
+reboot_test_command: "whoami && echo 'System reboot successful'"
+
+# ========== 条件重启配置 ==========
+# 条件重启消息
+conditional_reboot_message: "检测到重启需求，执行条件重启"
+
+# 条件重启超时时间（秒）
+conditional_reboot_timeout: 600  # 10分钟
+
+# 最大运行时间（秒），超过此时间建议重启
+max_uptime_seconds: 2592000  # 30天
+
+# ========== 分阶段重启配置 ==========
+# 用户通知消息
+user_notification_message: "系统将在 5 分钟后重启进行维护，请保存工作"
+
+# 通知延迟时间（秒）
+notification_delay: 300  # 5分钟
+
+# 分阶段重启消息
+staged_reboot_message: "计划性系统维护重启"
+
+# 分阶段重启超时时间（秒）
+staged_reboot_timeout: 900  # 15分钟
+
+# 分阶段重启前延迟（秒）
+staged_pre_delay: 60  # 1分钟
+
+# 分阶段重启后延迟（秒）
+staged_post_delay: 120  # 2分钟
+
+# ========== 重启后验证配置 ==========
+# 关键服务列表
+critical_services:
+  - "sshd"
+  - "networking"
+  - "systemd-journald"
+  - "cron"
+
+# 网络连接测试主机
+test_host: "8.8.8.8"
+
+# 应用健康检查URL
+app_health_check_url: "http://localhost:80/health"
+
+# ========== 批量重启配置 ==========
+# 滚动重启消息
+rolling_reboot_message: "滚动重启 - 服务器维护"
+
+# 滚动重启超时时间（秒）
+rolling_reboot_timeout: 600  # 10分钟
+
+# 目标服务器列表（示例）
+target_servers:
+  - "web01.example.com"
+  - "web02.example.com"
+  - "web03.example.com"
+
+# 分组重启消息
+group_reboot_message: "Web服务器组重启维护"
+
+# ========== 安全重启配置 ==========
+# 安全重启消息
+safe_reboot_message: "生产系统安全重启维护"
+
+# 安全重启超时时间（秒）
+safe_reboot_timeout: 1800  # 30分钟
+
+# 安全重启前延迟（秒）
+safe_pre_delay: 60  # 1分钟
+
+# 安全重启后延迟（秒）
+safe_post_delay: 120  # 2分钟
+
+# 安全重启验证命令
+safe_test_command: "systemctl is-active sshd && systemctl is-active networking"
+
+# ========== 安全提示 ==========
+# ⚠️  特别注意：
+# 1. 生产环境重启前必须：
+#    - 通知所有相关用户和服务依赖方
+#    - 确认所有重要数据已备份
+#    - 检查系统负载和资源使用情况
+#    - 验证备份和回滚方案可用
+#
+# 2. 重启过程中需要：
+#    - 设置合理的超时时间，避免重启卡死
+#    - 监控重启过程，及时发现问题
+#    - 准备手动干预方案
+#    - 记录重启操作日志
+#
+# 3. 重启完成后必须：
+#    - 验证所有关键服务正常启动
+#    - 检查网络连接和远程访问
+#    - 测试应用功能是否正常
+#    - 查看系统日志，确认无错误
+#
+# 4. 生产环境建议：
+#    - 在维护窗口期执行重启操作
+#    - 使用滚动重启策略，避免服务中断
+#    - 建立重启操作的审批流程
+#    - 配置重启操作的监控和告警
+#
+# 5. 安全建议：
+#    - 限制重启权限，仅授权人员可执行
+#    - 使用专用的运维账户执行重启
+#    - 启用操作审计，记录所有重启操作
+#    - 定期进行重启演练和故障恢复测试
+
+# ========== 重启前检查清单 ==========
+# 重启前检查项目：
+pre_reboot_checklist:
+  - "确认所有重要数据已保存"
+  - "通知相关用户和服务依赖方"
+  - "检查系统负载（建议低于 2.0）"
+  - "检查磁盘空间（建议剩余 20% 以上）"
+  - "确认备份已完成且可恢复"
+  - "验证回滚方案可用"
+  - "检查关键服务状态"
+  - "确认维护窗口已获得批准"
+
+# ========== 重启后验证清单 ==========
+# 重启后验证项目：
+post_reboot_checklist:
+  - "验证系统已成功重启"
+  - "检查 SSH 连接正常"
+  - "验证网络连接正常"
+  - "检查关键服务启动状态"
+  - "验证应用功能正常"
+  - "检查系统日志无错误"
+  - "验证性能指标正常"
+  - "确认用户访问正常"
+
+# ========== 常见重启场景 ==========
+# 不同场景的重启建议：
+reboot_scenarios:
+  kernel_update:
+    description: "内核更新后重启"
+    timeout: 900
+    post_delay: 120
+    test_command: "uname -r && systemctl is-active networking"
+  
+  system_patch:
+    description: "系统补丁安装后重启"
+    timeout: 600
+    post_delay: 60
+    test_command: "systemctl is-active sshd"
+  
+  config_change:
+    description: "重大配置变更后重启"
+    timeout: 600
+    post_delay: 30
+    test_command: "systemctl is-active {{ item }}"
+  
+  maintenance:
+    description: "计划性维护重启"
+    timeout: 1800
+    post_delay: 180
+    test_command: "systemctl is-active sshd && systemctl is-active networking"
+
+# ========== 故障排查指南 ==========
+# 常见重启问题及解决方案：
+reboot_troubleshooting:
+  timeout_exceeded:
+    problem: "重启超时"
+    solution: "增加 reboot_timeout 时间，检查硬件状态"
+  
+  connection_failed:
+    problem: "SSH连接失败"
+    solution: "检查网络配置，验证SSH服务状态"
+  
+  service_failed:
+    problem: "关键服务启动失败"
+    solution: "检查服务配置，查看系统日志"
+  
+  performance_degraded:
+    problem: "重启后性能下降"
+    solution: "检查系统资源，优化配置参数"
+
+# ========== 监控和告警 ==========
+# 重启操作的监控指标：
+reboot_monitoring:
+  metrics:
+    - "reboot_duration"  # 重启耗时
+    - "service_startup_time"  # 服务启动时间
+    - "system_load"  # 系统负载
+    - "disk_usage"  # 磁盘使用率
+    - "memory_usage"  # 内存使用率
+    - "network_latency"  # 网络延迟
+  
+  alerts:
+    - "reboot_timeout"  # 重启超时告警
+    - "service_failure"  # 服务启动失败告警
+    - "performance_degradation"  # 性能下降告警
+    - "connection_lost"  # 连接丢失告警

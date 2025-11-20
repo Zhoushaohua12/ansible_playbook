@@ -1,0 +1,269 @@
+# ⚠️ 本文件仅为示例，占位符必须使用 Ansible Vault 或环境变量替换
+
+# ========== 密码策略配置 ==========
+# 密码复杂度要求
+password_policies:
+  # 密码最小长度
+  min_length: 12
+  
+  # 密码复杂度要求（-1表示必须，0表示可选，正数表示最大个数）
+  require_digit: -1        # 必须包含数字
+  require_upper: -1        # 必须包含大写字母
+  require_lower: -1        # 必须包含小写字母
+  require_special: -1      # 必须包含特殊字符
+  
+  # 最小字符类别数（数字、大写、小写、特殊字符）
+  min_char_classes: 3
+  
+  # 其他密码质量要求
+  max_repeat: 3            # 同一字符最大重复次数
+  min_diff_chars: 8        # 与旧密码的最小不同字符数
+  history_count: 5         # 记录的密码历史数量
+  
+  # 密码过期策略
+  max_age_days: 90         # 密码最大有效期（天）
+  min_age_days: 1          # 密码最小使用期（天）
+  warn_age_days: 7         # 密码过期前警告天数
+
+# ========== 账户锁定策略 ==========
+# 登录失败锁定配置
+account_lockout:
+  # 最大登录失败次数
+  max_attempts: 3
+  
+  # 锁定时间（秒）
+  unlock_time: 900         # 15分钟
+  
+  # root 账户锁定时间（秒）
+  root_unlock_time: 300    # 5分钟
+  
+  # 是否在锁定后记录日志
+  log_failures: true
+  
+  # 是否启用静默锁定
+  silent_lockout: false
+
+# ========== 会话限制配置 ==========
+# 用户会话和资源限制
+session_limits:
+  # 会话超时配置
+  timeout_type: "tmout"    # 超时类型
+  timeout_value: 600       # 10分钟
+  
+  # 并发连接限制
+  max_concurrent: 3        # 最大并发登录数
+  
+  # 进程数限制
+  max_processes: 1024      # 最大进程数
+  
+  # 文件描述符限制
+  max_open_files: 4096     # 最大打开文件数
+  
+  # 内存使用限制（KB）
+  max_memory: 1048576      # 1GB
+
+# ========== 登录横幅配置 ==========
+# 是否启用登录警告横幅
+enable_login_banner: true
+
+# 登录警告横幅内容（敏感信息，需要使用 Vault）
+# vault_pam_warning_banner: |
+#   ***************************************************************************
+#   *                        AUTHORIZED ACCESS ONLY                        *
+#   ***************************************************************************
+#   * This system is for authorized users only. Individual use of this      *
+#   * system and/or network without authority from the system administrator *
+#   * is strictly prohibited. Unauthorized access is a violation of state  *
+#   * and federal, civil and criminal laws.                                *
+#   ***************************************************************************
+#   * All activities on this system are monitored and recorded.             *
+#   * Violators will be prosecuted to the fullest extent of the law.        *
+#   ***************************************************************************
+
+# ========== PAM 模块配置 ==========
+# PAM 模块详细配置
+pam_modules:
+  # Unix 认证模块
+  pam_unix:
+    enabled: true
+    options:
+      - "sha512"
+      - "shadow"
+      - "nullok"
+      - "try_first_pass"
+      - "use_authtok"
+  
+  # 密码质量检查模块
+  pam_pwquality:
+    enabled: true
+    options:
+      - "try_first_pass"
+      - "local_users_only"
+      - "retry=3"
+      - "authtok_type="
+  
+  # 账户锁定模块
+  pam_faillock:
+    enabled: true
+    preauth_options:
+      - "preauth"
+      - "silent"
+      - "deny=3"
+      - "unlock_time=900"
+    authfail_options:
+      - "authfail"
+      - "deny=3"
+      - "unlock_time=900"
+      - "root_unlock_time=300"
+    authsucc_options:
+      - "authsucc"
+      - "sufficient"
+  
+  # 资源限制模块
+  pam_limits:
+    enabled: true
+    limits:
+      - domain: "*"
+        type: "soft"
+        item: "nproc"
+        value: "1024"
+      - domain: "*"
+        type: "hard"
+        item: "nproc"
+        value: "2048"
+      - domain: "*"
+        type: "soft"
+        item: "nofile"
+        value: "4096"
+      - domain: "*"
+        type: "hard"
+        item: "nofile"
+        value: "8192"
+
+# ========== 合规性配置 ==========
+# 合规性要求配置
+compliance:
+  # CIS Benchmarks
+  cis_benchmarks:
+    enabled: false
+    rules:
+      - password_min_length: 14
+      - password_history: 5
+      - account_lockout: true
+      - session_timeout: 600
+  
+  # NIST 800-53
+  nist_800_53:
+    enabled: false
+    controls:
+      - IA_5:  # 认证器管理
+          password_complexity: true
+          password_expiration: true
+      - IA_7:  # 密码和认证器管理
+          password_history: true
+      - AC_7:  # 不成功登录尝试
+          account_lockout: true
+  
+  # PCI DSS
+  pci_dss:
+    enabled: false
+    requirements:
+      - req_8_2_3:  # 密码要求
+          min_length: 7
+          complexity: true
+      - req_8_1_6:  # 密码变更
+          history: 4
+          expiration: 90
+
+# ========== 用户组策略 ==========
+# 不同用户组的差异化策略
+user_groups:
+  # 管理员组
+  administrators:
+    password_policy:
+      min_length: 16
+      history_count: 10
+      max_age_days: 60
+    session_limits:
+      max_concurrent: 5
+      timeout_value: 1200
+    account_lockout:
+      unlock_time: 300
+  
+  # 普通用户组
+  users:
+    password_policy:
+      min_length: 12
+      history_count: 5
+      max_age_days: 90
+    session_limits:
+      max_concurrent: 3
+      timeout_value: 600
+    account_lockout:
+      unlock_time: 900
+  
+  # 服务账户组
+  service_accounts:
+    password_policy:
+      min_length: 20
+      history_count: 0
+      max_age_days: 365
+    session_limits:
+      max_concurrent: 10
+      timeout_value: 0  # 不超时
+    account_lockout:
+      unlock_time: 60
+
+# ========== 监控和审计配置 ==========
+# PAM 相关监控配置
+monitoring:
+  # 登录失败监控
+  failed_login_monitoring:
+    enabled: true
+    threshold: 5          # 5分钟内失败次数
+    time_window: 300       # 时间窗口（秒）
+  
+  # 异常登录检测
+  anomaly_detection:
+    enabled: false
+    unusual_hours: true    # 非工作时间登录
+    unusual_locations: true # 异常地理位置
+    concurrent_sessions: true # 并发会话异常
+  
+  # 日志记录级别
+  log_level: "info"
+  audit_trail: true
+
+# ========== ⚠️ 重要安全提示 ==========
+# ⚠️  PAM 配置警告：
+# 1. 错误的 PAM 配置可能导致无法登录系统
+# 2. 在生产环境部署前必须在测试环境充分验证
+# 3. 保留所有配置文件的备份以便快速恢复
+# 4. 账户锁定机制可能被用于拒绝服务攻击
+
+# ⚠️  密码策略注意：
+# 1. 过于严格的密码策略可能导致用户选择可预测的密码
+# 2. 平衡安全性和可用性，避免用户绕过安全措施
+# 3. 定期评估和调整密码策略的有效性
+# 4. 考虑实施密码短语（passphrase）策略
+
+# ⚠️  合规性要求：
+# 1. 根据具体合规标准（CIS、NIST、PCI DSS）配置相应策略
+# 2. 确保所有安全措施都有文档记录和审计日志
+# 3. 定期审查和更新安全配置以应对新威胁
+# 4. 建立安全事件的响应和处理流程
+
+# ⚠️  系统兼容性：
+# 1. 不同 Linux 发行版的 PAM 配置可能有差异
+# 2. 某些 PAM 模块可能需要额外安装
+# 3. 集成认证环境（LDAP、Kerberos）需要特殊配置
+# 4. 容器环境的 PAM 配置可能与物理机不同
+
+# ⚠️  在生产环境使用前的建议：
+# - 使用 --check 模式预览变更：ansible-playbook playbook.yml --check
+# - 在测试环境充分验证所有 PAM 配置的功能
+# - 准备配置恢复方案（备份文件、恢复脚本）
+# - 配置远程访问的备用认证方式
+# - 建立用户培训和沟通机制，说明新的安全策略
+# - 考虑实施密码管理工具以减轻用户记忆负担
+# - 配置监控和告警机制，及时发现配置问题

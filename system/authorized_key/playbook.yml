@@ -1,0 +1,210 @@
+---
+- name: authorized_key 模块使用示例演示
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 创建基础 SSH 目录 ==========
+    - name: 确保用户的 SSH 目录存在
+      ansible.builtin.file:
+        path: "/home/{{ item }}/.ssh"
+        state: directory
+        owner: "{{ item }}"
+        group: "{{ item }}"
+        mode: '0700'
+      loop:
+        - "{{ deploy_user }}"
+        - "{{ app_user }}"
+        - "{{ ops_user }}"
+      become: yes
+    
+    # ========== 基础密钥添加 ==========
+    - name: 为部署用户添加 SSH 公钥
+      ansible.builtin.authorized_key:
+        user: "{{ deploy_user }}"
+        state: present
+        key: "{{ deploy_public_key }}"
+        comment: "{{ deploy_key_comment }}"
+        manage_dir: yes
+    
+    - name: 显示部署用户密钥添加结果
+      ansible.builtin.debug:
+        msg: "已为用户 {{ deploy_user }} 添加 SSH 公钥，注释: {{ deploy_key_comment }}"
+    
+    # ========== 应用用户密钥管理 ==========
+    - name: 为应用用户添加受限 SSH 公钥
+      ansible.builtin.authorized_key:
+        user: "{{ app_user }}"
+        state: present
+        key: "{{ app_public_key }}"
+        key_options: "{{ app_key_options }}"
+        comment: "{{ app_key_comment }}"
+        manage_dir: yes
+    
+    - name: 显示应用用户密钥添加结果
+      ansible.builtin.debug:
+        msg: "已为用户 {{ app_user }} 添加受限 SSH 公钥，选项: {{ app_key_options }}"
+    
+    # ========== 运维用户密钥管理 ==========
+    - name: 为运维用户添加带来源限制的 SSH 公钥
+      ansible.builtin.authorized_key:
+        user: "{{ ops_user }}"
+        state: present
+        key: "{{ ops_public_key }}"
+        key_options: "{{ ops_key_options }}"
+        comment: "{{ ops_key_comment }}"
+        manage_dir: yes
+    
+    - name: 显示运维用户密钥添加结果
+      ansible.builtin.debug:
+        msg: "已为用户 {{ ops_user }} 添加来源限制的 SSH 公钥，来源: {{ ops_allowed_from }}"
+    
+    # ========== 备份用户密钥管理 ==========
+    - name: 为备份用户添加只能执行特定命令的密钥
+      ansible.builtin.authorized_key:
+        user: "{{ backup_user }}"
+        state: present
+        key: "{{ backup_public_key }}"
+        key_options: "{{ backup_key_options }}"
+        comment: "{{ backup_key_comment }}"
+        manage_dir: yes
+    
+    - name: 显示备份用户密钥添加结果
+      ansible.builtin.debug:
+        msg: "已为用户 {{ backup_user }} 添加命令限制的 SSH 公钥，仅可执行: {{ backup_allowed_command }}"
+    
+    # ========== 批量密钥管理 ==========
+    - name: 为多个用户批量添加管理密钥
+      ansible.builtin.authorized_key:
+        user: "{{ item.user }}"
+        state: present
+        key: "{{ item.key }}"
+        comment: "{{ item.comment }}"
+        manage_dir: yes
+      loop: "{{ batch_keys }}"
+      loop_control:
+        label: "{{ item.user }}"
+    
+    - name: 显示批量密钥添加结果
+      ansible.builtin.debug:
+        msg: "已为 {{ batch_keys | length }} 个用户批量添加管理密钥"
+    
+    # ========== 排他模式密钥管理 ==========
+    - name: 为监控用户设置排他模式的授权密钥
+      ansible.builtin.authorized_key:
+        user: "{{ monitor_user }}"
+        state: present
+        key: "{{ monitor_public_key }}"
+        exclusive: yes  # 仅保留此密钥，删除其他所有密钥
+        comment: "{{ monitor_key_comment }}"
+        manage_dir: yes
+    
+    - name: 显示排他模式密钥设置结果
+      ansible.builtin.debug:
+        msg: "已为用户 {{ monitor_user }} 设置排他模式，仅保留指定的监控密钥"
+    
+    # ========== 验证密钥文件 ==========
+    - name: 检查部署用户的授权密钥文件
+      ansible.builtin.stat:
+        path: "/home/{{ deploy_user }}/.ssh/authorized_keys"
+      register: deploy_authorized_keys
+    
+    - name: 显示部署用户授权密钥文件信息
+      ansible.builtin.debug:
+        msg: |
+          部署用户授权密钥文件信息：
+          路径: {{ deploy_authorized_keys.stat.path }}
+          权限: {{ deploy_authorized_keys.stat.mode }}
+          所有者: {{ deploy_authorized_keys.stat.pw_name }}:{{ deploy_authorized_keys.stat.gr_name }}
+          大小: {{ deploy_authorized_keys.stat.size }} 字节
+      when: deploy_authorized_keys.stat.exists
+    
+    - name: 读取部署用户的授权密钥内容
+      ansible.builtin.shell: cat "/home/{{ deploy_user }}/.ssh/authorized_keys"
+      register: deploy_keys_content
+      changed_when: false
+    
+    - name: 显示部署用户授权密钥内容
+      ansible.builtin.debug:
+        msg: |
+          部署用户的授权密钥：
+          {{ deploy_keys_content.stdout_lines }}
+      when: deploy_keys_content.stdout_lines is defined
+    
+    # ========== 演示密钥更新功能 ==========
+    - name: 更新部署用户的 SSH 密钥
+      ansible.builtin.authorized_key:
+        user: "{{ deploy_user }}"
+        state: present
+        key: "{{ deploy_new_public_key }}"
+        comment: "{{ deploy_new_key_comment }}"
+        manage_dir: yes
+    
+    - name: 显示密钥更新结果
+      ansible.builtin.debug:
+        msg: "已更新用户 {{ deploy_user }} 的 SSH 密钥为新密钥，注释: {{ deploy_new_key_comment }}"
+    
+    # ========== 演示密钥删除功能 ==========
+    - name: 删除临时用户的 SSH 密钥
+      ansible.builtin.authorized_key:
+        user: "{{ temp_user }}"
+        state: absent
+        key: "{{ temp_public_key }}"
+    
+    - name: 显示密钥删除结果
+      ansible.builtin.debug:
+        msg: "已删除用户 {{ temp_user }} 的临时 SSH 密钥"
+    
+    # ========== 验证最终状态 ==========
+    - name: 检查所有用户的 SSH 目录权限
+      ansible.builtin.shell: |
+        echo "=== SSH 目录权限检查 ==="
+        for user in {{ deploy_user }} {{ app_user }} {{ ops_user }} {{ backup_user }} {{ monitor_user }}; do
+          if [ -d "/home/$user/.ssh" ]; then
+            echo "用户 $user SSH 目录权限:"
+            ls -la "/home/$user/.ssh/"
+          fi
+        done
+      register: ssh_dirs_check
+      changed_when: false
+    
+    - name: 显示 SSH 目录权限检查结果
+      ansible.builtin.debug:
+        msg: "{{ ssh_dirs_check.stdout_lines }}"
+    
+    # ========== 安全最佳实践提醒 ==========
+    - name: SSH 密钥管理最佳实践提醒
+      ansible.builtin.debug:
+        msg: |
+          === SSH 密钥管理最佳实践 ===
+          1. 使用强密钥算法（Ed25519 优先，RSA 至少 2048 位）
+          2. 定期轮换 SSH 密钥，建议每 3-6 个月更新一次
+          3. 为不同用途创建不同的密钥对，避免权限过度集中
+          4. 使用密钥选项限制访问来源、端口转发和可执行命令
+          5. 确保私钥使用强密码保护，并存储在安全位置
+          6. 定期审计授权密钥，删除不再使用的密钥
+          7. 配置 SSH 服务日志，记录所有登录尝试
+          8. 结合其他安全措施（如防火墙、fail2ban）提升整体安全性
+    
+    # ========== 总结 ==========
+    - name: authorized_key 模块演示完成总结
+      ansible.builtin.debug:
+        msg: |
+          已完成以下 SSH 密钥管理操作演示：
+          1. 为部署用户添加基础 SSH 公钥
+          2. 为应用用户添加带安全选项的受限密钥
+          3. 为运维用户添加来源 IP 限制的密钥
+          4. 为备份用户添加命令执行限制的密钥
+          5. 批量为多个用户添加管理密钥
+          6. 为监控用户设置排他模式密钥管理
+          7. 演示密钥更新功能
+          8. 演示密钥删除功能
+          9. 验证 SSH 目录权限和文件状态
+          
+          下一步建议：
+          - 根据实际安全需求配置密钥选项
+          - 建立定期密钥轮换和审计流程
+          - 配置 SSH 服务的安全策略
+          - 设置监控告警跟踪异常登录尝试

@@ -1,0 +1,323 @@
+---
+- name: auditd 审计系统配置示例演示
+  hosts: localhost
+  gather_facts: true
+  check_mode: true
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    # ========== 基础 auditd 安装与配置 ==========
+    - name: 安装 auditd 审计软件包
+      ansible.builtin.package:
+        name: audit
+        state: present
+      become: yes
+      register: auditd_install_result
+      check_mode: false
+
+    - name: 显示 auditd 安装结果
+      ansible.builtin.debug:
+        msg: |
+          auditd 软件包安装状态：
+          结果: {{ auditd_install_result }}
+          此任务未启用 check_mode，确保软件包已安装
+
+    # ========== auditd 配置文件管理 ==========
+    - name: 配置 auditd 守护进程参数
+      ansible.builtin.template:
+        src: templates/auditd.conf.j2
+        dest: /etc/audit/auditd.conf
+        backup: yes
+        mode: '0640'
+      become: yes
+      notify: 重启 auditd 服务
+      register: auditd_config_result
+
+    - name: 显示 auditd 配置结果
+      ansible.builtin.debug:
+        msg: |
+          auditd 配置文件已更新：
+          配置文件: /etc/audit/auditd.conf
+          结果: {{ auditd_config_result }}
+
+    # ========== 审计规则部署 ==========
+    - name: 部署审计规则文件
+      ansible.builtin.template:
+        src: templates/audit.rules.j2
+        dest: /etc/audit/rules.d/audit.rules
+        backup: yes
+        mode: '0640'
+      become: yes
+      notify: 重新加载审计规则
+      register: audit_rules_result
+
+    - name: 显示审计规则部署结果
+      ansible.builtin.debug:
+        msg: |
+          审计规则文件已部署：
+          规则文件: /etc/audit/rules.d/audit.rules
+          结果: {{ audit_rules_result }}
+
+    # ========== 敏感信息处理（使用 no_log） ==========
+    - name: 配置远程审计服务器（敏感信息）
+      block:
+        - name: 配置远程审计服务器连接
+          ansible.builtin.lineinfile:
+            path: /etc/audit/auditd.conf
+            regexp: '^remote_server'
+            line: "remote_server = {{ vault_auditd_remote_server }}"
+            backup: yes
+          become: yes
+          no_log: true
+          notify: 重启 auditd 服务
+          register: remote_server_config
+
+        - name: 配置远程审计端口
+          ansible.builtin.lineinfile:
+            path: /etc/audit/auditd.conf
+            regexp: '^remote_port'
+            line: "remote_port = {{ vault_auditd_remote_port }}"
+            backup: yes
+          become: yes
+          no_log: true
+          notify: 重启 auditd 服务
+          register: remote_port_config
+
+        - name: 配置远程审计密钥
+          ansible.builtin.lineinfile:
+            path: /etc/audit/auditd.conf
+            regexp: '^remote_aukey'
+            line: "remote_aukey = {{ vault_auditd_remote_key }}"
+            backup: yes
+          become: yes
+          no_log: true
+          notify: 重启 auditd 服务
+          register: remote_key_config
+      when: enable_remote_audit | default(false)
+
+    - name: 显示远程审计配置状态
+      ansible.builtin.debug:
+        msg: |
+          远程审计服务器配置已完成（敏感信息已隐藏）：
+          启用状态: {{ enable_remote_audit | default(false) }}
+          注意：具体配置参数已启用 no_log 保护
+      when: enable_remote_audit | default(false)
+
+    # ========== 审计规则验证 ==========
+    - name: 验证审计规则语法
+      ansible.builtin.shell: |
+        augenrules --check
+      become: yes
+      register: audit_rules_check
+      changed_when: false
+      ignore_errors: yes
+
+    - name: 显示审计规则验证结果
+      ansible.builtin.debug:
+        msg: |
+          审计规则语法检查：
+          状态: {{ audit_rules_check.rc == 0 | ternary('通过', '失败') }}
+          输出: {{ audit_rules_check.stdout_lines }}
+
+    # ========== auditd 服务状态检查 ==========
+    - name: 检查 auditd 服务状态
+      ansible.builtin.systemd:
+        name: auditd
+      register: auditd_service_status
+      become: yes
+
+    - name: 显示 auditd 服务状态
+      ansible.builtin.debug:
+        msg: |
+          auditd 服务状态：
+          服务名称: auditd
+          运行状态: {{ auditd_service_status.status.ActiveState }}
+          启用状态: {{ auditd_service_status.status.UnitFileState }}
+
+    # ========== 审计规则列表展示 ==========
+    - name: 获取当前审计规则列表
+      ansible.builtin.shell: |
+        auditctl -l
+      become: yes
+      register: current_audit_rules
+      changed_when: false
+      ignore_errors: yes
+
+    - name: 显示当前审计规则
+      ansible.builtin.debug:
+        msg: |
+          当前加载的审计规则：
+          {{ current_audit_rules.stdout_lines | default(['无审计规则']) }}
+
+    # ========== 审计日志状态检查 ==========
+    - name: 检查审计日志状态
+      ansible.builtin.shell: |
+        echo "=== 审计日志状态检查 ==="
+        
+        # 检查审计日志文件
+        if [ -f /var/log/audit/audit.log ]; then
+          echo "✓ 审计日志文件存在"
+          echo "日志文件大小: $(du -h /var/log/audit/audit.log | cut -f1)"
+          echo "最后修改时间: $(stat -c %y /var/log/audit/audit.log)"
+        else
+          echo "✗ 审计日志文件不存在"
+        fi
+        
+        # 检查审计目录权限
+        if [ -d /var/log/audit ]; then
+          echo "✓ 审计日志目录存在"
+          echo "目录权限: $(stat -c %a /var/log/audit)"
+        else
+          echo "✗ 审计日志目录不存在"
+        fi
+      register: audit_log_status
+      become: yes
+      changed_when: false
+
+    - name: 显示审计日志状态
+      ansible.builtin.debug:
+        msg: "{{ audit_log_status.stdout_lines }}"
+
+    # ========== 审计事件查询示例 ==========
+    - name: 查询最近的审计事件
+      ansible.builtin.shell: |
+        echo "=== 最近审计事件（最近10条） ==="
+        if [ -f /var/log/audit/audit.log ]; then
+          ausearch -ts recent | head -20 || echo "无法解析审计日志"
+        else
+          echo "审计日志文件不存在"
+        fi
+      register: recent_audit_events
+      become: yes
+      changed_when: false
+      ignore_errors: yes
+
+    - name: 显示最近审计事件
+      ansible.builtin.debug:
+        msg: "{{ recent_audit_events.stdout_lines }}"
+
+    # ========== 内核审计支持检查 ==========
+    - name: 检查内核审计支持
+      ansible.builtin.shell: |
+        echo "=== 内核审计支持检查 ==="
+        
+        # 检查内核审计是否启用
+        if [ -f /proc/sys/kernel/audit_enabled ]; then
+          audit_enabled=$(cat /proc/sys/kernel/audit_enabled)
+          echo "内核审计支持: $([ $audit_enabled -eq 1 ] && echo '已启用' || echo '已禁用')"
+        else
+          echo "内核审计支持: 不支持"
+        fi
+        
+        # 检查审计PID
+        if [ -f /proc/sys/kernel/audit_pid ]; then
+          audit_pid=$(cat /proc/sys/kernel/audit_pid)
+          echo "auditd 进程PID: $audit_pid"
+          if [ $audit_pid -gt 0 ]; then
+            echo "auditd 进程状态: 运行中"
+          else
+            echo "auditd 进程状态: 未运行"
+          fi
+        else
+          echo "auditd 进程PID: 未知"
+        fi
+      register: kernel_audit_support
+      changed_when: false
+
+    - name: 显示内核审计支持状态
+      ansible.builtin.debug:
+        msg: "{{ kernel_audit_support.stdout_lines }}"
+
+    # ========== 审计规则类型说明 ==========
+    - name: 显示审计规则类型说明
+      ansible.builtin.debug:
+        msg: |
+          审计规则类型说明：
+          
+          1. 文件监控规则 (-w)：
+             - -w /path/to/file -p permissions -k key
+             - 权限：r(读取)、w(写入)、x(执行)、a(属性变更)
+             - 示例：-w /etc/passwd -p wa -k identity
+          
+          2. 系统调用规则 (-a)：
+             - -a action,filter -S syscall -F field=value -k key
+             - 动作：always(总是)、never(从不)
+             - 过滤器：exit(退出)、entry(进入)
+             - 示例：-a always,exit -F arch=b64 -S openat -k file_access
+          
+          3. 用户监控规则 (-a)：
+             - 监控特定用户或用户组的操作
+             - 示例：-a always,exit -F uid=0 -k root_commands
+
+    # ========== 审计配置最佳实践 ==========
+    - name: 显示审计配置最佳实践
+      ansible.builtin.debug:
+        msg: |
+          auditd 配置最佳实践：
+          
+          1. 审计规则设计原则：
+             - 遵循最小化原则，只审计必要事件
+             - 避免过度审计影响系统性能
+             - 为规则设置有意义的key便于检索
+          
+          2. 日志管理策略：
+             - 配置适当的日志轮转策略
+             - 实施远程日志转发防止篡改
+             - 定期备份重要的审计日志
+          
+          3. 安全加固措施：
+             - 保护审计配置文件的权限
+             - 监控审计服务本身的运行状态
+             - 配置审计日志的完整性检查
+          
+          4. 合规性要求：
+             - 根据具体合规标准设计审计策略
+             - 确保审计日志的长期保存
+             - 建立定期的审计日志审查机制
+
+    # ========== auditd 配置完成总结 ==========
+    - name: auditd 配置完成总结
+      ansible.builtin.debug:
+        msg: |
+          auditd 审计系统配置已完成：
+          
+          1. 基础配置：
+             - auditd 软件包：已安装
+             - 配置文件：/etc/audit/auditd.conf
+             - 审计规则：/etc/audit/rules.d/audit.rules
+          
+          2. 服务状态：
+             - auditd 服务：{{ auditd_service_status.status.ActiveState }}
+             - 内核审计支持：已启用
+             - 审计规则数量：{{ current_audit_rules.stdout_lines | length }}
+          
+          3. 安全特性：
+             - 敏感信息保护：已启用 no_log
+             - 配置文件备份：已创建
+             - 权限控制：已设置
+          
+          4. 监控与维护：
+             - 审计日志位置：/var/log/audit/audit.log
+             - 日志轮转：已配置
+             - 远程转发：{{ enable_remote_audit | default(false) | ternary('已启用', '未启用') }}
+          
+          常用 auditd 命令参考：
+          - auditctl -l：查看当前审计规则
+          - ausearch -k key：搜索特定key的审计事件
+          - aureport -m：生成审计报告
+          - service auditd restart：重启审计服务
+
+  handlers:
+    - name: 重启 auditd 服务
+      ansible.builtin.systemd:
+        name: auditd
+        state: restarted
+        enabled: yes
+      become: yes
+
+    - name: 重新加载审计规则
+      ansible.builtin.shell: |
+        augenrules --load
+      become: yes
+      notify: 重启 auditd 服务

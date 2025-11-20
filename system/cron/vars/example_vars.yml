@@ -1,0 +1,141 @@
+# ⚠️ 本文件仅为示例，占位符必须使用 Ansible Vault 或环境变量替换
+
+# ========== 备份任务配置 ==========
+# 备份任务名称（用于标识和管理）
+backup_task_name: "MySQL数据库备份"
+
+# 备份脚本路径（建议使用绝对路径）
+backup_task_script: "/usr/local/bin/mysql_backup.sh"
+
+# 执行时间 - 分钟（0-59）
+backup_task_minute: "0"
+
+# 执行时间 - 小时（0-23）
+backup_task_hour: "2"  # 凌晨2点执行
+
+# 执行用户（建议使用专用备份用户）
+backup_task_user: "backup"
+
+# ========== 日志清理任务配置 ==========
+# 清理任务名称
+cleanup_task_name: "应用日志清理"
+
+# 清理脚本路径
+cleanup_task_script: "find /var/log/app -name '*.log' -mtime +7 -delete"
+
+# 执行时间 - 分钟
+cleanup_task_minute: "30"
+
+# 执行时间 - 小时
+cleanup_task_hour: "4"  # 凌晨4点30分执行
+
+# 执行星期（0=周日，1=周一，...，6=周六）
+cleanup_task_weekday: "0"  # 每周日执行
+
+# 执行用户
+cleanup_task_user: "logrotate"
+
+# ========== 系统监控任务配置 ==========
+# 监控任务名称
+monitor_task_name: "系统健康检查"
+
+# 监控脚本路径
+monitor_task_script: "/usr/local/bin/health_check.sh"
+
+# 执行间隔（分钟）
+monitor_task_minute: "*/15"  # 每15分钟执行一次
+
+# 执行用户
+monitor_task_user: "monitor"
+
+# ========== 重启时执行任务配置 ==========
+# 重启任务名称
+reboot_task_name: "系统启动检查"
+
+# 重启任务脚本路径
+reboot_task_script: "/usr/local/bin/startup_check.sh"
+
+# 执行用户
+reboot_task_user: "root"
+
+# ========== 小时任务配置 ==========
+# 小时任务名称
+hourly_task_name: "缓存清理"
+
+# 小时任务脚本路径
+hourly_task_script: "/usr/local/bin/clear_cache.sh"
+
+# 执行用户
+hourly_task_user: "www-data"
+
+# ========== 带环境变量的任务配置 ==========
+# 环境变量任务名称
+env_task_name: "带环境变量的备份任务"
+
+# 环境变量任务脚本路径
+env_task_script: "/usr/local/bin/env_backup.sh"
+
+# 执行时间
+env_task_minute: "0"
+env_task_hour: "3"
+
+# 执行用户
+env_task_user: "backup"
+
+# 环境变量配置
+env_task_path: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+env_task_backup_dir: "/backup"
+env_task_log_level: "INFO"
+
+# ========== 安全提示 ==========
+# ⚠️  特别注意：
+# 1. 脚本文件必须存在且具有执行权限
+# 2. 建议使用绝对路径，避免 PATH 劫持风险
+# 3. 为不同类型的任务创建专用用户，遵循最小权限原则
+# 4. 在脚本中添加适当的错误处理和日志记录
+# 5. 生产环境部署前，一定要使用 --check 模式预览：
+#    ansible-playbook system/cron/playbook.yml --check
+# 6. 重要任务建议配置邮件通知或监控告警
+# 7. 定期检查 cron 任务执行日志，确保任务正常运行
+# 8. 使用 backup 参数可以备份原始 crontab 文件，便于回滚
+
+# ========== 常见时间格式示例 ==========
+# 分钟格式：
+#   "0"    - 整点
+#   "30"   - 30分
+#   "*/15" - 每15分钟
+#   "0,15,30,45" - 每15分钟（指定分钟）
+
+# 小时格式：
+#   "2"     - 凌晨2点
+#   "14"    - 下午2点
+#   "*/6"   - 每6小时
+#   "9-17"  - 工作时间（9点到17点）
+
+# 星期格式：
+#   "0"     - 周日
+#   "1-5"   - 工作日（周一到周五）
+#   "6"     - 周六
+#   "*"     - 每天
+
+# ========== 脚本示例建议 ==========
+# 备份脚本示例 (/usr/local/bin/mysql_backup.sh)：
+# #!/bin/bash
+# set -e
+# DATE=$(date +%Y%m%d_%H%M%S)
+# BACKUP_DIR="/backup/mysql"
+# mkdir -p $BACKUP_DIR
+# mysqldump -u root -p$MYSQL_PASSWORD --all-databases > $BACKUP_DIR/backup_$DATE.sql
+# find $BACKUP_DIR -name "*.sql" -mtime +7 -delete
+
+# 健康检查脚本示例 (/usr/local/bin/health_check.sh)：
+# #!/bin/bash
+# set -e
+# # 检查磁盘空间
+# DISK_USAGE=$(df / | tail -1 | awk '{print $5}' | sed 's/%//')
+# if [ $DISK_USAGE -gt 80 ]; then
+#     echo "警告：磁盘使用率超过80%"
+# fi
+# # 检查内存使用
+# MEM_USAGE=$(free | grep Mem | awk '{printf("%.2f", $3/$2 * 100.0)}')
+# echo "内存使用率：$MEM_USAGE%"

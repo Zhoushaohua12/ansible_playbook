@@ -19,6 +19,7 @@
 | **port** | 端口健康探测 | 从控制节点检查远程服务端口可用性、批量端口监控 | 内置模块（无外部依赖） |
 | **route** | 静态路由管理 | 多网卡环境、VPN 配置、容器网络、复杂网络拓扑 | ansible.posix collection、系统路由工具 |
 | **interface** | 网络接口管理 | 服务器网络配置、虚拟化管理、高可用网络、移动设备 | community.general collection、NetworkManager 服务 |
+| **nmcli** | NetworkManager 网络连接管理 | 以太网、无线、VLAN、网桥、绑定等网络连接配置 | community.general collection、NetworkManager 服务 |
 
 ## 涉及模块
 
@@ -34,6 +35,7 @@
 ### 网络配置
 - [route 模块](route/README.md)：静态路由管理，支持多接口路由、优先级设置和系统兼容性
 - [interface 模块](interface/README.md)：网络接口管理，支持以太网、网桥、绑定、VLAN 等接口类型
+- [nmcli 模块](nmcli/README.md)：NetworkManager 网络连接管理，支持以太网、无线、VLAN、网桥、绑定等连接配置
 
 ## 安全使用建议
 

@@ -18,14 +18,26 @@
 | [firewalld](#firewalld-防火墙管理) | community.general | RHEL/CentOS 系统的动态防火墙规则管理 | firewalld 服务 |
 | [iptables](#iptables-防火墙与-nat-规则) | community.general | 内核级防火墙规则与 NAT 规则管理 | iptables 工具 |
 | [selinux](#selinux-安全增强) | ansible.posix | 管理 SELinux 安全策略与访问控制 | selinux-policy 包 |
+| [auditd](#auditd-审计系统) | ansible.builtin | 配置 Linux 审计守护进程，提供系统级安全审计功能 | audit 软件包 |
+| [pam_hardening](#pam_hardening-pam安全加固) | community.general | 配置可插拔认证模块安全策略，支持密码复杂度、账户锁定等 | libpwquality |
+| [kernel_tuning](#kernel_tuning-内核调优) | ansible.posix | 配置 Linux 内核参数，优化系统性能和安全性 | sysctl 工具 |
+| [cron](#cron-定时任务管理) | ansible.builtin | 管理 cron 定时任务，支持创建、修改、删除用户的定时任务 | cron 服务 |
+| [authorized_key](#authorized-key-ssh密钥管理) | ansible.builtin | 管理用户的 SSH 授权密钥，支持添加、删除和更新 SSH 公钥 | OpenSSH |
+| [reboot](#reboot-系统重启管理) | ansible.builtin | 重启远程主机，支持等待系统重启完成、验证重启状态 | reboot 命令 |
 
 ## 学习路线
 
 1. **基础系统配置** → `user` & `group`：创建运维账号与权限隔离
-2. **主机标识与本地化** → `hostname`、`timezone`、`locale`：设置主机名、时区与地区设置
-3. **服务生命周期** → `service` & `systemd`：启动、停止、启用服务与单元管理
-4. **安全增强** → `selinux`：启用强制访问控制与安全策略
-5. **网络防护** → `firewalld` 与 `iptables`：配置防火墙规则与安全策略
+2. **访问控制管理** → `authorized_key`：配置 SSH 密钥认证与访问权限
+3. **主机标识与本地化** → `hostname`、`timezone`、`locale`：设置主机名、时区与地区设置
+4. **服务生命周期** → `service` & `systemd`：启动、停止、启用服务与单元管理
+5. **定时任务管理** → `cron`：配置自动化任务与定期维护
+6. **系统维护** → `reboot`：安全重启系统与验证重启状态
+7. **安全增强** → `selinux`：启用强制访问控制与安全策略
+8. **审计监控** → `auditd`：配置系统审计与日志收集
+9. **认证加固** → `pam_hardening`：配置 PAM 认证安全策略
+10. **内核优化** → `kernel_tuning`：调优内核参数提升性能
+11. **网络防护** → `firewalld` 与 `iptables`：配置防火墙规则与安全策略
 
 ## 与其他章节的关系
 
@@ -80,6 +92,8 @@
 3. **服务自动启动**：确保关键服务在系统启动时自动运行
 4. **备份与验证**：修改系统配置前做好备份，应用后验证规则生效
 5. **审计日志**：启用 auditd 追踪用户创建、防火墙规则变更等关键操作
+6. **认证安全**：通过 pam_hardening 配置密码策略、账户锁定、会话限制
+7. **内核安全**：使用 kernel_tuning 禁用危险网络功能、启用防护机制
 
 ## 测试与验证
 
@@ -101,3 +115,8 @@
 - [firewalld 防火墙管理](firewalld/README.md)
 - [iptables 防火墙与 NAT 规则](iptables/README.md)
 - [selinux 安全增强](selinux/README.md)
+- [auditd 审计系统](auditd/README.md)
+- [pam_hardening PAM 安全加固](pam_hardening/README.md)
+- [kernel_tuning 内核调优](kernel_tuning/README.md)
+- [authorized_key SSH密钥管理](authorized_key/README.md)
+- [reboot 系统重启管理](reboot/README.md)

@@ -6,21 +6,24 @@ from typing import Dict
 import pytest
 import yaml
 
-MODULES = ["ping", "uri", "dns"]
+MODULES = ["ping", "uri", "dns", "ldap"]
 FQCN_EXPECTATIONS = {
     "ping": "ansible.builtin.ping",
     "uri": "ansible.builtin.uri",
     "dns": "community.general.dig",
+    "ldap": "community.general.ldap_entry",
 }
 EXTERNAL_DEPS = {
     "ping": "ansible.builtin (内置)",
     "uri": "ansible.builtin (内置)",
     "dns": "community.general collection",
+    "ldap": "community.general collection",
 }
 PROTOCOL_KEYWORDS = {
     "ping": ["ICMP", "连通性", "ping", "存活"],
     "uri": ["HTTP", "API", "validate_certs", "no_log", "token"],
     "dns": ["DNS", "查询", "dig", "nsupdate", "zone", "TSIG"],
+    "ldap": ["LDAP", "目录", "认证", "条目", "属性"],
 }
 
 
