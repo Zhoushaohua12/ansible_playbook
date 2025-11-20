@@ -1,6 +1,7 @@
 ---
 - name: ufw 防火墙规则管理示例
   hosts: all
+  gather_facts: true  # 需要获取操作系统信息用于防火墙配置
   become: true
   vars_files:
     - vars/example_vars.yml
@@ -38,6 +39,7 @@
         port: ssh
         proto: tcp
       when: ansible_os_family == "Debian"
+      check_mode: "{{ ufw_check_mode | default(false) }}"  # 可通过变量开启检查模式预演防火墙规则配置
     
     # ========== 开放 Web 服务端口 ==========
     - name: 批量允许 Web 服务端口

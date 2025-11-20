@@ -2,6 +2,7 @@
 # ⚠️ 教学声明：本 playbook 主要用于学习 SSL 证书自动化管理，请在测试环境验证后再应用于生产。
 - name: SSL 证书自动化获取、部署与续期管理
   hosts: web_servers
+  gather_facts: true  # 需要获取操作系统信息用于条件判断和包管理
   become: yes
   vars_files:
     - vars/example_vars.yml
@@ -154,6 +155,7 @@
         cmd: openssl x509 -in /etc/pki/tls/certs/server.crt -noout -dates
       register: cert_dates
       changed_when: false
+      check_mode: "{{ cert_check_mode | default(false) }}"  # 可通过变量开启检查模式预演证书验证
       tags:
         - cert_verify
 

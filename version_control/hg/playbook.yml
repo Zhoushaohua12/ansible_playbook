@@ -1,6 +1,7 @@
 ---
 - name: Mercurial (Hg) 仓库管理示例演示
   hosts: all
+  gather_facts: true  # 需要获取系统信息用于权限管理和部署
   become: true
   vars_files:
     - vars/example_vars.yml
@@ -77,19 +78,22 @@
       become_user: "{{ deploy_user }}"
 
     - name: 使用 HTTP 认证克隆私有仓库
-      community.general.hg:
-        repo: "{{ http_auth_repository }}"
-        dest: "{{ http_auth_deploy_path }}"
-        revision: "{{ http_auth_revision }}"
-        force: "{{ force_http_auth_deploy }}"
-        purge: true
-        update: true
-        username: "{{ hg_username }}"
-        password: "{{ hg_password }}"
-      when: deploy_http_auth | bool
-      register: http_auth_result
-      become_user: "{{ deploy_user }}"
-      no_log: true
+      block:
+        - name: 执行 HTTP 认证的 Mercurial 仓库克隆
+          community.general.hg:
+            repo: "{{ http_auth_repository }}"
+            dest: "{{ http_auth_deploy_path }}"
+            revision: "{{ http_auth_revision }}"
+            force: "{{ force_http_auth_deploy }}"
+            purge: true
+            update: true
+            username: "{{ hg_username }}"
+            password: "{{ hg_password }}"
+          when: deploy_http_auth | bool
+          register: http_auth_result
+          become_user: "{{ deploy_user }}"
+          check_mode: "{{ hg_check_mode | default(false) }}"  # 可通过变量开启检查模式预演仓库克隆
+      no_log: true  # 隐藏认证信息
 
     - name: 部署标签版本
       community.general.hg:

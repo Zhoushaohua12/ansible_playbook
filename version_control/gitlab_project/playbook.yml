@@ -1,26 +1,31 @@
 ---
 - name: GitLab 项目管理示例演示
   hosts: all
+  gather_facts: false  # 不需要系统信息，纯 API 操作
   vars_files:
     - vars/example_vars.yml
   
   tasks:
     - name: 创建开发团队项目
-      community.general.gitlab_project:
-        api_url: "{{ gitlab_api_url }}"
-        api_token: "{{ gitlab_token }}"
-        name: "{{ dev_project_name }}"
-        group: "{{ dev_group }}"
-        description: "{{ dev_project_description }}"
-        visibility: "{{ dev_visibility }}"
-        issues_enabled: true
-        wiki_enabled: true
-        merge_requests_enabled: true
-        builds_enabled: true
-        request_access_enabled: true
-        state: present
-      when: create_dev_project | bool
-      register: dev_project_result
+      block:
+        - name: 创建开发团队项目（API 操作）
+          community.general.gitlab_project:
+            api_url: "{{ gitlab_api_url }}"
+            api_token: "{{ gitlab_token }}"
+            name: "{{ dev_project_name }}"
+            group: "{{ dev_group }}"
+            description: "{{ dev_project_description }}"
+            visibility: "{{ dev_visibility }}"
+            issues_enabled: true
+            wiki_enabled: true
+            merge_requests_enabled: true
+            builds_enabled: true
+            request_access_enabled: true
+            state: present
+          when: create_dev_project | bool
+          register: dev_project_result
+          check_mode: "{{ gitlab_check_mode | default(false) }}"  # 可通过变量开启检查模式预演项目创建
+      no_log: true  # 隐藏 API token 信息
 
     - name: 创建测试团队项目
       community.general.gitlab_project:

@@ -1,6 +1,7 @@
 ---
 - name: Docker 容器管理示例演示
   hosts: all
+  gather_facts: true  # 需要获取网络信息用于等待应用健康检查
   become: true
   vars_files:
     - vars/example_vars.yml
@@ -36,53 +37,59 @@
       when: deploy_nginx | bool
 
     - name: 部署 Redis 缓存服务容器
-      community.docker.docker_container:
-        name: "{{ redis_container_name }}"
-        image: "{{ redis_image }}:{{ redis_version }}"
-        state: started
-        ports:
-          - "{{ redis_host_port }}:6379"
-        volumes:
-          - "{{ redis_data_path }}:/data"
-        command: redis-server --appendonly yes --requirepass "{{ redis_password }}"
-        restart_policy: "{{ redis_restart_policy }}"
-        networks:
-          - "{{ docker_network_name }}"
-        memory_limit: "{{ redis_memory_limit }}"
-        user: "{{ redis_user }}"
-      register: redis_deployment
-      when: deploy_redis | bool
+      block:
+        - name: 创建 Redis 容器（含密码配置）
+          community.docker.docker_container:
+            name: "{{ redis_container_name }}"
+            image: "{{ redis_image }}:{{ redis_version }}"
+            state: started
+            ports:
+              - "{{ redis_host_port }}:6379"
+            volumes:
+              - "{{ redis_data_path }}:/data"
+            command: redis-server --appendonly yes --requirepass "{{ redis_password }}"
+            restart_policy: "{{ redis_restart_policy }}"
+            networks:
+              - "{{ docker_network_name }}"
+            memory_limit: "{{ redis_memory_limit }}"
+            user: "{{ redis_user }}"
+          register: redis_deployment
+          when: deploy_redis | bool
+      no_log: "{{ not enable_sensitive_logging | default(false) }}"  # 默认隐藏敏感信息，可通过变量开启调试
 
     - name: 部署应用服务容器（持续部署示例）
-      community.docker.docker_container:
-        name: "{{ app_container_name }}"
-        image: "{{ app_registry_url }}/{{ app_image_name }}:{{ app_version }}"
-        state: started
-        pull: true  # 确保拉取最新镜像
-        ports:
-          - "{{ app_host_port }}:{{ app_container_port }}"
-        env:
-          APP_ENV: "{{ app_environment }}"
-          DATABASE_URL: "{{ app_database_url }}"
-          REDIS_URL: "redis://{{ redis_container_name }}:6379"
-          SECRET_KEY: "{{ app_secret_key }}"
-          DEBUG: "{{ app_debug_mode }}"
-        volumes:
-          - "{{ app_log_path }}:/app/logs"
-          - "{{ app_upload_path }}:/app/uploads"
-        restart_policy: "{{ app_restart_policy }}"
-        networks:
-          - "{{ docker_network_name }}"
-        memory_limit: "{{ app_memory_limit }}"
-        cpus: "{{ app_cpu_limit }}"
-        healthcheck:
-          test: ["CMD", "curl", "-f", "http://localhost:{{ app_container_port }}/health"]
-          interval: 30
-          timeout: 10
-          retries: 3
-          start_period: 40
-      register: app_deployment
-      when: deploy_app | bool
+      block:
+        - name: 创建应用容器（含环境变量和密钥）
+          community.docker.docker_container:
+            name: "{{ app_container_name }}"
+            image: "{{ app_registry_url }}/{{ app_image_name }}:{{ app_version }}"
+            state: started
+            pull: true  # 确保拉取最新镜像
+            ports:
+              - "{{ app_host_port }}:{{ app_container_port }}"
+            env:
+              APP_ENV: "{{ app_environment }}"
+              DATABASE_URL: "{{ app_database_url }}"
+              REDIS_URL: "redis://{{ redis_container_name }}:6379"
+              SECRET_KEY: "{{ app_secret_key }}"
+              DEBUG: "{{ app_debug_mode }}"
+            volumes:
+              - "{{ app_log_path }}:/app/logs"
+              - "{{ app_upload_path }}:/app/uploads"
+            restart_policy: "{{ app_restart_policy }}"
+            networks:
+              - "{{ docker_network_name }}"
+            memory_limit: "{{ app_memory_limit }}"
+            cpus: "{{ app_cpu_limit }}"
+            healthcheck:
+              test: ["CMD", "curl", "-f", "http://localhost:{{ app_container_port }}/health"]
+              interval: 30
+              timeout: 10
+              retries: 3
+              start_period: 40
+          register: app_deployment
+          when: deploy_app | bool
+      no_log: "{{ not enable_sensitive_logging | default(false) }}"  # 默认隐藏敏感信息，可通过变量开启调试
 
     - name: 等待应用容器健康检查通过
       ansible.builtin.wait_for:
@@ -124,6 +131,7 @@
         state: present
         driver: bridge
       when: docker_create_network | bool
+      check_mode: "{{ docker_check_mode | default(false) }}"  # 可通过变量开启检查模式预演网络创建
 
   handlers:
     - name: 重启 Nginx 容器

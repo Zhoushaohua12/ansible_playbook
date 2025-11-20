@@ -1,6 +1,7 @@
 ---
 - name: command 模块安全执行示例演示
   hosts: all
+  gather_facts: false  # 不需要系统信息，纯命令执行演示
   become: false
   vars_files:
     - vars/example_vars.yml
@@ -17,6 +18,8 @@
       register: service_status
       failed_when: false  # 服务不存在时不报错
       changed_when: false  # 仅查询状态，不修改系统
+      warn: false  # 禁用 command 模块的默认警告，因为我们明确知道在使用 command
+      check_mode: "{{ command_check_mode | default(false) }}"  # 可通过变量开启检查模式预演命令执行
     
     - name: 显示服务状态信息
       ansible.builtin.debug:

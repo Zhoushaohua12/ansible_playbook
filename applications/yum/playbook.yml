@@ -1,6 +1,7 @@
 ---
 - name: YUM 软件包管理示例演示（Red Hat 系列系统）
   hosts: all
+  gather_facts: true  # 需要获取操作系统信息用于 YUM 包管理
   become: true
   vars_files:
     - vars/example_vars.yml
@@ -28,6 +29,7 @@
         name: "{{ base_system_packages }}"
         state: present
       register: base_tools_install
+      check_mode: "{{ yum_check_mode | default(false) }}"  # 可通过变量开启检查模式预演包安装
       notify: 
         - 基础工具已安装
 

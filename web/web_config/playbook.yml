@@ -2,6 +2,7 @@
 # ⚠️ 教学声明：本 playbook 主要用于学习通用 Web 配置管理，请在测试环境验证后再应用于生产。
 - name: 通用 Web 配置管理（反向代理与静态站点）
   hosts: web_servers
+  gather_facts: true  # 需要获取操作系统信息用于防火墙配置和服务管理
   become: yes
   vars_files:
     - vars/example_vars.yml
@@ -218,6 +219,7 @@
         return_content: yes
       register: health_check
       changed_when: false
+      check_mode: "{{ web_check_mode | default(false) }}"  # 可通过变量开启检查模式预演健康检查
 
     - name: 输出健康检查结果
       ansible.builtin.debug:

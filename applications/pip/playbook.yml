@@ -1,6 +1,7 @@
 ---
 - name: Python 包管理示例演示
   hosts: all
+  gather_facts: true  # 需要获取操作系统信息用于包管理
   become: true
   vars_files:
     - vars/example_vars.yml
@@ -96,6 +97,7 @@
         state: present
       register: verification_result
       failed_when: verification_result.failed
+      check_mode: "{{ pip_check_mode | default(false) }}"  # 可通过变量开启检查模式预演包验证
 
     - name: 显示包安装结果
       ansible.builtin.debug:

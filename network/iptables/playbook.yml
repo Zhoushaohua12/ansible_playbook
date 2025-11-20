@@ -1,6 +1,7 @@
 ---
 - name: iptables 防火墙和 NAT 规则管理示例
   hosts: all
+  gather_facts: true  # 需要获取网络接口信息用于防火墙配置
   become: true
   vars_files:
     - vars/example_vars.yml
@@ -33,6 +34,7 @@
           - ESTABLISHED
         jump: ACCEPT
         comment: "Allow SSH connections"
+      check_mode: "{{ iptables_check_mode | default(false) }}"  # 可通过变量开启检查模式预演防火墙规则配置
     
     # ========== Web 服务规则 ==========
     - name: 允许 HTTP 访问
