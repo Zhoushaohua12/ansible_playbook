@@ -1,0 +1,88 @@
+---
+# ⚠️ unarchive 模块示例变量配置
+# 说明：所有变量为教学示例，实际使用时请根据环境调整路径和权限
+
+# 目标解压目录
+unarchive_dest_dir: "/tmp/ansible_unarchive_demo"
+
+# 文件所有者和所属组
+unarchive_owner: "{{ ansible_user_id }}"
+unarchive_group: "{{ ansible_user_id }}"
+
+# 文件权限设置
+unarchive_mode: "0755"
+
+# 远程源文件路径（用于 remote_src 演示）
+unarchive_remote_src_path: "/tmp/demo_config_remote.tar.gz"
+
+# 版本化部署参数
+unarchive_version: "v1.0.0"
+
+# 功能开关
+unarchive_enable_exclude: true
+unarchive_enable_extra_opts: true
+unarchive_enable_remote_src: true
+unarchive_enable_secure: true
+unarchive_enable_versioned: true
+unarchive_enable_cleanup: true
+
+# 解压选项配置
+unarchive_extra_opts:
+  - "--overwrite"
+  - "--no-same-permissions"
+
+# 排除文件列表
+unarchive_exclude_patterns:
+  - "*.log"
+  - "tmp/"
+  - ".git*"
+  - "*.tmp"
+
+# 安全配置
+unarchive_secure_owner: "root"
+unarchive_secure_mode: "0750"
+
+# 版本管理
+unarchive_max_versions: 5
+unarchive_keep_versions: 3
+
+# ⚠️ 安全提醒：
+# 1. 解压前请验证压缩包的完整性和来源
+# 2. 使用 creates 参数确保幂等性
+# 3. 设置适当的文件权限避免安全风险
+# 4. 排除敏感文件（如 .env、私钥等）
+# 5. 定期清理旧版本的解压文件
+# 6. 使用 extra_opts 控制解压行为，避免路径遍历攻击
+
+# 磁盘空间控制
+unarchive_max_size_mb: 500
+unarchive_check_disk_space: true
+
+# 校验配置
+unarchive_verify_checksum: true
+unarchive_expected_checksum: "sha256:demo_checksum_placeholder"
+
+# 备份策略
+unarchive_enable_backup: true
+unarchive_backup_dir: "/tmp/ansible_unarchive_backup"
+
+# 调试信息（中文）
+unarchive_debug_message: "这是 unarchive 模块的中文调试信息，用于演示文件解压功能"
+unarchive_runtime_env: "staging"
+
+# 压缩格式支持
+unarchive_supported_formats:
+  - "tar.gz"
+  - "tar.bz2" 
+  - "tar.xz"
+  - "zip"
+  - "gz"
+
+# 部署后验证
+unarchive_post_extract_checks:
+  - path: "index.html"
+    type: "file"
+  - path: "assets/"
+    type: "directory"
+  - path: "config.ini"
+    type: "file"

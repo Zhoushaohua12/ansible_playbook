@@ -41,6 +41,9 @@
 | **stat** | 获取文件/目录状态信息 | 检查文件是否存在、获取权限 | ✓（只读） |
 | **file** | 管理文件/目录/符号链接 | 创建目录、设置权限、删除文件 | ✓ |
 | **find** | 按条件查找文件 | 清理旧日志、查找大文件 | ✓（只读） |
+| **fetch** | 从远程主机获取文件 | 收集日志、备份配置、审计取证 | ✓（只读） |
+| **archive** | 创建文件压缩归档 | 应用打包、备份归档、数据压缩 | ✓ |
+| **unarchive** | 解压缩文件到远程主机 | 应用部署、软件安装、配置分发 | ✓ |
 | **synchronize** | 使用 rsync 同步目录 | 增量备份、代码部署、镜像同步 | ✓ |
 
 ## 学习路线指引
@@ -54,7 +57,10 @@
 ### 进阶路线（推荐）
 5. **template** → 学习 Jinja2 模板语法，实现配置文件的动态生成
 6. **find** → 掌握文件查找和批量处理模式
-7. **synchronize** → 学习高效目录同步和备份策略
+7. **fetch** → 学习从远程主机收集文件和日志
+8. **archive** → 掌握文件打包和压缩归档技巧
+9. **unarchive** → 学习应用部署和软件安装
+10. **synchronize** → 学习高效目录同步和备份策略
 
 ### 实战项目建议
 - **项目 1：Web 应用部署**  
@@ -64,7 +70,13 @@
   使用 `stat` 检查配置文件 → `lineinfile` 修改参数 → `template` 渲染完整配置 → `copy` 备份原始文件
   
 - **项目 3：日志清理与备份**  
-  使用 `find` 查找旧日志 → `file` 删除过期文件 → `synchronize` 增量备份到远程存储
+  使用 `find` 查找旧日志 → `file` 删除过期文件 → `archive` 打包历史日志 → `synchronize` 增量备份到远程存储
+  
+- **项目 4：应用包管理**  
+  使用 `archive` 创建应用包 → `unarchive` 部署到目标主机 → `fetch` 收集部署日志 → `template` 生成配置文件
+  
+- **项目 5：系统审计与取证**  
+  使用 `find` 查找关键文件 → `fetch` 收集审计证据 → `archive` 打包取证材料 → `copy` 备份到安全位置
 
 ## 常见陷阱与最佳实践
 
@@ -255,6 +267,9 @@ jinja2 templates/nginx.conf.j2 vars/example_vars.yml
 - [stat 模块](stat/README.md) - 文件状态检查和条件判断
 - [file 模块](file/README.md) - 文件系统基础操作
 - [find 模块](find/README.md) - 文件查找和批量处理
+- [fetch 模块](fetch/README.md) - 从远程主机获取文件
+- [archive 模块](archive/README.md) - 文件压缩归档
+- [unarchive 模块](unarchive/README.md) - 文件解压缩部署
 - [synchronize 模块](synchronize/README.md) - 目录增量同步和备份
 
 ## 参考资源

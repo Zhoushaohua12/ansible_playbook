@@ -16,6 +16,9 @@ MODULES: List[str] = [
     "file",
     "find",
     "synchronize",
+    "fetch",
+    "unarchive",
+    "archive",
 ]
 
 EXPECTED_FQCN = {
@@ -26,6 +29,9 @@ EXPECTED_FQCN = {
     "file": "ansible.builtin.file",
     "find": "ansible.builtin.find",
     "synchronize": "ansible.posix.synchronize",
+    "fetch": "ansible.builtin.fetch",
+    "unarchive": "ansible.builtin.unarchive",
+    "archive": "ansible.builtin.archive",
 }
 
 EXTRA_FILES = {
@@ -42,6 +48,21 @@ EXTRA_FILES = {
     "synchronize": [
         "source_dir/index.html",
         "source_dir/assets/style.css",
+    ],
+    "fetch": [
+        "files/access.log",
+        "files/error.log",
+        "files/config_checksum.txt",
+    ],
+    "unarchive": [
+        "files/demo_config.tar.gz",
+        "files/demo_config/index.html",
+        "files/demo_config/config.ini",
+    ],
+    "archive": [
+        "source_dir/index.html",
+        "source_dir/README.md",
+        "source_dir/config/app.conf",
     ],
 }
 

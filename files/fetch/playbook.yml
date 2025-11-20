@@ -1,0 +1,111 @@
+---
+- name: fetch 模块综合演练
+  hosts: all
+  become: false
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 创建演练源目录
+      ansible.builtin.file:
+        path: "{{ fetch_source_dir }}"
+        state: directory
+        mode: '0755'
+      delegate_to: localhost
+
+    - name: 创建演练目标目录
+      ansible.builtin.file:
+        path: "{{ fetch_dest_dir }}"
+        state: directory
+        mode: '0755'
+      delegate_to: localhost
+
+    - name: 准备远程测试文件
+      ansible.builtin.copy:
+        src: files/{{ item }}
+        dest: "{{ fetch_source_dir }}/{{ item }}"
+        mode: '0644'
+      loop:
+        - "access.log"
+        - "error.log"
+        - "config_checksum.txt"
+
+    - name: 获取访问日志文件（扁平化存储）
+      ansible.builtin.fetch:
+        src: "{{ fetch_source_dir }}/access.log"
+        dest: "{{ fetch_dest_dir }}/"
+        flat: true
+        validate_checksum: true
+        # 中文提示：flat=true 将文件直接保存到目标目录，不保持远程目录结构
+
+    - name: 获取错误日志文件（保持目录结构）
+      ansible.builtin.fetch:
+        src: "{{ fetch_source_dir }}/error.log"
+        dest: "{{ fetch_dest_dir }}/structured/"
+        flat: false
+        validate_checksum: true
+        fail_on_missing: true
+        # 中文提示：flat=false 保持远程目录结构，文件按主机名组织
+
+    - name: 获取配置校验文件（设置权限）
+      ansible.builtin.fetch:
+        src: "{{ fetch_source_dir }}/config_checksum.txt"
+        dest: "{{ fetch_dest_dir }}/configs/"
+        mode: "{{ fetch_config_mode }}"
+        validate_checksum: true
+        # 中文提示：mode 参数设置获取文件的权限
+
+    - name: 批量获取多个日志文件
+      ansible.builtin.fetch:
+        src: "{{ fetch_source_dir }}/{{ item }}"
+        dest: "{{ fetch_dest_dir }}/batch/"
+        flat: true
+        validate_checksum: "{{ fetch_validate_checksum }}"
+      loop: "{{ fetch_log_files }}"
+      when: fetch_enable_batch_collection
+      # 中文提示：使用 loop 批量处理多个文件
+
+    - name: 条件性获取文件（仅在文件存在时）
+      ansible.builtin.fetch:
+        src: "{{ fetch_source_dir }}/special.log"
+        dest: "{{ fetch_dest_dir }}/special/"
+        flat: true
+        fail_on_missing: false
+        # 中文提示：fail_on_missing=false 允许文件不存在时不报错
+      when: fetch_enable_special_file
+
+    - name: 获取敏感配置文件（使用 no_log）
+      ansible.builtin.fetch:
+        src: "{{ fetch_source_dir }}/config_checksum.txt"
+        dest: "{{ fetch_dest_dir }}/secure/"
+        flat: true
+        mode: '0600'
+        validate_checksum: true
+      no_log: true
+      when: fetch_enable_secure_fetch
+      # 中文提示：no_log=true 避免在日志中暴露敏感信息
+
+    - name: 显示获取结果摘要
+      ansible.builtin.debug:
+        msg:
+          - "目标目录: {{ fetch_dest_dir }}"
+          - "扁平化存储: {{ fetch_dest_dir }}/access.log"
+          - "结构化存储: {{ fetch_dest_dir }}/structured/"
+          - "批量获取启用: {{ fetch_enable_batch_collection }}"
+          - "安全获取启用: {{ fetch_enable_secure_fetch }}"
+
+    - name: 验证获取的文件
+      ansible.builtin.stat:
+        path: "{{ fetch_dest_dir }}/access.log"
+      delegate_to: localhost
+      register: fetched_file
+
+    - name: 显示文件信息
+      ansible.builtin.debug:
+        msg:
+          - "文件路径: {{ fetched_file.stat.path }}"
+          - "文件大小: {{ fetched_file.stat.size }} 字节"
+          - "文件权限: {{ fetched_file.stat.mode }}"
+          - "获取时间: {{ ansible_date_time.iso8601 }}"
+      delegate_to: localhost
+      when: fetched_file.stat.exists

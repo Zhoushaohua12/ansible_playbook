@@ -1,0 +1,19 @@
+# 临时缓存文件
+# 此文件用于演示 archive 模块的 exclude 功能
+# 归档时应该被排除
+
+cache_data_001
+temp_session_abc123
+upload_progress_file_456
+processing_queue_789
+
+# 临时文件标记
+created_at: 2024-01-15T10:20:00+08:00
+expires_at: 2024-01-15T11:20:00+08:00
+purpose: archive_demo_exclude
+
+# 注意事项：
+# 1. 此文件在归档时会被排除
+# 2. 使用 exclude_path 参数控制排除
+# 3. 临时文件不应包含在生产归档中
+# 4. 定期清理临时文件避免磁盘空间不足

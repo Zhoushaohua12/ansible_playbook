@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>待归档应用 - 主页</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .info-box {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border-left: 4px solid #3498db;
+        }
+        .timestamp {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 0.9em;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📦 待归档应用示例</h1>
+        
+        <div class="info-box">
+            <h3>🎯 用途说明</h3>
+            <p>此文件用于演示 Ansible archive 模块的文件归档功能。将被包含在生成的压缩包中，用于展示如何将多个文件和目录打包归档。</p>
+        </div>
+        
+        <div class="info-box">
+            <h3>📋 归档内容</h3>
+            <ul>
+                <li>index.html - 主页面文件</li>
+                <li>README.md - 说明文档</li>
+                <li>config/ - 配置文件目录</li>
+                <li>logs/ - 日志文件目录</li>
+                <li>temp/ - 临时文件目录（将被排除）</li>
+            </ul>
+        </div>
+        
+        <div class="info-box">
+            <h3>⚙️ 归档配置</h3>
+            <p>
+                格式: {{ archive_format | default('tar.gz') }}<br>
+                目标路径: {{ archive_dest | default('/tmp/') }}<br>
+                排除文件: {{ archive_exclude | default(['temp/', '*.tmp']) | join(', ') }}<br>
+                删除源文件: {{ archive_remove | default('false') }}
+            </p>
+        </div>
+        
+        <div class="timestamp">
+            <p>📅 生成时间: {{ ansible_date_time.iso8601 | default('2024-01-15T10:30:00+08:00') }}</p>
+            <p>🔧 归档工具: Ansible archive 模块</p>
+        </div>
+    </div>
+</body>
+</html>

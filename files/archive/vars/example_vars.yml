@@ -1,0 +1,122 @@
+---
+# ⚠️ archive 模块示例变量配置
+# 说明：所有变量为教学示例，实际使用时请根据环境调整路径和权限
+
+# 源目录（要归档的目录路径）
+archive_source_dir: "/tmp/ansible_archive_demo"
+
+# 目标目录（归档文件保存位置）
+archive_dest_dir: "/tmp/ansible_archive_results"
+
+# 文件所有者和所属组
+archive_owner: "{{ ansible_user_id }}"
+archive_group: "{{ ansible_user_id }}"
+
+# 文件权限设置
+archive_mode: "0644"
+
+# 版本信息
+archive_version: "v1.0.0"
+
+# 功能开关
+archive_enable_exclude: true
+archive_enable_zip: true
+archive_enable_bz2: true
+archive_enable_multi_path: true
+archive_enable_versioned: true
+archive_enable_remove: false  # ⚠️ 危险操作，默认关闭
+archive_enable_cleanup: false
+archive_enable_info_file: true
+
+# 归档格式配置
+archive_formats:
+  basic: "tar.gz"
+  windows: "zip"
+  high_compression: "tar.bz2"
+  ultra_compression: "tar.xz"
+
+# 排除路径配置
+archive_exclude_paths:
+  - "temp/"
+  - "*.tmp"
+  - "*.log"
+  - "cache/"
+  - "node_modules/"
+
+# 多路径归档配置
+archive_multi_paths:
+  - "{{ archive_source_dir }}/config/"
+  - "{{ archive_source_dir }}/logs/"
+  - "{{ archive_source_dir }}/assets/"
+
+# 文件大小限制（MB）
+archive_max_size_mb: 100
+
+# 磁盘空间检查
+archive_check_disk_space: true
+archive_min_free_space_gb: 5
+
+# 压缩级别（支持的格式）
+archive_compression_level: 6
+
+# ⚠️ 安全提醒：
+# 1. remove: true 会删除源文件，请谨慎使用！建议先备份再删除
+# 2. 归档前请验证源路径，避免归档敏感信息
+# 3. 设置适当的文件权限保护归档文件
+# 4. 定期清理过期归档文件避免磁盘空间不足
+# 5. 使用 exclude_path 排除临时文件和敏感数据
+# 6. 在生产环境使用前，请在测试环境充分验证
+
+# 备份策略
+archive_backup_retention_days: 30
+archive_max_backup_count: 10
+
+# 校验配置
+archive_verify_checksum: true
+archive_generate_checksum: true
+
+# 命名规范
+archive_name_template: "{{ app_name }}_{{ version }}_{{ timestamp }}"
+archive_timestamp_format: "%Y%m%d_%H%M%S"
+
+# 并发控制
+archive_max_concurrent_jobs: 2
+archive_timeout_seconds: 600
+
+# 通知配置
+archive_enable_notification: true
+archive_notification_email: "admin@example.com"
+
+# 清理策略
+archive_auto_cleanup: true
+archive_cleanup_after_days: 7
+
+# 调试信息（中文）
+archive_debug_message: "这是 archive 模块的中文调试信息，用于演示文件归档功能"
+archive_runtime_env: "staging"
+
+# 归档后操作
+archive_post_actions:
+  - "verify_checksum"
+  - "update_metadata"
+  - "send_notification"
+
+# 监控指标
+archive_metrics_enabled: true
+archive_metrics_endpoint: "/metrics/archive"
+
+# 错误处理
+archive_retry_count: 3
+archive_retry_delay: 5
+
+# 环境特定配置
+archive_env_settings:
+  development:
+    compression_level: 1
+    exclude_paths: ["node_modules/", "*.log"]
+  staging:
+    compression_level: 6
+    exclude_paths: ["temp/", "*.tmp"]
+  production:
+    compression_level: 9
+    exclude_paths: ["temp/", "*.tmp", "*.log", "cache/"]

@@ -1,0 +1,28 @@
+# 系统配置校验文件
+# 用于演示 fetch 模块的 validate_checksum 功能
+# 生成时间：2024-01-15T10:30:00+08:00
+# 校验和：SHA256(示例配置文件内容)
+
+[system]
+hostname = web-server-01
+timezone = Asia/Shanghai
+locale = zh_CN.UTF-8
+
+[security]
+ssh_port = 22
+max_auth_tries = 3
+permit_root_login = no
+password_authentication = no
+
+[logging]
+log_level = INFO
+log_retention_days = 30
+log_rotation = daily
+
+[network]
+dns_primary = 8.8.8.8
+dns_secondary = 8.8.4.4
+ntp_server = pool.ntp.org
+
+# 配置文件结束
+# 此文件用于演示 fetch 模块的完整性校验功能

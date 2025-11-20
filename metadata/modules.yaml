@@ -184,10 +184,12 @@ storage:
 
 files:
   title: 文件操作模块
-  description: "涵盖文件复制、模板渲染、配置修改、状态检查、文件系统操作、文件查找和目录同步的完整文件管理解决方案"
+  description: "涵盖文件复制、模板渲染、配置修改、状态检查、文件系统操作、文件查找、目录同步、文件获取、压缩归档的完整文件管理解决方案"
   external_dependencies:
     - "ansible.posix collection (synchronize 模块)"
     - "rsync 工具（synchronize 模块依赖）"
+    - "tar 工具（archive/unarchive 模块依赖）"
+    - "gzip 工具（压缩格式支持）"
   topics:
     - id: copy
       name: Copy 文件复制
@@ -227,6 +229,40 @@ files:
       doc: files/find/README.md
       example: files/find/playbook.yml
       summary: "按名称、大小、时间、内容等条件查找文件，支持批量清理和归档"
+    - id: fetch
+      name: Fetch 文件获取
+      doc: files/fetch/README.md
+      example: files/fetch/playbook.yml
+      summary: "从远程主机获取文件到控制节点，支持校验和验证、扁平化存储和权限控制"
+      files:
+        - "files/fetch/files/access.log"
+        - "files/fetch/files/error.log"
+        - "files/fetch/files/config_checksum.txt"
+    - id: unarchive
+      name: Unarchive 文件解压
+      doc: files/unarchive/README.md
+      example: files/unarchive/playbook.yml
+      summary: "解压缩文件到远程主机，支持多种格式、文件排除和权限设置"
+      files:
+        - "files/unarchive/files/demo_config.tar.gz"
+        - "files/unarchive/files/demo_config/index.html"
+        - "files/unarchive/files/demo_config/config.ini"
+      external_deps:
+        - "tar 工具"
+        - "gzip 工具（tar.gz 格式）"
+    - id: archive
+      name: Archive 文件归档
+      doc: files/archive/README.md
+      example: files/archive/playbook.yml
+      summary: "创建文件和目录的压缩归档，支持多种格式、文件排除和安全控制"
+      files:
+        - "files/archive/source_dir/index.html"
+        - "files/archive/source_dir/README.md"
+        - "files/archive/source_dir/config/app.conf"
+      external_deps:
+        - "tar 工具"
+        - "gzip 工具（tar.gz 格式）"
+        - "zip 工具（zip 格式，可选）"
     - id: synchronize
       name: Synchronize 目录同步
       doc: files/synchronize/README.md
