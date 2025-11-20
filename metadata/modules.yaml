@@ -274,21 +274,21 @@ files:
       external_deps:
         - "ansible.posix collection"
         - "rsync 工具（控制节点和目标主机）"
-      - id: replace
-        name: Replace 文本替换
-        doc: files/replace/README.md
-        example: files/replace/playbook.yml
-        summary: "根据正则表达式替换文件中的内容，支持多行替换、备份文件、验证替换结果等功能"
-        external_deps:
-          - "ansible.builtin collection"
-          - "Python re 模块（内置）"
-      - id: blockinfile
-        name: Blockinfile 文本块插入
-        doc: files/blockinfile/README.md
-        example: files/blockinfile/playbook.yml
-        summary: "在文件中插入、更新或删除文本块，支持标记文本块、备份文件、验证插入结果等功能"
-        external_deps:
-          - "ansible.builtin collection"
+    - id: replace
+      name: Replace 文本替换
+      doc: files/replace/README.md
+      example: files/replace/playbook.yml
+      summary: "根据正则表达式替换文件中的内容，支持多行替换、备份文件、验证替换结果等功能"
+      external_deps:
+        - "ansible.builtin collection"
+        - "Python re 模块（内置）"
+    - id: blockinfile
+      name: Blockinfile 文本块插入
+      doc: files/blockinfile/README.md
+      example: files/blockinfile/playbook.yml
+      summary: "在文件中插入、更新或删除文本块，支持标记文本块、备份文件、验证插入结果等功能"
+      external_deps:
+        - "ansible.builtin collection"
 
 commands:
   title: 命令执行模块
@@ -692,7 +692,7 @@ system:
          - "ansible.posix collection"
          - "selinux-policy、selinux-utils、policycoreutils 包"
          - "仅支持 RHEL/CentOS/Fedora 等 Red Hat 系列"
-       - id: cron
+     - id: cron
        name: Cron 定时任务管理
        doc: system/cron/README.md
        example: system/cron/playbook.yml
@@ -700,7 +700,7 @@ system:
        external_deps:
          - "ansible.builtin collection"
          - "cron 服务（cron、crond、vixie-cron 等）"
-       - id: authorized_key
+     - id: authorized_key
        name: Authorized Key SSH 密钥管理
        doc: system/authorized_key/README.md
        example: system/authorized_key/playbook.yml
@@ -708,7 +708,7 @@ system:
        external_deps:
          - "ansible.builtin collection"
          - "OpenSSH 客户端和服务器"
-       - id: reboot
+     - id: reboot
        name: Reboot 系统重启管理
        doc: system/reboot/README.md
        example: system/reboot/playbook.yml
@@ -824,7 +824,7 @@ network:
        external_deps:
          - "community.general collection（nmcli 模块）"
          - "NetworkManager 服务"
-       - id: nmcli
+     - id: nmcli
        name: Nmcli NetworkManager 管理
        doc: network/nmcli/README.md
        example: network/nmcli/playbook.yml
@@ -865,12 +865,12 @@ network_protocols:
       external_deps:
         - "community.general collection（dig 模块）"
         - "dnsutils 或 bind-utils"
-        - id: ldap
-        name: LDAP 目录服务协议
-        doc: network_protocols/ldap/README.md
-        example: network_protocols/ldap/playbook.yml
-        summary: "与 LDAP 服务器进行交互，支持用户认证、目录查询、条目管理、属性修改等操作，适用于统一身份认证、目录服务管理"
-        external_deps:
+    - id: ldap
+      name: LDAP 目录服务协议
+      doc: network_protocols/ldap/README.md
+      example: network_protocols/ldap/playbook.yml
+      summary: "与 LDAP 服务器进行交互，支持用户认证、目录查询、条目管理、属性修改等操作，适用于统一身份认证、目录服务管理"
+      external_deps:
         - "community.general collection（ldap_* 模块）"
         - "python-ldap 或 python3-ldap Python 库"
         - "LDAP 服务器访问权限"

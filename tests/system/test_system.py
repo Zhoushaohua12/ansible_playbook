@@ -7,7 +7,7 @@ import pytest
 import yaml
 
 # 系统管理模块列表
-MODULES = ["user", "group", "service", "systemd", "hostname", "timezone", "locale", "firewalld", "iptables", "selinux"]
+MODULES = ["user", "group", "service", "systemd", "hostname", "timezone", "locale", "firewalld", "iptables", "selinux", "cron", "authorized_key", "reboot"]
 
 # 各模块对应的 FQCN（Fully Qualified Collection Name）期望值
 FQCN_EXPECTATIONS = {
@@ -21,6 +21,9 @@ FQCN_EXPECTATIONS = {
     "firewalld": "community.general.firewalld",
     "iptables": "community.general.iptables",
     "selinux": "ansible.posix.selinux",
+    "cron": "ansible.builtin.cron",
+    "authorized_key": "ansible.builtin.authorized_key",
+    "reboot": "ansible.builtin.reboot",
 }
 
 

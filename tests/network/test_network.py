@@ -6,7 +6,7 @@ from typing import Dict
 import pytest
 import yaml
 
-MODULES = ["firewalld", "ufw", "iptables", "wait_for", "port", "route", "interface"]
+MODULES = ["firewalld", "ufw", "iptables", "wait_for", "port", "route", "interface", "nmcli"]
 FQCN_EXPECTATIONS = {
     "firewalld": "community.general.firewalld",
     "ufw": "community.general.ufw",
@@ -15,6 +15,7 @@ FQCN_EXPECTATIONS = {
     "port": "ansible.builtin.wait_for",
     "route": "ansible.posix.route",
     "interface": "community.general.nmcli",
+    "nmcli": "community.general.nmcli",
 }
 EXTERNAL_DEPS = {
     "firewalld": "community.general collection",
@@ -24,6 +25,7 @@ EXTERNAL_DEPS = {
     "port": "ansible.builtin (内置)",
     "route": "ansible.posix collection",
     "interface": "community.general collection",
+    "nmcli": "community.general collection",
 }
 
 

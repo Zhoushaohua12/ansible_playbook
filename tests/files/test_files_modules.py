@@ -19,6 +19,8 @@ MODULES: List[str] = [
     "fetch",
     "unarchive",
     "archive",
+    "replace",
+    "blockinfile",
 ]
 
 EXPECTED_FQCN = {
@@ -32,6 +34,8 @@ EXPECTED_FQCN = {
     "fetch": "ansible.builtin.fetch",
     "unarchive": "ansible.builtin.unarchive",
     "archive": "ansible.builtin.archive",
+    "replace": "ansible.builtin.replace",
+    "blockinfile": "ansible.builtin.blockinfile",
 }
 
 EXTRA_FILES = {
