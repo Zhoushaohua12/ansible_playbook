@@ -1,6 +1,7 @@
 ---
 - name: copy 模块综合演练
   hosts: all
+  gather_facts: false  # 不需要系统信息，纯文件操作演示
   become: false
   vars_files:
     - vars/example_vars.yml
@@ -23,6 +24,7 @@
         mode: '0644'
         backup: true
         # 中文提示：开启 backup 可保留旧版本，便于回滚
+        check_mode: "{{ copy_check_mode | default(false) }}"  # 可通过变量开启检查模式预演文件复制
 
     - name: 复制 MOTD 横幅并展示中文欢迎语
       ansible.builtin.copy:

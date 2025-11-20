@@ -1,6 +1,7 @@
 ---
 - name: Kubernetes 资源管理示例演示
   hosts: all
+  gather_facts: false  # 不需要系统信息，纯 Kubernetes API 操作
   become: true
   vars_files:
     - vars/example_vars.yml
@@ -129,6 +130,7 @@
                     name: "{{ app_configmap_name }}"
       when: deploy_app | bool
       register: deployment_result
+      check_mode: "{{ kubernetes_check_mode | default(false) }}"  # 可通过变量开启检查模式预演资源部署
 
     - name: 创建应用 Service
       kubernetes.core.k8s:

@@ -1,6 +1,7 @@
 ---
 - name: Docker 镜像管理示例演示
   hosts: all
+  gather_facts: false  # 不需要系统信息，纯 Docker 操作
   become: true
   vars_files:
     - vars/example_vars.yml
@@ -98,15 +99,18 @@
       register: tag_result
 
     - name: 登录到私有镜像仓库
-      community.docker.docker_login:
-        registry: "{{ registry_url }}"
-        username: "{{ registry_username }}"
-        password: "{{ registry_password }}"
-        email: "{{ registry_email }}"
-      when: 
-        - login_to_registry | bool
-        - push_to_registry | bool
-      no_log: true
+      block:
+        - name: 执行 Docker 镜像仓库登录
+          community.docker.docker_login:
+            registry: "{{ registry_url }}"
+            username: "{{ registry_username }}"
+            password: "{{ registry_password }}"
+            email: "{{ registry_email }}"
+          when: 
+            - login_to_registry | bool
+            - push_to_registry | bool
+          check_mode: "{{ docker_image_check_mode | default(false) }}"  # 可通过变量开启检查模式预演镜像操作
+      no_log: true  # 隐藏登录凭证信息
 
     - name: 推送镜像到私有仓库
       community.docker.docker_image:

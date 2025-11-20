@@ -1,6 +1,7 @@
 ---
 - name: wait_for 模块端口监控示例
   hosts: all
+  gather_facts: false  # 不需要系统信息，纯端口监控演示
   become: false
   vars_files:
     - vars/example_vars.yml
@@ -26,6 +27,7 @@
         delay: "{{ wait_for_web_delay }}"
         timeout: "{{ wait_for_web_timeout }}"
       register: web_service_ready
+      check_mode: "{{ wait_for_check_mode | default(false) }}"  # 可通过变量开启检查模式预演端口等待
       when: wait_for_check_web
     
     - name: 显示 Web 服务等待结果

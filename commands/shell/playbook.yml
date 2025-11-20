@@ -1,6 +1,7 @@
 ---
 - name: shell 模块使用示例演示
   hosts: all
+  gather_facts: false  # 不需要系统信息，纯 shell 命令执行演示
   become: false
   vars_files:
     - vars/example_vars.yml
@@ -37,6 +38,7 @@
         creates: "{{ shell_config_file }}"
         warn: false  # 禁用警告，因为我们使用了 set -e
       changed_when: true
+      check_mode: "{{ shell_check_mode | default(false) }}"  # 可通过变量开启检查模式预演 shell 脚本执行
     
     - name: 管道和重定向演示 - 日志分析
       ansible.builtin.shell: |

@@ -1,6 +1,7 @@
 ---
 - name: Git 工作流管理示例演示
   hosts: all
+  gather_facts: true  # 需要获取系统信息用于权限管理和部署
   become: true
   vars_files:
     - vars/example_vars.yml
@@ -33,6 +34,7 @@
       when: deploy_production | bool
       register: prod_clone_result
       become_user: "{{ deploy_user }}"
+      check_mode: "{{ git_workflow_check_mode | default(false) }}"  # 可通过变量开启检查模式预演代码部署
 
     - name: 克隆预发布环境应用代码
       ansible.builtin.git:

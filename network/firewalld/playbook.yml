@@ -1,6 +1,7 @@
 ---
 - name: firewalld 防火墙规则管理示例
   hosts: all
+  gather_facts: true  # 需要获取系统信息用于网络配置
   become: true
   vars_files:
     - vars/example_vars.yml
@@ -34,6 +35,7 @@
         immediate: true
       loop: "{{ firewalld_web_services }}"
       when: firewalld_state.stdout == "running"
+      check_mode: "{{ firewalld_check_mode | default(false) }}"  # 可通过变量开启检查模式预演防火墙规则配置
     
     # ========== 开放应用服务端口 ==========
     - name: 在 internal zone 开放应用服务端口

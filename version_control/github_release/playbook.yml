@@ -1,6 +1,7 @@
 ---
 - name: GitHub Release 管理示例演示
   hosts: all
+  gather_facts: false  # 不需要系统信息，纯 GitHub API 操作
   vars_files:
     - vars/example_vars.yml
   
@@ -64,19 +65,23 @@
       changed_when: false
 
     - name: 创建正式 Release
-      community.general.github_release:
-        user: "{{ github_user }}"
-        repo: "{{ github_repo }}"
-        token: "{{ github_token }}"
-        action: create_release
-        tag: "v{{ app_version }}"
-        name: "Release v{{ app_version }}"
-        body: "{{ release_notes_body }}"
-        draft: false
-        prerelease: false
-        target_commitish: "{{ target_commit }}"
-      when: create_production_release | bool
-      register: production_release
+      block:
+        - name: 执行 GitHub Release 创建
+          community.general.github_release:
+            user: "{{ github_user }}"
+            repo: "{{ github_repo }}"
+            token: "{{ github_token }}"
+            action: create_release
+            tag: "v{{ app_version }}"
+            name: "Release v{{ app_version }}"
+            body: "{{ release_notes_body }}"
+            draft: false
+            prerelease: false
+            target_commitish: "{{ target_commit }}"
+          when: create_production_release | bool
+          register: production_release
+          check_mode: "{{ github_release_check_mode | default(false) }}"  # 可通过变量开启检查模式预演 Release 创建
+      no_log: true  # 隐藏 GitHub token 信息
 
     - name: 上传生产版本文件
       community.general.github_release:

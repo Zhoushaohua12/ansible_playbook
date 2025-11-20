@@ -2,6 +2,7 @@
 # ⚠️ 教学声明：本 playbook 主要用于学习 Apache2 配置管理，请在测试环境验证后再应用于生产。
 - name: Apache2 Web 服务器安装与配置
   hosts: web_servers
+  gather_facts: true  # 需要获取操作系统信息用于包管理和模块启用
   become: yes
   vars_files:
     - vars/example_vars.yml
@@ -158,6 +159,7 @@
         return_content: yes
       register: http_check
       changed_when: false
+      check_mode: "{{ apache_check_mode | default(false) }}"  # 可通过变量开启检查模式预演健康检查
 
     - name: 输出 HTTP 健康检查结果
       ansible.builtin.debug:

@@ -1,6 +1,7 @@
 ---
 - name: APT 软件包管理示例演示（Debian 系列系统）
   hosts: all
+  gather_facts: true  # 需要获取操作系统信息用于 APT 包管理
   become: true
   vars_files:
     - vars/example_vars.yml
@@ -39,6 +40,7 @@
         state: present
         install_recommends: "{{ install_recommends }}"
       register: base_tools_install
+      check_mode: "{{ apt_check_mode | default(false) }}"  # 可通过变量开启检查模式预演包安装
       notify: 
         - 基础工具已安装
 

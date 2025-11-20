@@ -1,6 +1,7 @@
 ---
 - name: Git 仓库管理和源码部署示例
   hosts: all
+  gather_facts: true  # 需要获取系统信息用于权限管理和部署
   become: true
   vars_files:
     - vars/example_vars.yml
@@ -24,6 +25,7 @@
         key_file: "{{ git_ssh_key_path }}"
       register: main_app_clone
       when: deploy_main_app | bool
+      check_mode: "{{ git_check_mode | default(false) }}"  # 可通过变量开启检查模式预演代码克隆
       notify: 
         - 主应用代码已更新
 

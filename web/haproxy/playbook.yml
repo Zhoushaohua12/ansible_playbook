@@ -2,6 +2,7 @@
 # ⚠️ 教学声明：本 playbook 主要用于学习 HAProxy 负载均衡配置，请在测试环境验证后再应用于生产。
 - name: HAProxy 负载均衡配置与部署
   hosts: load_balancers
+  gather_facts: true  # 需要获取操作系统信息用于包管理和防火墙配置
   become: yes
   vars_files:
     - vars/example_vars.yml
@@ -105,6 +106,7 @@
       register: stats_check
       changed_when: false
       ignore_errors: yes
+      check_mode: "{{ haproxy_check_mode | default(false) }}"  # 可通过变量开启检查模式预演健康检查
 
     - name: 输出 HAProxy 管理界面检查结果
       ansible.builtin.debug:
