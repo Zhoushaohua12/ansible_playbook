@@ -1,0 +1,239 @@
+# route 模块静态路由管理示例变量
+
+# ========== 全局控制 ==========
+# 启用路由配置的详细输出
+route_verbose_output: true
+
+# 是否重新加载网络服务
+route_reload_network: false
+
+# 是否显示当前路由表
+route_show_routing_table: true
+
+# ========== 默认路由配置 ==========
+# 启用默认路由配置
+route_enable_default: true
+
+# 默认路由目标网络（0.0.0.0/0 表示所有网络）
+route_default_dest: "0.0.0.0/0"
+
+# 默认路由网关
+route_default_gw: "192.168.1.1"
+
+# 默认路由状态
+route_default_state: "present"
+
+# ========== 网络段路由配置 ==========
+# 启用网络段路由配置
+route_enable_network: true
+
+# 目标网络段
+route_network_dest: "192.168.100.0/24"
+
+# 网络段路由网关
+route_network_gw: "192.168.1.254"
+
+# 子网掩码（兼容性参数）
+route_network_netmask: "255.255.255.0"
+
+# 网络段路由状态
+route_network_state: "present"
+
+# ========== 管理网络路由配置 ==========
+# 启用管理网络路由配置
+route_enable_mgmt: true
+
+# 管理网络目标
+route_mgmt_dest: "172.16.0.0/16"
+
+# 管理网络网关
+route_mgmt_gw: "172.16.1.1"
+
+# 管理网络接口
+route_mgmt_dev: "eth0"
+
+# 管理网络路由优先级（数值越小优先级越高）
+route_mgmt_metric: 100
+
+# 管理网络路由状态
+route_mgmt_state: "present"
+
+# ========== 业务网络路由配置 ==========
+# 启用业务网络路由配置
+route_enable_business: true
+
+# 业务网络目标
+route_business_dest: "10.0.0.0/8"
+
+# 业务网络网关
+route_business_gw: "10.0.1.1"
+
+# 业务网络接口
+route_business_dev: "eth1"
+
+# 业务网络路由优先级
+route_business_metric: 100
+
+# 业务网络路由状态
+route_business_state: "present"
+
+# ========== 批量路由配置 ==========
+# 启用批量路由配置
+route_enable_batch: true
+
+# 批量路由配置列表
+route_batch_routes:
+  - dest: "192.168.10.0/24"
+    gw: "192.168.1.1"
+    metric: 100
+    state: "present"
+  - dest: "192.168.20.0/24"
+    gw: "192.168.1.1"
+    metric: 100
+    state: "present"
+  - dest: "10.10.0.0/16"
+    gw: "10.0.1.254"
+    dev: "eth1"
+    metric: 200
+    state: "present"
+  - dest: "172.20.0.0/16"
+    gw: "172.16.1.254"
+    dev: "eth0"
+    metric: 200
+    state: "present"
+
+# ========== 系统特定路由配置 ==========
+# 启用 RHEL/CentOS 特定路由配置
+route_enable_rhel_specific: false
+
+# RHEL 系统特定路由列表
+route_rhel_specific:
+  - dest: "192.168.50.0/24"
+    gw: "192.168.1.254"
+    metric: 150
+  - dest: "192.168.60.0/24"
+    gw: "192.168.1.254"
+    metric: 150
+
+# 启用 Ubuntu/Debian 特定路由配置
+route_enable_debian_specific: false
+
+# Debian 系统特定路由列表
+route_debian_specific:
+  - dest: "192.168.70.0/24"
+    gw: "192.168.1.254"
+    metric: 150
+  - dest: "192.168.80.0/24"
+    gw: "192.168.1.254"
+    metric: 150
+
+# ========== 主备路由配置 ==========
+# 启用主路由配置
+route_enable_primary: true
+
+# 主路由目标
+route_primary_dest: "10.0.0.0/8"
+
+# 主路由网关
+route_primary_gw: "10.0.1.1"
+
+# 主路由优先级（高优先级）
+route_primary_metric: 100
+
+# 主路由状态
+route_primary_state: "present"
+
+# 启用备份路由配置
+route_enable_backup: true
+
+# 备份路由目标
+route_backup_dest: "10.0.0.0/8"
+
+# 备份路由网关
+route_backup_gw: "192.168.1.254"
+
+# 备份路由优先级（低优先级）
+route_backup_metric: 200
+
+# 备份路由状态
+route_backup_state: "present"
+
+# ========== 路由清理配置 ==========
+# 启用路由清理
+route_enable_cleanup: false
+
+# 需要删除的旧路由列表
+route_cleanup_routes:
+  - dest: "192.168.200.0/24"
+    gw: "192.168.1.254"
+  - dest: "192.168.201.0/24"
+    gw: "192.168.1.254"
+  - dest: "10.100.0.0/16"
+    gw: "192.168.1.254"
+
+# ========== 路由验证配置 ==========
+# 启用路由验证
+route_enable_verification: true
+
+# 需要验证的关键路由列表
+route_verification_routes:
+  - dest: "0.0.0.0/0"
+    gw: "192.168.1.1"
+  - dest: "192.168.100.0/24"
+    gw: "192.168.1.254"
+  - dest: "172.16.0.0/16"
+    gw: "172.16.1.1"
+
+# ========== 重要提示 ==========
+# ⚠️ 警告：这些变量仅用于演示，生产环境请根据实际网络拓扑调整
+# 1. 网络地址配置：
+#    - dest 使用 CIDR 格式（如 192.168.1.0/24）
+#    - gw 必须是可访问的网关 IP 地址
+#    - 确保网关与目标网络在同一网段或可达
+# 2. 接口配置：
+#    - dev 参数指定网络接口名称
+#    - 确保接口已存在且处于 UP 状态
+#    - 使用 ansible_interfaces 验证接口存在性
+# 3. 路由优先级：
+#    - metric 数值越小优先级越高
+#    - 主路由使用较小的 metric（如 100）
+#    - 备份路由使用较大的 metric（如 200）
+# 4. 系统兼容性：
+#    - 不同 Linux 发行版可能使用不同的网络配置工具
+#    - RHEL/CentOS 可能需要 NetworkManager 或 network 服务
+#    - Ubuntu/Debian 可能使用 systemd-networkd 或 ifupdown
+# 5. 安全注意事项：
+#    - 路由配置需要 root 权限（become: true）
+#    - 错误的路由配置可能导致网络中断
+#    - 生产环境操作前务必备份现有路由表
+#    - 建议在维护窗口期间执行路由变更
+# 6. 网络拓扑理解：
+#    - 充分了解网络拓扑结构和流量路径
+#    - 避免配置路由环路
+#    - 考虑网络冗余和故障切换需求
+# 7. 测试验证：
+#    - 在测试环境验证路由配置的正确性
+#    - 使用 ip route get 命令验证路由选择
+#    - 测试关键业务应用的连通性
+# 8. 监控告警：
+#    - 配置路由变更的监控和告警
+#    - 建立路由失效的自动恢复机制
+#    - 定期检查路由表的完整性
+# 9. 回滚机制：
+#    - 保存原始路由配置用于回滚
+#    - 准备应急恢复脚本
+#    - 建立快速回滚的操作流程
+# 10. 生产环境建议：
+#     - 分阶段部署路由变更
+#     - 使用配置管理工具确保一致性
+#     - 建立路由配置的版本控制
+#     - 定期审查和优化路由配置
+# 11. 故障排查：
+#     - 使用 ip route show 查看当前路由表
+#     - 使用 traceroute 跟踪网络路径
+#     - 检查防火墙规则是否影响路由
+#     - 验证网关设备的可达性
+# 12. 高级配置：
+#     - 考虑使用策略路由（ip rule）
+#     - 研究动态路由协议（OSPF、BGP）
+#     - 了解多路由表和 VRF 配置

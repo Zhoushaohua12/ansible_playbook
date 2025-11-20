@@ -11,7 +11,7 @@
 - `database/`：数据库管理模块（MySQL、PostgreSQL、MongoDB）的自动化运维示例。
 - `message_queue/`：消息队列管理（RabbitMQ、Kafka）的自动化配置与管理示例。
 - `monitoring/`：主流监控系统的 Ansible 集成示例（Nagios、Datadog、Zabbix、Prometheus、Splunk、ELK）。
-- `network/`：网络配置与防火墙管理（firewalld、ufw、iptables、wait_for）的完整指南。
+- `network/`：网络配置与防火墙管理（firewalld、ufw、iptables、wait_for、port、route、interface）的完整指南。
 - `network_protocols/`：网络协议层通信（ICMP/ping、HTTP/uri、DNS/dig）的模块实践，强调安全验证与敏感信息保护。
 - `storage/`：磁盘、LVM 与文件系统管理的演练场景。
 - `system/`：系统管理模块（user、group、service、systemd、firewalld、iptables、hostname）的完整指南。
@@ -401,10 +401,11 @@ sudo apt-get install -y iptables    # Debian/Ubuntu
 ```bash
 # 1. 安装必要的集合和工具
 ansible-galaxy collection install community.general
-# 在目标主机上安装 firewalld、ufw 等工具
+ansible-galaxy collection install ansible.posix
+# 在目标主机上安装 firewalld、ufw、NetworkManager 等工具
 
 # 2. 查看对应模块文档
-cd network/firewalld  # 或 ufw/iptables/wait_for
+cd network/firewalld  # 或 ufw/iptables/wait_for/port/route/interface
 cat README.md
 
 # 3. 配置变量
@@ -443,6 +444,11 @@ ansible-playbook playbook.yml -i hosts.ini
       vars:
         wait_for_web_host: "{{ web_server_ip }}"
         wait_for_web_port: 80
+    - import_playbook: network/port/playbook.yml
+      vars:
+        port_web_host: "{{ web_server_ip }}"
+        port_web_port: 80
+        port_web_timeout: 30
 ```
 
 #### 安全最佳实践
@@ -460,6 +466,9 @@ ansible-playbook playbook.yml -i hosts.ini
 | Ubuntu/Debian 防火墙管理 | ufw | 规则简单、易于维护 |
 | 内核级防火墙 / NAT 配置 | iptables | 强大灵活，支持高级功能 |
 | 服务启动等待 | wait_for | 监控端口/文件，协调依赖 |
+| 端口健康探测 | port | 批量端口检查、delegate_to 安全检查 |
+| 静态路由管理 | route | 多网卡路由、metric 优先级 |
+| 网络接口管理 | interface | 以太网/网桥/绑定/VLAN 配置 |
 | 检查日志消息 | wait_for + search_regex | 更精确的服务就绪判断 |
 
 ### 故障排查
@@ -496,4 +505,7 @@ sudo iptables -L -n -v
 - [UFW 防火墙管理](network/ufw/README.md) - Ubuntu/Debian 简化防火墙
 - [iptables 防火墙与 NAT 规则](network/iptables/README.md) - 内核级防火墙管理
 - [Wait For 端口/服务监控](network/wait_for/README.md) - 服务可用性监控
+- [Port 端口健康探测](network/port/README.md) - 批量端口检查、安全探测
+- [Route 静态路由管理](network/route/README.md) - 多网卡路由配置
+- [Interface 网络接口管理](network/interface/README.md) - 网络接口配置管理
 - [网络模块总览](network/README.md) - 网络模块完整指南

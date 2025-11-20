@@ -659,12 +659,14 @@ message_queue:
 
 network:
    title: 网络与防火墙管理
-   description: "涵盖防火墙规则管理（firewalld/ufw/iptables）与网络连接监控（wait_for）的实战示例，支持多层部署、安全加固、容器网络等场景"
+   description: "涵盖防火墙规则管理（firewalld/ufw/iptables）、网络连接监控（wait_for）、端口健康探测（port）、静态路由管理（route）和网络接口管理（interface）的实战示例，支持多层部署、安全加固、容器网络等场景"
    external_dependencies:
-     - "community.general collection（firewalld、ufw、iptables 模块）"
+     - "community.general collection（firewalld、ufw、iptables、nmcli 模块）"
+     - "ansible.posix collection（route 模块）"
      - "firewalld 服务（RHEL/CentOS/Fedora 系统）"
      - "ufw 工具（Ubuntu/Debian 系统）"
      - "iptables 工具（通用 Linux 系统）"
+     - "NetworkManager 服务（网络接口管理）"
      - "ansible.builtin 集合（wait_for 内置模块）"
    topics:
      - id: firewalld
@@ -698,6 +700,29 @@ network:
        summary: "端口可用性和服务就绪监控，支持集群协调、滚动更新和多服务依赖场景"
        external_deps:
          - "ansible.builtin collection（wait_for 内置模块）"
+     - id: port
+       name: Port 端口健康探测
+       doc: network/port/README.md
+       example: network/port/playbook.yml
+       summary: "端口健康探测，支持批量检查、超时控制、delegate_to 安全检查和中文注释"
+       external_deps:
+         - "ansible.builtin collection（wait_for 内置模块）"
+     - id: route
+       name: Route 静态路由管理
+       doc: network/route/README.md
+       example: network/route/playbook.yml
+       summary: "静态路由管理，支持多接口路由、metric 优先级设置、系统兼容性和安全控制"
+       external_deps:
+         - "ansible.posix collection（route 模块）"
+         - "系统路由工具（iproute、iproute2）"
+     - id: interface
+       name: Interface 网络接口管理
+       doc: network/interface/README.md
+       example: network/interface/playbook.yml
+       summary: "网络接口管理，支持以太网、网桥、绑定、VLAN 等接口类型，包含 handlers/notify 重载"
+       external_deps:
+         - "community.general collection（nmcli 模块）"
+         - "NetworkManager 服务"
 
 
 network_protocols:
