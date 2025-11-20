@@ -7,7 +7,7 @@ import pytest
 import yaml
 
 # 系统管理模块列表
-MODULES = ["user", "group", "service", "systemd", "hostname", "timezone", "locale", "firewalld", "iptables", "selinux", "cron", "authorized_key", "reboot"]
+MODULES = ["user", "group", "service", "systemd", "hostname", "timezone", "locale", "firewalld", "iptables", "selinux", "auditd", "pam_hardening", "kernel_tuning", "cron", "authorized_key", "reboot"]
 
 # 各模块对应的 FQCN（Fully Qualified Collection Name）期望值
 FQCN_EXPECTATIONS = {
@@ -21,6 +21,9 @@ FQCN_EXPECTATIONS = {
     "firewalld": "community.general.firewalld",
     "iptables": "community.general.iptables",
     "selinux": "ansible.posix.selinux",
+    "auditd": "ansible.builtin.package",
+    "pam_hardening": "community.general.pamd",
+    "kernel_tuning": "ansible.posix.sysctl",
     "cron": "ansible.builtin.cron",
     "authorized_key": "ansible.builtin.authorized_key",
     "reboot": "ansible.builtin.reboot",
@@ -364,4 +367,101 @@ class TestNewSystemModules(TestSystemFixtures):
         assert "desired_selinux_state" in vars_file, "selinux vars 应包含 desired_selinux_state 变量"
         assert "⚠️" in vars_file or "警告" in vars_file or "注意" in vars_file, (
             "selinux vars 应包含安全提示"
+        )
+
+    def test_auditd_module_specific_content(self, module_dirs: Dict[str, Path]) -> None:
+        """验证 auditd 模块包含特定内容"""
+        auditd_path = module_dirs["auditd"]
+        readme = (auditd_path / "README.md").read_text(encoding="utf-8")
+        playbook = (auditd_path / "playbook.yml").read_text(encoding="utf-8")
+        vars_file = (auditd_path / "vars" / "example_vars.yml").read_text(encoding="utf-8")
+        
+        # 检查 README 中的关键词
+        assert "审计" in readme, "auditd 模块 README 应提及审计"
+        assert "auditd" in readme, "auditd 模块 README 应提及 auditd"
+        assert "安全" in readme, "auditd 模块 README 应提及安全"
+        
+        # 检查 playbook 中的关键模块
+        assert "ansible.builtin.package" in playbook, "auditd playbook 应使用 package 模块"
+        assert "no_log" in playbook, "auditd playbook 应包含 no_log 保护敏感信息"
+        
+        # 检查 playbook 中的 vars_files
+        assert "vars_files" in playbook, "auditd playbook 应引用 vars_files"
+        
+        # 检查 playbook 中的 check_mode
+        assert "check_mode" in playbook, "auditd playbook 应包含 check_mode"
+        
+        # 检查模板文件是否存在
+        templates_dir = auditd_path / "templates"
+        assert templates_dir.exists(), "auditd 模块应有 templates 目录"
+        assert (templates_dir / "auditd.conf.j2").exists(), "auditd 模块应有 auditd.conf.j2 模板"
+        assert (templates_dir / "audit.rules.j2").exists(), "auditd 模块应有 audit.rules.j2 模板"
+        
+        # 检查变量文件中的关键变量和警告
+        assert "auditd_config" in vars_file, "auditd vars 应包含 auditd_config 变量"
+        assert "vault_auditd_remote_server" in vars_file, "auditd vars 应包含 vault_auditd_remote_server 变量"
+        assert "⚠️" in vars_file or "警告" in vars_file or "注意" in vars_file, (
+            "auditd vars 应包含安全提示"
+        )
+
+    def test_pam_hardening_module_specific_content(self, module_dirs: Dict[str, Path]) -> None:
+        """验证 pam_hardening 模块包含特定内容"""
+        pam_path = module_dirs["pam_hardening"]
+        readme = (pam_path / "README.md").read_text(encoding="utf-8")
+        playbook = (pam_path / "playbook.yml").read_text(encoding="utf-8")
+        vars_file = (pam_path / "vars" / "example_vars.yml").read_text(encoding="utf-8")
+        
+        # 检查 README 中的关键词
+        assert "PAM" in readme, "pam_hardening 模块 README 应提及 PAM"
+        assert "密码" in readme, "pam_hardening 模块 README 应提及密码"
+        assert "安全" in readme, "pam_hardening 模块 README 应提及安全"
+        
+        # 检查 playbook 中的 FQCN
+        assert "community.general.pamd" in playbook, "pam_hardening playbook 应使用 pamd 模块"
+        assert "community.general.pam_limits" in playbook, "pam_hardening playbook 应使用 pam_limits 模块"
+        
+        # 检查 playbook 中的 vars_files
+        assert "vars_files" in playbook, "pam_hardening playbook 应引用 vars_files"
+        
+        # 检查 playbook 中的 check_mode
+        assert "check_mode" in playbook, "pam_hardening playbook 应包含 check_mode"
+        
+        # 检查 playbook 中的 no_log
+        assert "no_log" in playbook, "pam_hardening playbook 应包含 no_log 保护敏感信息"
+        
+        # 检查变量文件中的关键变量和警告
+        assert "password_policies" in vars_file, "pam_hardening vars 应包含 password_policies 变量"
+        assert "vault_pam_warning_banner" in vars_file, "pam_hardening vars 应包含 vault_pam_warning_banner 变量"
+        assert "account_lockout" in vars_file, "pam_hardening vars 应包含 account_lockout 变量"
+        assert "⚠️" in vars_file or "警告" in vars_file or "注意" in vars_file, (
+            "pam_hardening vars 应包含安全提示"
+        )
+
+    def test_kernel_tuning_module_specific_content(self, module_dirs: Dict[str, Path]) -> None:
+        """验证 kernel_tuning 模块包含特定内容"""
+        kernel_path = module_dirs["kernel_tuning"]
+        readme = (kernel_path / "README.md").read_text(encoding="utf-8")
+        playbook = (kernel_path / "playbook.yml").read_text(encoding="utf-8")
+        vars_file = (kernel_path / "vars" / "example_vars.yml").read_text(encoding="utf-8")
+        
+        # 检查 README 中的关键词
+        assert "内核" in readme, "kernel_tuning 模块 README 应提及内核"
+        assert "kernel" in readme, "kernel_tuning 模块 README 应提及 kernel"
+        assert "sysctl" in readme, "kernel_tuning 模块 README 应提及 sysctl"
+        
+        # 检查 playbook 中的 FQCN
+        assert "ansible.posix.sysctl" in playbook, "kernel_tuning playbook 应使用 sysctl 模块"
+        
+        # 检查 playbook 中的 vars_files
+        assert "vars_files" in playbook, "kernel_tuning playbook 应引用 vars_files"
+        
+        # 检查 playbook 中的 check_mode
+        assert "check_mode" in playbook, "kernel_tuning playbook 应包含 check_mode"
+        
+        # 检查变量文件中的关键变量和警告
+        assert "network_settings" in vars_file, "kernel_tuning vars 应包含 network_settings 变量"
+        assert "memory_settings" in vars_file, "kernel_tuning vars 应包含 memory_settings 变量"
+        assert "security_settings" in vars_file, "kernel_tuning vars 应包含 security_settings 变量"
+        assert "⚠️" in vars_file or "警告" in vars_file or "注意" in vars_file, (
+            "kernel_tuning vars 应包含安全提示"
         )

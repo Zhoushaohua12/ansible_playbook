@@ -708,6 +708,39 @@ system:
        external_deps:
          - "ansible.builtin collection"
          - "OpenSSH 客户端和服务器"
+     - id: auditd
+       name: Auditd 审计系统
+       doc: system/auditd/README.md
+       example: system/auditd/playbook.yml
+       summary: "配置 Linux 审计守护进程，提供系统级安全审计功能，支持文件访问监控、系统调用审计、合规性检查等场景"
+       external_deps:
+         - "ansible.builtin collection"
+         - "audit、audit-libs 软件包"
+         - "auditctl 和 augenrules 工具"
+         - "root 或 sudo 权限配置审计规则"
+       templates:
+         - "system/auditd/templates/auditd.conf.j2"
+         - "system/auditd/templates/audit.rules.j2"
+     - id: pam_hardening
+       name: PAM 安全加固
+       doc: system/pam_hardening/README.md
+       example: system/pam_hardening/playbook.yml
+       summary: "配置可插拔认证模块（PAM）安全策略，支持密码复杂度、账户锁定、会话限制、登录横幅等安全加固措施"
+       external_deps:
+         - "community.general collection (pamd, pam_limits 模块)"
+         - "libpwquality、cracklib 软件包"
+         - "pam_faillock、pam_limits 模块"
+         - "管理员权限修改 PAM 配置"
+     - id: kernel_tuning
+       name: Kernel 内核调优
+       doc: system/kernel_tuning/README.md
+       example: system/kernel_tuning/playbook.yml
+       summary: "配置 Linux 内核参数，优化系统性能、网络安全性、内存管理，支持 sysctl 参数调优和性能优化"
+       external_deps:
+         - "ansible.posix collection (sysctl 模块)"
+         - "sysctl 工具和配置文件"
+         - "管理员权限修改内核参数"
+         - "系统监控工具（可选）"
      - id: reboot
        name: Reboot 系统重启管理
        doc: system/reboot/README.md
