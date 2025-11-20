@@ -1,0 +1,242 @@
+---
+- name: selinux 模块使用示例演示
+  hosts: localhost
+  gather_facts: true
+  check_mode: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 基础 SELinux 配置 ==========
+    - name: 设置 SELinux 工作模式
+      ansible.posix.selinux:
+        state: "{{ desired_selinux_state }}"
+        policy: "{{ selinux_policy_type }}"
+      become: yes
+      register: selinux_result
+    
+    - name: 显示 SELinux 配置结果
+      ansible.builtin.debug:
+        msg: |
+          SELinux 配置已应用：
+          状态: {{ desired_selinux_state }}
+          策略: {{ selinux_policy_type }}
+          结果: {{ selinux_result }}
+    
+    # ========== 获取当前 SELinux 状态 ==========
+    - name: 检查当前 SELinux 状态
+      ansible.builtin.shell: |
+        echo "=== SELinux 当前状态 ==="
+        if command -v getenforce &> /dev/null; then
+          echo "SELinux 状态: $(getenforce 2>/dev/null || echo '未安装')"
+          echo "SELinux 政策: $(getsebool -a 2>/dev/null | head -5 | cut -d' ' -f1 || echo 'N/A')"
+        else
+          echo "SELinux 工具未安装"
+        fi
+      register: selinux_status
+      changed_when: false
+    
+    - name: 显示 SELinux 状态信息
+      ansible.builtin.debug:
+        msg: "{{ selinux_status.stdout_lines }}"
+    
+    # ========== 分阶段启用 SELinux ==========
+    - name: 第一阶段：启用 SELinux permissive 模式
+      ansible.posix.selinux:
+        state: permissive
+        policy: targeted
+      become: yes
+      when: enable_selinux_gradual | default(false)
+      register: selinux_permissive_result
+    
+    - name: 显示 permissive 模式启用结果
+      ansible.builtin.debug:
+        msg: |
+          已启用 SELinux permissive 模式
+          此模式下 SELinux 不会强制执行规则，仅记录违规
+          建议监控 /var/log/audit/audit.log 检查违规情况
+      when: enable_selinux_gradual | default(false)
+    
+    # ========== SELinux 强制模式配置 ==========
+    - name: 启用 SELinux enforcing 模式（严格模式）
+      ansible.posix.selinux:
+        state: enforcing
+        policy: targeted
+      become: yes
+      when: enable_selinux_enforcing | default(false)
+      register: selinux_enforcing_result
+    
+    - name: 显示 enforcing 模式启用结果
+      ansible.builtin.debug:
+        msg: |
+          已启用 SELinux enforcing 模式
+          此模式下 SELinux 将强制执行安全策略
+          未授权的操作将被阻止
+      when: enable_selinux_enforcing | default(false)
+    
+    # ========== 检查 SELinux 相关包 ==========
+    - name: 验证 SELinux 工具包安装状态
+      ansible.builtin.shell: |
+        echo "=== SELinux 相关工具检查 ==="
+        
+        # 检查 selinux-policy 包
+        if rpm -q selinux-policy &>/dev/null; then
+          echo "✓ selinux-policy: 已安装"
+        elif dpkg -l | grep -i selinux-policy &>/dev/null; then
+          echo "✓ selinux-policy: 已安装"
+        else
+          echo "✗ selinux-policy: 未安装"
+        fi
+        
+        # 检查 selinux-utils 包
+        if rpm -q selinux-utils &>/dev/null; then
+          echo "✓ selinux-utils: 已安装"
+        elif dpkg -l | grep -i selinux-utils &>/dev/null; then
+          echo "✓ selinux-utils: 已安装"
+        else
+          echo "✗ selinux-utils: 未安装"
+        fi
+        
+        # 检查 policycoreutils 包
+        if rpm -q policycoreutils &>/dev/null; then
+          echo "✓ policycoreutils: 已安装"
+        else
+          echo "✗ policycoreutils: 未安装"
+        fi
+      register: selinux_packages_check
+      changed_when: false
+      become: yes
+      ignore_errors: yes
+    
+    - name: 显示 SELinux 工具包状态
+      ansible.builtin.debug:
+        msg: "{{ selinux_packages_check.stdout_lines }}"
+    
+    # ========== 查看 SELinux 配置文件 ==========
+    - name: 检查 SELinux 配置文件内容
+      ansible.builtin.shell: |
+        echo "=== SELinux 配置文件摘要 ==="
+        if [ -f /etc/selinux/config ]; then
+          grep -v "^#" /etc/selinux/config | grep -v "^$"
+        else
+          echo "SELinux 配置文件不存在"
+        fi
+      register: selinux_config_content
+      changed_when: false
+      become: yes
+    
+    - name: 显示 SELinux 配置文件
+      ansible.builtin.debug:
+        msg: "{{ selinux_config_content.stdout_lines }}"
+    
+    # ========== 审计日志检查 ==========
+    - name: 检查 SELinux 审计日志
+      ansible.builtin.shell: |
+        echo "=== SELinux 审计日志（最近 5 条） ==="
+        if [ -f /var/log/audit/audit.log ]; then
+          grep "avc.*denied" /var/log/audit/audit.log 2>/dev/null | tail -5 || echo "无 SELinux 违规记录"
+        else
+          echo "审计日志文件不存在"
+        fi
+      register: selinux_audit_log
+      changed_when: false
+      become: yes
+      ignore_errors: yes
+    
+    - name: 显示审计日志
+      ansible.builtin.debug:
+        msg: "{{ selinux_audit_log.stdout_lines }}"
+    
+    # ========== SELinux 布尔值查询 ==========
+    - name: 查询 SELinux 布尔值
+      ansible.builtin.shell: |
+        echo "=== SELinux 布尔值示例 ==="
+        if command -v getsebool &> /dev/null; then
+          getsebool -a 2>/dev/null | head -10
+        else
+          echo "getsebool 命令不可用"
+        fi
+      register: selinux_booleans
+      changed_when: false
+      become: yes
+      ignore_errors: yes
+    
+    - name: 显示 SELinux 布尔值
+      ansible.builtin.debug:
+        msg: "{{ selinux_booleans.stdout_lines }}"
+    
+    # ========== 文件上下文检查 ==========
+    - name: 示例：查看文件的 SELinux 上下文
+      ansible.builtin.shell: |
+        echo "=== 文件 SELinux 上下文示例 ==="
+        ls -Z /etc/passwd 2>/dev/null | head -3 || echo "无法获取文件上下文"
+      register: file_context_example
+      changed_when: false
+    
+    - name: 显示文件上下文示例
+      ansible.builtin.debug:
+        msg: "{{ file_context_example.stdout_lines }}"
+    
+    # ========== SELinux 策略类型说明 ==========
+    - name: 显示 SELinux 策略类型说明
+      ansible.builtin.debug:
+        msg: |
+          SELinux 策略类型说明：
+          
+          1. targeted（推荐）:
+             - 只保护网络服务和常见守护进程
+             - 性能影响最小
+             - 适合大多数生产环境
+          
+          2. mls (Multi-Level Security):
+             - 提供多级安全标签机制
+             - 用于政府、金融等高安全需求场景
+             - 性能开销较大
+          
+          3. strict:
+             - 最严格的策略，限制所有进程
+             - 可能影响系统性能
+             - 仅用于特殊安全需求
+    
+    # ========== SELinux 模式说明 ==========
+    - name: 显示 SELinux 工作模式说明
+      ansible.builtin.debug:
+        msg: |
+          SELinux 工作模式说明：
+          
+          1. enforcing（强制）:
+             - 强制执行 SELinux 安全策略
+             - 违反策略的操作会被阻止
+             - 需要充分测试后才能启用
+          
+          2. permissive（宽容）:
+             - 记录违反策略的操作，但不阻止
+             - 用于审计和问题诊断
+             - 分阶段迁移到 enforcing 时使用
+          
+          3. disabled（禁用）:
+             - 完全禁用 SELinux
+             - 系统性能最佳，但安全性最低
+             - 切换回其他模式需要重启
+    
+    # ========== SELinux 配置完成总结 ==========
+    - name: SELinux 配置完成总结
+      ansible.builtin.debug:
+        msg: |
+          SELinux 配置已完成：
+          1. 当前 SELinux 状态: {{ desired_selinux_state }}
+          2. 应用的策略: {{ selinux_policy_type }}
+          3. 验证状态: getenforce
+          
+          分阶段迁移建议（从 disabled 到 enforcing）:
+          - 第 1 步：切换到 permissive 模式
+          - 第 2 步：监控 /var/log/audit/audit.log（1-2 周）
+          - 第 3 步：生成自定义规则（如需要）
+          - 第 4 步：切换到 enforcing 模式
+          - 第 5 步：持续监控审计日志
+          
+          常用 SELinux 命令参考：
+          - getenforce: 查看当前 SELinux 状态
+          - getsebool: 查询 SELinux 布尔值
+          - semanage: 管理 SELinux 策略
+          - audit2allow: 从审计日志生成规则

@@ -12,16 +12,20 @@
 | [group](#group-组管理) | ansible.builtin | 创建、修改、删除用户组 | - |
 | [service](#service-服务管理) | ansible.builtin | 管理 systemd 或 init 服务的启动状态 | systemd/init 系统 |
 | [systemd](#systemd-单元管理) | ansible.posix | 管理 systemd 单元文件、reload 配置、启用定时器 | systemd |
+| [hostname](#hostname-主机名配置) | ansible.builtin | 设置主机名，修改 hostname 配置文件 | - |
+| [timezone](#timezone-时区配置) | ansible.builtin | 设置系统时区，支持多种时区与硬件时钟同步 | 时区数据库 |
+| [locale](#locale-地区设置) | community.general | 生成与管理系统区域设置，支持多语言环境 | glibc-langpack/locales |
 | [firewalld](#firewalld-防火墙管理) | community.general | RHEL/CentOS 系统的动态防火墙规则管理 | firewalld 服务 |
 | [iptables](#iptables-防火墙与-nat-规则) | community.general | 内核级防火墙规则与 NAT 规则管理 | iptables 工具 |
-| [hostname](#hostname-主机名配置) | ansible.builtin | 设置主机名，修改 hostname 配置文件 | - |
+| [selinux](#selinux-安全增强) | ansible.posix | 管理 SELinux 安全策略与访问控制 | selinux-policy 包 |
 
 ## 学习路线
 
 1. **基础系统配置** → `user` & `group`：创建运维账号与权限隔离
-2. **服务生命周期** → `service` & `systemd`：启动、停止、启用服务与单元管理
-3. **主机身份** → `hostname`：设置主机名与域名配置
-4. **网络防护** → `firewalld` 与 `iptables`：配置防火墙规则与安全策略
+2. **主机标识与本地化** → `hostname`、`timezone`、`locale`：设置主机名、时区与地区设置
+3. **服务生命周期** → `service` & `systemd`：启动、停止、启用服务与单元管理
+4. **安全增强** → `selinux`：启用强制访问控制与安全策略
+5. **网络防护** → `firewalld` 与 `iptables`：配置防火墙规则与安全策略
 
 ## 与其他章节的关系
 
@@ -91,6 +95,9 @@
 - [group 组管理](group/README.md)
 - [service 服务管理](service/README.md)
 - [systemd 单元管理](systemd/README.md)
+- [hostname 主机名配置](hostname/README.md)
+- [timezone 时区配置](timezone/README.md)
+- [locale 地区设置](locale/README.md)
 - [firewalld 防火墙管理](firewalld/README.md)
 - [iptables 防火墙与 NAT 规则](iptables/README.md)
-- [hostname 主机名配置](hostname/README.md)
+- [selinux 安全增强](selinux/README.md)
