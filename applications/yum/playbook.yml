@@ -21,7 +21,7 @@
         update_cache_retries: "{{ yum_cache_retries }}"
         update_cache_retry_max_delay: "{{ yum_cache_retry_delay }}"
       notify: 
-        - yum cache updated
+        - YUM缓存已更新
 
     - name: 安装基础系统工具包
       ansible.builtin.yum:
@@ -29,7 +29,7 @@
         state: present
       register: base_tools_install
       notify: 
-        - base tools installed
+        - 基础工具已安装
 
     - name: 安装 EPEL 仓库（扩展包源）
       ansible.builtin.yum:
@@ -45,7 +45,7 @@
         enablerepo: "{{ web_server_repos }}"
       register: web_server_install
       notify: 
-        - web server installed
+        - Web服务已安装
 
     - name: 安装数据库服务软件
       ansible.builtin.yum:
@@ -55,7 +55,7 @@
       when: install_database | bool
       register: database_install
       notify: 
-        - database installed
+        - 数据库已安装
 
     - name: 安装开发工具组
       ansible.builtin.yum:
@@ -122,7 +122,7 @@
         autoremove: true
       when: cleanup_system | bool
       notify: 
-        - system cleaned
+        - 系统已清理
 
     - name: 验证关键服务软件包安装状态
       ansible.builtin.package_facts:
@@ -195,20 +195,20 @@
         state: present
       when: configure_yum_cron | bool
       notify: 
-        - yum cron configured
+        - YUM定时更新已配置
 
   handlers:
-    - name: yum cache updated
+    - name: YUM缓存已更新
       ansible.builtin.debug:
         msg: "YUM 缓存已更新"
-      listen: yum cache updated
+      listen: ["YUM缓存已更新", "yum cache updated"]
 
-    - name: base tools installed
+    - name: 基础工具已安装
       ansible.builtin.debug:
         msg: "基础系统工具安装完成"
-      listen: base tools installed
+      listen: ["基础工具已安装", "base tools installed"]
 
-    - name: web server installed
+    - name: Web服务已安装
       ansible.builtin.service:
         name: "{{ web_server_service }}"
         state: started
@@ -216,9 +216,9 @@
       when: 
         - web_server_install.changed | default(false)
         - manage_web_service | bool
-      listen: web server installed
+      listen: ["Web服务已安装", "web server installed"]
 
-    - name: database installed
+    - name: 数据库已安装
       ansible.builtin.service:
         name: "{{ database_service }}"
         state: started
@@ -226,16 +226,16 @@
       when: 
         - database_install.changed | default(false)
         - manage_database_service | bool
-      listen: database installed
+      listen: ["数据库已安装", "database installed"]
 
-    - name: system cleaned
+    - name: 系统已清理
       ansible.builtin.debug:
         msg: "系统清理完成，已移除不需要的软件包和缓存"
-      listen: system cleaned
+      listen: ["系统已清理", "system cleaned"]
 
-    - name: yum cron configured
+    - name: YUM定时更新已配置
       ansible.builtin.service:
         name: yum-cron
         state: restarted
         enabled: true
-      listen: yum cron configured
+      listen: ["YUM定时更新已配置", "yum cron configured"]

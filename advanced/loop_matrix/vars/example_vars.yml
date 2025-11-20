@@ -1,4 +1,5 @@
 ---
+# ⚠️ 本文件仅为示例，占位符必须使用 Ansible Vault 或环境变量替换
 # 循环矩阵示例变量，用于生成区域×环境×服务的组合
 loop_matrix_regions:
   - us-east-1

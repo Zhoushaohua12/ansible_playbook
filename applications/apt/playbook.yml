@@ -22,7 +22,7 @@
         update_cache_retries: "{{ apt_cache_retries }}"
         update_cache_retry_max_delay: "{{ apt_cache_retry_delay }}"
       notify: 
-        - apt cache updated
+        - APT缓存已更新
 
     - name: 升级系统软件包（可选）
       ansible.builtin.apt:
@@ -40,7 +40,7 @@
         install_recommends: "{{ install_recommends }}"
       register: base_tools_install
       notify: 
-        - base tools installed
+        - 基础工具已安装
 
     - name: 添加必要的软件源仓库
       ansible.builtin.apt_repository:
@@ -67,7 +67,7 @@
         install_recommends: "{{ web_server_install_recommends }}"
       register: web_server_install
       notify: 
-        - web server installed
+        - Web服务已安装
 
     - name: 安装数据库服务软件
       ansible.builtin.apt:
@@ -77,7 +77,7 @@
       when: install_database | bool
       register: database_install
       notify: 
-        - database installed
+        - 数据库已安装
 
     - name: 安装开发环境工具
       ansible.builtin.apt:
@@ -142,7 +142,7 @@
         autoclean: true
       when: cleanup_system | bool
       notify: 
-        - system cleaned
+        - 系统已清理
 
     - name: 验证关键服务软件包安装状态
       ansible.builtin.package_facts:
@@ -220,20 +220,20 @@
         state: present
       when: configure_auto_updates | bool
       notify: 
-        - auto updates configured
+        - 自动更新已配置
 
   handlers:
-    - name: apt cache updated
+    - name: APT缓存已更新
       ansible.builtin.debug:
         msg: "APT 缓存已更新"
-      listen: apt cache updated
+      listen: ["APT缓存已更新", "apt cache updated"]
 
-    - name: base tools installed
+    - name: 基础工具已安装
       ansible.builtin.debug:
         msg: "基础系统工具安装完成"
-      listen: base tools installed
+      listen: ["基础工具已安装", "base tools installed"]
 
-    - name: web server installed
+    - name: Web服务已安装
       ansible.builtin.service:
         name: "{{ web_server_service }}"
         state: started
@@ -241,9 +241,9 @@
       when: 
         - web_server_install.changed | default(false)
         - manage_web_service | bool
-      listen: web server installed
+      listen: ["Web服务已安装", "web server installed"]
 
-    - name: database installed
+    - name: 数据库已安装
       ansible.builtin.service:
         name: "{{ database_service }}"
         state: started
@@ -251,16 +251,16 @@
       when: 
         - database_install.changed | default(false)
         - manage_database_service | bool
-      listen: database installed
+      listen: ["数据库已安装", "database installed"]
 
-    - name: system cleaned
+    - name: 系统已清理
       ansible.builtin.debug:
         msg: "系统清理完成，已移除不需要的软件包和缓存"
-      listen: system cleaned
+      listen: ["系统已清理", "system cleaned"]
 
-    - name: auto updates configured
+    - name: 自动更新已配置
       ansible.builtin.service:
         name: unattended-upgrades
         state: restarted
         enabled: true
-      listen: auto updates configured
+      listen: ["自动更新已配置", "auto updates configured"]

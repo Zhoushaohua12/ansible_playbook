@@ -1,4 +1,5 @@
 ---
+# ⚠️ 本文件仅为示例，占位符必须使用 Ansible Vault 或环境变量替换
 # import_tasks 静态引入示例变量
 import_tasks_environment: "staging"
 import_task_services:
