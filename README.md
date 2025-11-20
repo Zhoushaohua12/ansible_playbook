@@ -61,6 +61,63 @@
 ## 如何学习
 按照"阅读文档 → 运行示例 → 修改变量 → 扩展任务"的顺序进行练习。建议先通读对应 README，结合注释理解变量含义，再亲自运行 Playbook 并在失败时参考"如何调试/常见错误"章节。完成基础练习后，可以尝试把同一台主机的需求拆分进多个特性目录中的示例，或根据业务自定义更多 handler、loop 与 include 组合，以加深理解。
 
+## 📚 开发与贡献指南
+
+本项目提供完整的开发文档和规范指南，帮助贡献者和学习者了解项目标准：
+
+### 核心文档
+
+- **[风格指南](docs/STYLE_GUIDE.md)** - 代码规范和文档风格
+  - Playbook 结构规范（字段顺序、FQCN 使用、幂等性要求）
+  - 变量文件规范（`⚠️` 警告标识、敏感信息处理）
+  - 文档规范（README 标准章节、中文优先原则）
+  - 命名规范（Play/Task/Handler 中文化）
+  - 安全规范（`no_log` 保护、权限最小化）
+  - 测试规范（必须通过的检查项）
+  - 元数据规范（新增模块流程）
+
+- **[最佳实践](docs/BEST_PRACTICES.md)** - 安全建议和优化技巧
+  - Playbook 运行流程（语法检查 → 干运行 → 正式执行）
+  - Ansible Vault 使用指南（加密单个变量、多环境管理）
+  - Check Mode（干运行）实践（任务级控制、局限性说明）
+  - 安全加固指南（敏感信息管理、权限最小化、命令注入防护）
+  - 性能优化建议（并行执行、事实缓存）
+  - 错误处理与调试（Block/Rescue 机制、调试技巧）
+  - 团队协作规范（版本控制、代码审查清单）
+
+- **[审计报告](AUDIT_REPORT.md)** - 代码质量审计和改进路线图
+  - 审计概览（覆盖 7 个维度：YAML/FQCN/gather_facts/中文规范/安全/测试/元数据）
+  - 统计数据（101 个 Playbook、95 个变量文件、118 个 README 的合规情况）
+  - 问题清单（按 Critical/High/Medium/Low 分类，附文件清单和修复建议）
+  - 专项审计（代码规范、中文文档、安全性、测试覆盖、元数据一致性、文档导航）
+  - 修复路线图（分阶段改进计划）
+
+- **[审计工具](tools/audit_check.py)** - 自动化规范检查脚本
+  - 自动扫描所有 Playbook、变量文件、README、元数据
+  - 检查 `gather_facts` 声明、`⚠️` 警告标识、中文名称、FQCN 使用
+  - 生成统计报告和问题清单
+  - 使用方法：`python3 tools/audit_check.py`
+
+### 贡献指南快速检查清单
+
+提交代码前，请确保：
+
+- [ ] Playbook 显式声明 `gather_facts`
+- [ ] 所有模块使用 FQCN（如 `ansible.builtin.copy`）
+- [ ] Play/Task/Handler 名称使用中文
+- [ ] `vars/example_vars.yml` 包含 `⚠️` 警告标识
+- [ ] 敏感信息使用 `vault_` 前缀
+- [ ] 涉及密码/Token 的任务设置 `no_log: true`
+- [ ] README.md 包含标准章节且全中文
+- [ ] 元数据 (`metadata/modules.yaml`) 已同步更新
+- [ ] 测试全部通过（`pytest`）
+
+### 学习路径推荐
+
+1. **初学者**：从基础模块开始（`files/`、`system/`），配合 [最佳实践](docs/BEST_PRACTICES.md) 第 1、3 节
+2. **进阶用户**：学习高级特性（`advanced/`）和云资源管理（`cloud/`），参考 [风格指南](docs/STYLE_GUIDE.md)
+3. **贡献者**：阅读 [审计报告](AUDIT_REPORT.md)，使用 [审计工具](tools/audit_check.py) 验证规范
+
 ## 如何运行示例
 1. 进入目标模块目录（如 `cd files/copy`），阅读 `README.md` 了解操作背景与安全提示。
 2. 打开 `vars/example_vars.yml`，根据环境调整占位变量，必要时使用 Ansible Vault 保护敏感信息。
