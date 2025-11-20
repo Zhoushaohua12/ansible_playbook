@@ -1,0 +1,12 @@
+# 应用访问日志示例
+# 格式：时间戳 IP地址 请求方法 URL 状态码 响应时间 用户代理
+2024-01-15T10:30:15+08:00 192.168.1.100 GET /api/users 200 45 "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+2024-01-15T10:30:16+08:00 192.168.1.101 POST /api/login 200 120 "PostmanRuntime/7.32.3"
+2024-01-15T10:30:17+08:00 192.168.1.102 GET /api/orders 401 15 "curl/7.81.0"
+2024-01-15T10:30:18+08:00 192.168.1.100 GET /api/products 200 78 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+2024-01-15T10:30:19+08:00 192.168.1.103 PUT /api/users/123 200 95 "axios/1.6.2"
+2024-01-15T10:30:20+08:00 192.168.1.104 DELETE /api/orders/456 204 25 "requests/2.31.0"
+2024-01-15T10:30:21+08:00 192.168.1.100 GET /api/health 200 5 "HealthChecker/1.0"
+2024-01-15T10:30:22+08:00 192.168.1.105 POST /api/register 201 150 "Mozilla/5.0 (iPhone; CPU iPhone OS 17_1)"
+2024-01-15T10:30:23+08:00 192.168.1.101 GET /api/dashboard 200 200 "Mozilla/5.0 (X11; Linux x86_64)"
+2024-01-15T10:30:24+08:00 192.168.1.106 GET /api/reports 500 0 "Wget/1.21.3"

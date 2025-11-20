@@ -1,0 +1,134 @@
+---
+- name: unarchive 模块综合演练
+  hosts: all
+  become: false
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 创建演练目标目录
+      ansible.builtin.file:
+        path: "{{ unarchive_dest_dir }}"
+        state: directory
+        mode: '0755'
+        owner: "{{ unarchive_owner }}"
+        group: "{{ unarchive_group }}"
+
+    - name: 从控制节点解压应用配置包
+      ansible.builtin.unarchive:
+        src: files/demo_config.tar.gz
+        dest: "{{ unarchive_dest_dir }}/"
+        owner: "{{ unarchive_owner }}"
+        group: "{{ unarchive_group }}"
+        mode: "{{ unarchive_mode }}"
+        creates: "{{ unarchive_dest_dir }}/demo_config/index.html"
+        # 中文提示：从控制节点传输压缩包并解压到远程主机
+
+    - name: 解压并排除特定文件（演示 exclude 参数）
+      ansible.builtin.unarchive:
+        src: files/demo_config.tar.gz
+        dest: "{{ unarchive_dest_dir }}/filtered/"
+        owner: "{{ unarchive_owner }}"
+        group: "{{ unarchive_group }}"
+        exclude:
+          - "demo_config/assets/*.js"  # 排除 JavaScript 文件
+        creates: "{{ unarchive_dest_dir }}/filtered/demo_config/index.html"
+        # 中文提示：使用 exclude 排除不需要的文件
+      when: unarchive_enable_exclude
+
+    - name: 使用额外解压选项（演示 extra_opts）
+      ansible.builtin.unarchive:
+        src: files/demo_config.tar.gz
+        dest: "{{ unarchive_dest_dir }}/with_opts/"
+        owner: "{{ unarchive_owner }}"
+        group: "{{ unarchive_group }}"
+        extra_opts:
+          - "--strip-components=1"  # 去除顶层目录
+        creates: "{{ unarchive_dest_dir }}/with_opts/index.html"
+        # 中文提示：extra_opts 传递额外参数给 tar 命令
+      when: unarchive_enable_extra_opts
+
+    - name: 模拟远程压缩包解压（remote_src 示例）
+      block:
+        - name: 先复制压缩包到远程主机
+          ansible.builtin.copy:
+            src: files/demo_config.tar.gz
+            dest: "{{ unarchive_remote_src_path }}"
+            mode: '0644'
+
+        - name: 从远程主机解压压缩包
+          ansible.builtin.unarchive:
+            src: "{{ unarchive_remote_src_path }}"
+            dest: "{{ unarchive_dest_dir }}/remote_src/"
+            remote_src: true  # 源文件在远程主机
+            owner: "{{ unarchive_owner }}"
+            group: "{{ unarchive_group }}"
+            creates: "{{ unarchive_dest_dir }}/remote_src/demo_config/index.html"
+            # 中文提示：remote_src=true 表示源文件已在远程主机
+      when: unarchive_enable_remote_src
+
+    - name: 安全解压演示（设置严格权限）
+      ansible.builtin.unarchive:
+        src: files/demo_config.tar.gz
+        dest: "{{ unarchive_dest_dir }}/secure/"
+        owner: root
+        group: "{{ unarchive_group }}"
+        mode: '0750'  # 更严格的权限
+        extra_opts:
+          - "--no-same-owner"      # 不使用压缩包中的所有者
+          - "--no-same-permissions" # 不使用压缩包中的权限
+        creates: "{{ unarchive_dest_dir }}/secure/demo_config/index.html"
+        # 中文提示：安全解压，强制使用指定权限
+      when: unarchive_enable_secure
+      become: true
+
+    - name: 版本化部署演示
+      ansible.builtin.file:
+        path: "{{ unarchive_dest_dir }}/releases/{{ unarchive_version }}"
+        state: directory
+        mode: '0755'
+        owner: "{{ unarchive_owner }}"
+        group: "{{ unarchive_group }}"
+      when: unarchive_enable_versioned
+
+    - name: 解压到版本目录
+      ansible.builtin.unarchive:
+        src: files/demo_config.tar.gz
+        dest: "{{ unarchive_dest_dir }}/releases/{{ unarchive_version }}/"
+        owner: "{{ unarchive_owner }}"
+        group: "{{ unarchive_group }}"
+        creates: "{{ unarchive_dest_dir }}/releases/{{ unarchive_version }}/demo_config/index.html"
+        # 中文提示：版本化部署，便于回滚
+      when: unarchive_enable_versioned
+
+    - name: 创建当前版本符号链接
+      ansible.builtin.file:
+        src: "{{ unarchive_dest_dir }}/releases/{{ unarchive_version }}/demo_config"
+        dest: "{{ unarchive_dest_dir }}/current"
+        state: link
+        owner: "{{ unarchive_owner }}"
+        group: "{{ unarchive_group }}"
+        # 中文提示：创建符号链接指向当前版本
+      when: unarchive_enable_versioned
+
+    - name: 验证解压结果
+      ansible.builtin.stat:
+        path: "{{ unarchive_dest_dir }}/demo_config/index.html"
+      register: unarchive_result
+
+    - name: 显示解压结果摘要
+      ansible.builtin.debug:
+        msg:
+          - "解压目录: {{ unarchive_dest_dir }}"
+          - "主要文件: {{ unarchive_dest_dir }}/demo_config/index.html"
+          - "配置文件: {{ unarchive_dest_dir }}/demo_config/config.ini"
+          - "资源目录: {{ unarchive_dest_dir }}/demo_config/assets/"
+          - "文件存在: {{ unarchive_result.stat.exists }}"
+          - "文件大小: {{ unarchive_result.stat.size | default('未知') }} 字节"
+
+    - name: 清理临时文件
+      ansible.builtin.file:
+        path: "{{ unarchive_remote_src_path }}"
+        state: absent
+      when: unarchive_enable_cleanup and unarchive_enable_remote_src
+      # 中文提示：清理远程主机上的临时压缩包

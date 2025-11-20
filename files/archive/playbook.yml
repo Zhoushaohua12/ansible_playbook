@@ -1,0 +1,172 @@
+---
+- name: archive 模块综合演练
+  hosts: all
+  become: false
+  vars_files:
+    - vars/example_vars.yml
+
+  tasks:
+    - name: 创建演练源目录
+      ansible.builtin.file:
+        path: "{{ archive_source_dir }}"
+        state: directory
+        mode: '0755'
+        owner: "{{ archive_owner }}"
+        group: "{{ archive_group }}"
+
+    - name: 准备示例文件
+      ansible.builtin.copy:
+        src: source_dir/
+        dest: "{{ archive_source_dir }}/"
+        mode: '0644'
+        owner: "{{ archive_owner }}"
+        group: "{{ archive_group }}"
+        # 中文提示：复制示例文件到演练目录
+
+    - name: 创建基础归档（tar.gz 格式）
+      ansible.builtin.archive:
+        path: "{{ archive_source_dir }}"
+        dest: "{{ archive_dest_dir }}/basic_archive.tar.gz"
+        format: tar.gz
+        owner: "{{ archive_owner }}"
+        group: "{{ archive_group }}"
+        mode: "{{ archive_mode }}"
+        # 中文提示：创建基础的 tar.gz 格式归档
+
+    - name: 创建排除临时文件的归档
+      ansible.builtin.archive:
+        path: "{{ archive_source_dir }}"
+        dest: "{{ archive_dest_dir }}/clean_archive.tar.gz"
+        format: tar.gz
+        exclude_path:
+          - "{{ archive_source_dir }}/temp/"
+          - "{{ archive_source_dir }}/*.tmp"
+        owner: "{{ archive_owner }}"
+        group: "{{ archive_group }}"
+        mode: "{{ archive_mode }}"
+        # 中文提示：使用 exclude_path 排除临时文件
+      when: archive_enable_exclude
+
+    - name: 创建 ZIP 格式归档（Windows 兼容）
+      ansible.builtin.archive:
+        path: "{{ archive_source_dir }}"
+        dest: "{{ archive_dest_dir }}/windows_compatible.zip"
+        format: zip
+        owner: "{{ archive_owner }}"
+        group: "{{ archive_group }}"
+        mode: "{{ archive_mode }}"
+        # 中文提示：ZIP 格式便于 Windows 系统使用
+      when: archive_enable_zip
+
+    - name: 创建高压缩率归档（tar.bz2 格式）
+      ansible.builtin.archive:
+        path: "{{ archive_source_dir }}"
+        dest: "{{ archive_dest_dir }}/high_compression.tar.bz2"
+        format: tar.bz2
+        owner: "{{ archive_owner }}"
+        group: "{{ archive_group }}"
+        mode: "{{ archive_mode }}"
+        # 中文提示：bz2 格式提供更高的压缩率
+      when: archive_enable_bz2
+
+    - name: 多路径归档（同时归档多个目录）
+      ansible.builtin.archive:
+        path:
+          - "{{ archive_source_dir }}/config/"
+          - "{{ archive_source_dir }}/logs/"
+          - "{{ archive_source_dir }}/assets/"
+        dest: "{{ archive_dest_dir }}/multi_path_archive.tar.gz"
+        format: tar.gz
+        owner: "{{ archive_owner }}"
+        group: "{{ archive_group }}"
+        mode: "{{ archive_mode }}"
+        # 中文提示：同时归档多个指定路径
+      when: archive_enable_multi_path
+
+    - name: 版本化归档（带时间戳）
+      ansible.builtin.archive:
+        path: "{{ archive_source_dir }}"
+        dest: "{{ archive_dest_dir }}/versioned_{{ archive_version }}_{{ ansible_date_time.epoch }}.tar.gz"
+        format: tar.gz
+        exclude_path:
+          - "{{ archive_source_dir }}/temp/"
+        owner: "{{ archive_owner }}"
+        group: "{{ archive_group }}"
+        mode: "{{ archive_mode }}"
+        # 中文提示：版本化归档，便于管理
+      when: archive_enable_versioned
+
+    - name: 安全归档演示（谨慎使用 remove 参数）
+      ansible.builtin.archive:
+        path: "{{ archive_source_dir }}/temp/"
+        dest: "{{ archive_dest_dir }}/temp_archive.tar.gz"
+        format: tar.gz
+        remove: true  # ⚠️ 危险操作：归档后删除源文件
+        owner: "{{ archive_owner }}"
+        group: "{{ archive_group }}"
+        mode: "{{ archive_mode }}"
+        # 中文提示：remove=true 会删除源文件，请谨慎使用
+      when: archive_enable_remove
+      no_log: true  # 避免在日志中暴露删除操作
+
+    - name: 验证归档文件创建
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: archive_files
+      loop:
+        - "{{ archive_dest_dir }}/basic_archive.tar.gz"
+        - "{{ archive_dest_dir }}/clean_archive.tar.gz"
+        - "{{ archive_dest_dir }}/windows_compatible.zip"
+        - "{{ archive_dest_dir }}/high_compression.tar.bz2"
+      when: item is file
+
+    - name: 显示归档结果摘要
+      ansible.builtin.debug:
+        msg:
+          - "源目录: {{ archive_source_dir }}"
+          - "目标目录: {{ archive_dest_dir }}"
+          - "基础归档: {{ archive_dest_dir }}/basic_archive.tar.gz"
+          - "清理归档: {{ archive_dest_dir }}/clean_archive.tar.gz"
+          - "ZIP 归档: {{ archive_dest_dir }}/windows_compatible.zip"
+          - "高压缩归档: {{ archive_dest_dir }}/high_compression.tar.bz2"
+          - "排除功能: {{ archive_enable_exclude }}"
+          - "多路径功能: {{ archive_enable_multi_path }}"
+          - "版本化功能: {{ archive_enable_versioned }}"
+          - "删除源文件: {{ archive_enable_remove }} (⚠️ 危险)"
+
+    - name: 显示归档文件详细信息
+      ansible.builtin.debug:
+        msg:
+          - "文件: {{ item.item }}"
+          - "存在: {{ item.stat.exists | default(false) }}"
+          - "大小: {{ item.stat.size | default('未知') }} 字节"
+          - "权限: {{ item.stat.mode | default('未知') }}"
+          - "所有者: {{ item.stat.pw_name | default('未知') }}"
+          - "修改时间: {{ item.stat.mtime | default('未知') }}"
+      loop: "{{ archive_files.results }}"
+      when: item.stat is defined and item.stat.exists
+
+    - name: 清理演示文件（可选）
+      ansible.builtin.file:
+        path: "{{ archive_source_dir }}"
+        state: absent
+      when: archive_enable_cleanup
+      # 中文提示：清理演练创建的源文件
+
+    - name: 创建归档信息文件
+      ansible.builtin.copy:
+        content: |
+          # 归档操作摘要
+          # 创建时间: {{ ansible_date_time.iso8601 }}
+          # 源目录: {{ archive_source_dir }}
+          # 目标目录: {{ archive_dest_dir }}
+          # 归档文件列表:
+          # - basic_archive.tar.gz
+          # - clean_archive.tar.gz
+          # - windows_compatible.zip
+          # - high_compression.tar.bz2
+          # 操作主机: {{ inventory_hostname }}
+          # 操作用户: {{ ansible_user_id }}
+        dest: "{{ archive_dest_dir }}/archive_info.txt"
+        mode: '0644'
+      when: archive_enable_info_file

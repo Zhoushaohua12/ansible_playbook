@@ -1,0 +1,26 @@
+# 错误日志示例
+# 格式：时间戳 错误级别 错误代码 错误消息 堆栈信息
+
+2024-01-15T10:25:30+08:00 ERROR 500 Database connection failed: Connection timeout
+  Stack: MySQLConnection.connect() at line 145
+  Context: Attempting to connect to primary database
+  
+2024-01-15T10:26:15+08:00 WARN 404 API endpoint not found: /api/legacy/users
+  Stack: RouteHandler.dispatch() at line 89
+  Context: Client accessing deprecated endpoint
+  
+2024-01-15T10:27:45+08:00 ERROR 403 Authentication failed: Invalid token
+  Stack: JWTMiddleware.validate() at line 234
+  Context: Token expired or malformed
+  
+2024-01-15T10:28:12+08:00 INFO 200 User login successful: user_id=12345
+  Stack: AuthController.login() at line 167
+  Context: Normal user authentication
+  
+2024-01-15T10:29:03+08:00 ERROR 500 Internal server error: Null pointer exception
+  Stack: UserService.getUserProfile() at line 89
+  Context: User profile retrieval failed
+  
+2024-01-15T10:29:30+08:00 WARN 429 Rate limit exceeded: IP=192.168.1.100
+  Stack: RateLimitMiddleware.check() at line 45
+  Context: API rate limiting applied

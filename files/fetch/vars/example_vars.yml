@@ -1,0 +1,46 @@
+---
+# ⚠️ fetch 模块示例变量配置
+# 说明：所有变量为教学示例，实际使用时请根据环境调整路径和权限
+
+# 源目录（远程主机上的文件位置）
+fetch_source_dir: "/tmp/ansible_fetch_demo"
+
+# 目标目录（控制节点上的存储位置）
+fetch_dest_dir: "/tmp/ansible_fetch_collected"
+
+# 日志文件列表（用于批量获取演示）
+fetch_log_files:
+  - "access.log"
+  - "error.log"
+  - "config_checksum.txt"
+
+# 配置文件权限设置
+fetch_config_mode: "0644"
+
+# 功能开关
+fetch_enable_batch_collection: true
+fetch_enable_special_file: false
+fetch_enable_secure_fetch: true
+
+# 校验和控制
+fetch_validate_checksum: true
+fetch_fail_on_missing: true
+
+# ⚠️ 安全提醒：
+# 1. 获取敏感文件时请使用 no_log: true
+# 2. 设置适当的文件权限（如 0600）保护敏感数据
+# 3. 确保控制节点有足够的磁盘空间
+# 4. 定期清理获取的文件避免磁盘空间不足
+# 5. 使用 Ansible Vault 保护包含敏感路径的变量文件
+
+# 备份策略变量
+fetch_backup_retention_days: 30
+fetch_enable_compression: false
+
+# 网络和性能控制
+fetch_timeout_seconds: 300
+fetch_max_file_size_mb: 100
+
+# 调试信息（中文）
+fetch_debug_message: "这是 fetch 模块的中文调试信息，用于演示文件获取功能"
+fetch_runtime_env: "staging"
