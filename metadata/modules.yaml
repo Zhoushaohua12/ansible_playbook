@@ -535,6 +535,15 @@ database:
         - "community.postgresql collection"
         - "psycopg2-binary Python 库"
         - "pg_dump 和 pg_restore 工具"
+    - id: postgresql_user
+      name: PostgreSQL 用户管理
+      doc: database/postgresql_user/README.md
+      example: database/postgresql_user/playbook.yml
+      summary: "PostgreSQL 用户和角色管理，支持创建用户、授权、密码管理和权限撤销"
+      external_deps:
+        - "community.postgresql collection"
+        - "psycopg2-binary Python 库"
+        - "PostgreSQL 管理员权限（SUPERUSER 或 CREATEROLE）"
     - id: mongodb_user
       name: MongoDB 用户管理
       doc: database/mongodb_user/README.md

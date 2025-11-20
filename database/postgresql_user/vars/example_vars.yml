@@ -1,0 +1,55 @@
+---
+# PostgreSQL 连接配置
+postgres_host: "db.example.com"  # PostgreSQL 服务器地址，可以是 localhost 或远程主机
+postgres_port: 5432  # PostgreSQL 服务器端口
+postgres_admin_user: "postgres"  # 管理员用户名，需要 SUPERUSER 或足够的权限
+postgres_admin_password: "PLEASE_CHANGE_THIS_ADMIN_PASSWORD"  # ⚠️ 管理员密码 - 生产环境请使用 ansible-vault 加密
+
+# 应用用户配置
+app_user_name: "webapp_user"  # 应用数据库用户名
+app_user_password: "PLEASE_CHANGE_THIS_APP_PASSWORD"  # ⚠️ 应用用户密码 - 生产环境请使用 ansible-vault 加密
+app_database: "webapp_db"  # 应用数据库名称
+# 应用用户权限列表 - 通过 loop 循环授予多个权限
+app_user_privs_list:
+  - "SELECT"
+  - "INSERT"
+  - "UPDATE"
+  - "DELETE"
+
+# 只读用户配置
+readonly_user_name: "report_user"  # 只读用户名，用于报表和查询
+readonly_user_password: "PLEASE_CHANGE_THIS_READONLY_PASSWORD"  # ⚠️ 只读用户密码 - 生产环境请使用 ansible-vault 加密
+
+# 日志库配置
+log_user_name: "logger_user"  # 日志库写入用户名
+log_user_password: "PLEASE_CHANGE_THIS_LOG_PASSWORD"  # ⚠️ 日志用户密码
+log_database: "app_logs"  # 日志数据库名称
+
+# 备份用户配置
+backup_user_name: "backup_user"  # 备份用户名
+backup_user_password: "PLEASE_CHANGE_THIS_BACKUP_PASSWORD"  # ⚠️ 备份用户密码
+backup_databases:  # 备份用户需要访问的数据库列表
+  - "{{ app_database }}"
+  - "{{ log_database }}"
+
+# 权限角色配置（无登录权限）
+readonly_role_name: "readonly_role"  # 只读角色名称，此角色无登录权限
+
+# 测试用户清理配置
+test_user_names:  # 需要删除的测试用户列表
+  - "test_user"
+  - "demo_user"
+cleanup_test_users: false  # 是否清理测试用户，生产环境设为 true
+
+# 密码轮换配置（可选）
+# postgres_user_password_updates:  # 用于定期更新多个用户的密码
+#   - { name: "app_user", password: "NEW_APP_PASSWORD" }
+#   - { name: "report_user", password: "NEW_REPORT_PASSWORD" }
+
+# ⚠️ 安全提示：
+# 1. 所有密码字段都是占位符，请替换为真实密码
+# 2. 生产环境务必使用 ansible-vault encrypt 加密此文件
+# 3. 建议配合 vars_prompt 或外部密钥管理系统
+# 4. 定期更新数据库用户密码，建立轮换机制
+# 5. 遵循最小权限原则，仅授予必要的权限
+# 6. 生产环境启用 SSL 连接参数并配置 pg_hba.conf 访问控制

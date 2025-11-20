@@ -57,6 +57,12 @@ pip install pymongo
 - **示例**: [postgresql_db/playbook.yml](postgresql_db/playbook.yml)
 - **功能**: 创建/删除 PostgreSQL 数据库，设置 owner 和 encoding
 
+### PostgreSQL 用户管理
+- **模块**: `community.postgresql.postgresql_user`
+- **文档**: [postgresql_user/README.md](postgresql_user/README.md)
+- **示例**: [postgresql_user/playbook.yml](postgresql_user/playbook.yml)
+- **功能**: 创建/删除 PostgreSQL 用户，授予/撤销权限，管理角色和密码
+
 ### MongoDB 用户管理
 - **模块**: `community.mongodb.mongodb_user`
 - **文档**: [mongodb_user/README.md](mongodb_user/README.md)
@@ -171,6 +177,7 @@ ansible-playbook database/mysql_user/playbook.yml
 - [MySQL 用户管理](mysql_user/README.md) - MySQL 用户创建和权限管理
 - [MySQL 数据库管理](mysql_db/README.md) - MySQL 数据库和表管理
 - [PostgreSQL 数据库管理](postgresql_db/README.md) - PostgreSQL 数据库管理
+- [PostgreSQL 用户管理](postgresql_user/README.md) - PostgreSQL 用户和角色管理
 - [MongoDB 用户管理](mongodb_user/README.md) - MongoDB 用户和角色管理
 - [监控模块总览](../monitoring/README.md) - 配合数据库监控使用
 - [应用管理指南](../applications/README.md) - 应用部署与数据库集成
