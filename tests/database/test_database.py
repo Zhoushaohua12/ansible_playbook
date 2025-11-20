@@ -7,17 +7,19 @@ import re
 import pytest
 import yaml
 
-MODULES = ["mysql_user", "mysql_db", "postgresql_db", "mongodb_user"]
+MODULES = ["mysql_user", "mysql_db", "postgresql_db", "postgresql_user", "mongodb_user"]
 FQCN_EXPECTATIONS = {
     "mysql_user": "community.mysql.mysql_user",
     "mysql_db": "community.mysql.mysql_db",
     "postgresql_db": "community.postgresql.postgresql_db",
+    "postgresql_user": "community.postgresql.postgresql_user",
     "mongodb_user": "community.mongodb.mongodb_user",
 }
 COLLECTION_DEPENDENCIES = {
     "mysql_user": "community.mysql",
     "mysql_db": "community.mysql",
     "postgresql_db": "community.postgresql",
+    "postgresql_user": "community.postgresql",
     "mongodb_user": "community.mongodb",
 }
 
@@ -99,6 +101,7 @@ class TestModuleDocumentation(TestDatabaseFixtures):
             "mysql_user": ["PyMySQL", "mysqlclient"],
             "mysql_db": ["PyMySQL", "mysqlclient"],
             "postgresql_db": ["psycopg2"],
+            "postgresql_user": ["psycopg2"],
             "mongodb_user": ["pymongo"],
         }
         for name, path in module_dirs.items():
@@ -108,6 +111,19 @@ class TestModuleDocumentation(TestDatabaseFixtures):
             assert has_keyword, (
                 f"{name} README.md 应提到需要安装 Python 库：{', '.join(keywords)}"
             )
+
+    def test_postgresql_user_readme_specific_content(self, module_dirs: Dict[str, Path]) -> None:
+        """检查 postgresql_user README 是否包含特定内容"""
+        if "postgresql_user" not in module_dirs:
+            return
+        
+        content = (module_dirs["postgresql_user"] / "README.md").read_text(encoding="utf-8")
+        # 检查是否提到 privs 字段
+        assert "privs" in content, "postgresql_user README.md 应包含 privs 参数说明"
+        # 检查是否提到 role_attr_flags
+        assert "role_attr_flags" in content, "postgresql_user README.md 应包含 role_attr_flags 参数说明"
+        # 检查是否提到权限隔离
+        assert "权限" in content or "权限最小化" in content, "postgresql_user README.md 应包含权限管理说明"
 
 
 class TestPlaybooks(TestDatabaseFixtures):
@@ -172,6 +188,26 @@ class TestPlaybooks(TestDatabaseFixtures):
             content = (path / "playbook.yml").read_text(encoding="utf-8")
             assert "vars_files" in content, f"{name} playbook 应引用 vars/example_vars.yml"
 
+    def test_postgresql_user_playbook_content(self, module_dirs: Dict[str, Path]) -> None:
+        """检查 postgresql_user playbook 是否包含特定内容"""
+        if "postgresql_user" not in module_dirs:
+            return
+        
+        content = (module_dirs["postgresql_user"] / "playbook.yml").read_text(encoding="utf-8")
+        # 检查是否使用 community.postgresql.postgresql_user 模块
+        assert "community.postgresql.postgresql_user" in content, (
+            "postgresql_user playbook 应使用 FQCN community.postgresql.postgresql_user"
+        )
+        # 检查是否包含 privs 字段
+        assert "privs:" in content, "postgresql_user playbook 应包含 privs 字段"
+        # 检查是否包含 loop 循环示例
+        assert "loop:" in content, "postgresql_user playbook 应包含 loop 循环示例"
+        # 检查是否包含 no_log 保护
+        assert "no_log: true" in content, "postgresql_user playbook 应包含 no_log: true"
+        # 检查是否使用了中文任务名
+        has_chinese = any("\u4e00" <= ch <= "\u9fff" for ch in content)
+        assert has_chinese, "postgresql_user playbook 应包含中文任务名或注释"
+
     def test_playbooks_variables_have_chinese_comments(self, module_dirs: Dict[str, Path]) -> None:
         """检查 playbook 中使用的变量是否在 vars 文件中有中文注释"""
         for name, path in module_dirs.items():
@@ -223,6 +259,7 @@ class TestVarsFiles(TestDatabaseFixtures):
             "mysql_user": ["mysql_host", "mysql_port", "mysql_admin"],
             "mysql_db": ["mysql_host", "mysql_port", "mysql_admin"],
             "postgresql_db": ["postgres_host", "postgres_port", "postgres_admin"],
+            "postgresql_user": ["postgres_host", "postgres_port", "postgres_admin", "postgres_user", "postgres_role"],
             "mongodb_user": ["mongodb_host", "mongodb_port", "mongodb_admin"],
         }
         for name, path in module_dirs.items():

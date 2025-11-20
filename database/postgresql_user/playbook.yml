@@ -1,0 +1,198 @@
+---
+- name: PostgreSQL 用户管理示例演示
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    - name: 创建应用数据库用户 - 带完整权限
+      community.postgresql.postgresql_user:
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        db: postgres
+        name: "{{ app_user_name }}"
+        password: "{{ app_user_password }}"
+        role_attr_flags: LOGIN
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 授予应用用户数据库连接权限
+      community.postgresql.postgresql_user:
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        db: "{{ app_database }}"
+        name: "{{ app_user_name }}"
+        privs: CONNECT
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 授予应用用户表操作权限 - 循环处理多个权限
+      community.postgresql.postgresql_user:
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        db: "{{ app_database }}"
+        name: "{{ app_user_name }}"
+        privs: "{{ app_database }}.public.*:{{ item }}"
+        state: present
+      check_mode: true
+      no_log: true
+      loop: "{{ app_user_privs_list }}"
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 创建只读用户 - 用于报表查询
+      community.postgresql.postgresql_user:
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        db: postgres
+        name: "{{ readonly_user_name }}"
+        password: "{{ readonly_user_password }}"
+        role_attr_flags: LOGIN
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 授予只读用户数据库连接权限
+      community.postgresql.postgresql_user:
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        db: "{{ app_database }}"
+        name: "{{ readonly_user_name }}"
+        privs: CONNECT
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 授予只读用户的查询权限 - 仅允许 SELECT
+      community.postgresql.postgresql_user:
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        db: "{{ app_database }}"
+        name: "{{ readonly_user_name }}"
+        privs: "{{ app_database }}.public.*:SELECT"
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 创建日志库写入用户 - 进程日志账号
+      community.postgresql.postgresql_user:
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        db: postgres
+        name: "{{ log_user_name }}"
+        password: "{{ log_user_password }}"
+        role_attr_flags: LOGIN
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 授予日志用户对日志表的写入权限
+      community.postgresql.postgresql_user:
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        db: "{{ log_database }}"
+        name: "{{ log_user_name }}"
+        privs: "{{ log_database }}.public.*:INSERT,UPDATE"
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 创建备份用户 - 仅 SELECT 权限
+      community.postgresql.postgresql_user:
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        db: postgres
+        name: "{{ backup_user_name }}"
+        password: "{{ backup_user_password }}"
+        role_attr_flags: LOGIN
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 授予备份用户全库查询权限
+      community.postgresql.postgresql_user:
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        db: "{{ item }}"
+        name: "{{ backup_user_name }}"
+        privs: "CONNECT"
+        state: present
+      check_mode: true
+      no_log: true
+      loop: "{{ backup_databases }}"
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 创建权限角色 - 无登录权限的只读角色
+      community.postgresql.postgresql_user:
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        db: postgres
+        name: "{{ readonly_role_name }}"
+        role_attr_flags: NOLOGIN
+        state: present
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 删除测试用户 - 生产环境清理
+      community.postgresql.postgresql_user:
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        db: postgres
+        name: "{{ item }}"
+        state: absent
+      check_mode: true
+      no_log: true
+      loop: "{{ test_user_names }}"
+      when: cleanup_test_users | default(false) | bool
+      delegate_to: "{{ postgres_host }}"
+    
+    - name: 定期更新用户密码 - 密码轮换
+      community.postgresql.postgresql_user:
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+        db: postgres
+        name: "{{ item.name }}"
+        password: "{{ item.password }}"
+        state: present
+      check_mode: true
+      no_log: true
+      loop: "{{ postgres_user_password_updates }}"
+      when: postgres_user_password_updates is defined and postgres_user_password_updates | length > 0
+      delegate_to: "{{ postgres_host }}"
