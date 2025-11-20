@@ -1,0 +1,259 @@
+# ⚠️ 本文件仅为示例，占位符必须使用 Ansible Vault 或环境变量替换
+
+# ========== 测试文件配置 ==========
+# 测试配置文件路径
+test_config_file: "/tmp/app_config.ini"
+
+# 配置验证脚本路径
+validate_script: "/tmp/validate_config.sh"
+
+# ========== 基础替换配置 ==========
+# 新数据库端口
+new_db_port: "5432"
+
+# ========== 正则表达式高级用法配置 ==========
+# 新服务器主机
+new_server_host: "192.168.1.100"
+
+# ========== 多行替换配置 ==========
+# 新数据库配置
+new_db_host: "db.example.com"
+new_db_user: "app_user"
+new_db_password: "{{ vault_db_password }}"  # 敏感信息，应使用 Vault
+
+# ========== 条件替换配置 ==========
+# 是否启用调试模式
+enable_debug: true
+
+# ========== 边界控制替换配置 ==========
+# 新日志级别
+new_log_level: "DEBUG"
+
+# ========== 敏感信息替换配置 ==========
+# 新密码（敏感信息，应使用 Ansible Vault）
+vault_new_password: "{{ vault_app_password }}"
+
+# ========== 批量替换配置 ==========
+# 批量替换列表
+batch_replacements:
+  - description: "更新服务器端口"
+    regexp: '^port\s*=\s*\d+$'
+    replace: 'port = 9090'
+  - description: "更新最大文件大小"
+    regexp: '^max_size\s*=\s*.+$'
+    replace: 'max_size = 500MB'
+  - description: "更新工作进程数"
+    regexp: '^workers\s*=\s*\d+$'
+    replace: 'workers = 8'
+
+# ========== 验证功能配置 ==========
+# 新工作进程数
+new_workers_count: "8"
+
+# ========== 文件权限和编码配置 ==========
+# 新备份次数
+new_backup_count: "10"
+
+# ========== 安全提示 ==========
+# ⚠️  特别注意：
+# 1. 敏感信息（如密码、密钥等）必须使用 Ansible Vault 加密存储
+# 2. 正则表达式在生产环境使用前必须充分测试
+# 3. 重要配置文件修改前必须启用备份功能
+# 4. 建议使用 validate 参数验证配置文件语法正确性
+# 5. 生产环境部署前，一定要使用 --check 模式预览：
+#    ansible-playbook files/replace/playbook.yml --check
+# 6. 对于大型配置文件，考虑使用更高效的文本处理方法
+# 7. 建立配置文件修改的审批和回滚流程
+
+# ========== 常用正则表达式示例 ==========
+# 常用正则表达式模式：
+common_regex_patterns:
+  # 匹配 IP 地址
+  ip_address: '(\d{1,3}\.){3}\d{1,3}'
+  
+  # 匹配端口号
+  port_number: '\d{1,5}'
+  
+  # 匹配邮箱地址
+  email_address: '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+  
+  # 匹配 URL
+  url: 'https?://[^\s/$.?#].[^\s]*'
+  
+  # 匹配配置项（key = value）
+  config_line: '^(\w+)\s*=\s*(.+)$'
+  
+  # 匹配注释行
+  comment_line: '^\s*#.*$'
+  
+  # 匹配空行
+  empty_line: '^\s*$'
+  
+  # 匹配数字
+  number: '\d+'
+  
+  # 匹配浮点数
+  float_number: '\d+\.\d+'
+  
+  # 匹配日期（YYYY-MM-DD）
+  date: '\d{4}-\d{2}-\d{2}'
+  
+  # 匹配时间（HH:MM:SS）
+  time: '\d{2}:\d{2}:\d{2}'
+
+# ========== 配置文件类型示例 ==========
+# 不同类型配置文件的替换示例：
+config_file_types:
+  # INI 格式配置文件
+  ini_file:
+    pattern: '^(\w+)\s*=\s*(.+)$'
+    example: "host = localhost"
+  
+  # YAML 格式配置文件
+  yaml_file:
+    pattern: '^(\w+):\s*(.+)$'
+    example: "host: localhost"
+  
+  # JSON 格式配置文件
+  json_file:
+    pattern: '"(\w+)":\s*"(.+)"'
+    example: '"host": "localhost"'
+  
+  # XML 格式配置文件
+  xml_file:
+    pattern: '<(\w+)>([^<]+)</\1>'
+    example: "<host>localhost</host>"
+  
+  # Properties 格式配置文件
+  properties_file:
+    pattern: '^(\w+)\s*=\s*(.+)$'
+    example: "host=localhost"
+  
+  # Shell 脚本变量
+  shell_variables:
+    pattern: '^(\w+)="?(.+)"?$'
+    example: 'HOST="localhost"'
+
+# ========== 替换策略示例 ==========
+# 不同替换场景的策略：
+replacement_strategies:
+  # 安全替换（带备份和验证）
+  safe_replacement:
+    backup: true
+    validate: true
+    no_log_sensitive: true
+  
+  # 快速替换（无备份无验证）
+  fast_replacement:
+    backup: false
+    validate: false
+    no_log_sensitive: false
+  
+  # 批量替换（处理多个文件）
+  batch_replacement:
+    use_loop: true
+    parallel: false
+    backup: true
+  
+  # 敏感信息替换
+  sensitive_replacement:
+    backup: true
+    no_log: true
+    use_vault: true
+
+# ========== 验证命令示例 ==========
+# 常用配置文件验证命令：
+validation_commands:
+  # Nginx 配置验证
+  nginx: 'nginx -t %s'
+  
+  # Apache 配置验证
+  apache: 'apache2ctl configtest'  # Ubuntu/Debian
+  # apache: 'httpd -t %s'         # RHEL/CentOS
+  
+  # MySQL 配置验证
+  mysql: 'mysqld --help --verbose'
+  
+  # PHP 配置验证
+  php: 'php -l %s'
+  
+  # Shell 脚本语法验证
+  shell: 'bash -n %s'
+  
+  # Python 脚本语法验证
+  python: 'python -m py_compile %s'
+  
+  # YAML 格式验证
+  yaml: 'python -c "import yaml; yaml.safe_load(open(\"%s\"))"'
+  
+  # JSON 格式验证
+  json: 'python -c "import json; json.load(open(\"%s\"))"'
+
+# ========== 备份策略示例 ==========
+# 备份文件管理策略：
+backup_strategies:
+  # 时间戳备份
+  timestamp_backup:
+    format: '.%Y%m%d_%H%M%S.backup'
+    retention_days: 30
+  
+  # 版本号备份
+  version_backup:
+    format: '.v{{ version }}.backup'
+    retention_count: 10
+  
+  # 简单备份
+  simple_backup:
+    format: '.backup'
+    overwrite: true
+
+# ========== 错误处理示例 ==========
+# 常见错误类型和处理方法：
+error_handling:
+  # 正则表达式错误
+  regex_error:
+    symptom: "正则表达式匹配失败"
+    solution: "检查正则表达式语法，使用在线正则测试工具"
+  
+  # 权限错误
+  permission_error:
+    symptom: "权限不足，无法修改文件"
+    solution: "使用 become: yes 提升权限"
+  
+  # 文件不存在
+  file_not_found:
+    symptom: "目标文件不存在"
+    solution: "检查文件路径，确保文件存在"
+  
+  # 编码错误
+  encoding_error:
+    symptom: "文件编码不匹配"
+    solution: "指定正确的文件编码参数"
+  
+  # 验证失败
+  validation_failed:
+    symptom: "配置文件验证失败"
+    solution: "检查替换内容，确保配置格式正确"
+
+# ========== 性能优化建议 ==========
+# 大文件或批量替换的性能优化：
+performance_optimization:
+  # 大文件处理
+  large_files:
+    suggestion: "对于大文件，考虑使用 sed 或 awk 命令"
+    command: "sed -i 's/old/new/g' large_file.txt"
+  
+  # 批量文件处理
+  batch_files:
+    suggestion: "使用 find 命令结合 xargs 进行批量处理"
+    command: "find . -name '*.conf' -exec sed -i 's/old/new/g' {} +"
+  
+  # 并行处理
+  parallel_processing:
+    suggestion: "使用 GNU parallel 进行并行处理"
+    command: "ls *.conf | parallel sed -i 's/old/new/g'"
+  
+  # 内存优化
+  memory_optimization:
+    suggestion: "处理超大文件时使用流式处理"
+    tool: "python 脚本或专业文本处理工具"

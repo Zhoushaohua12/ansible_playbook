@@ -1,0 +1,315 @@
+# ⚠️ 本文件仅为示例，占位符必须使用 Ansible Vault 或环境变量替换
+
+# ========== 基础配置 ==========
+# 以太网配置
+eth_conn_name: "eth0-static"
+eth_ifname: "eth0"
+eth_static_ip: "192.168.1.100/24"
+eth_gateway: "192.168.1.1"
+eth_dns_servers:
+  - "8.8.8.8"
+  - "8.8.4.4"
+
+# DHCP 配置
+dhcp_conn_name: "eth0-dhcp"
+dhcp_ifname: "eth0"
+
+# ========== 多 IP 地址配置 ==========
+# 多 IP 配置
+multi_ip_conn_name: "eth0-multi"
+multi_ip_ifname: "eth0"
+multi_ip_addresses:
+  - "192.168.1.101/24"
+  - "192.168.1.102/24"
+multi_ip_gateway: "192.168.1.1"
+multi_ip_dns:
+  - "8.8.8.8"
+  - "8.8.4.4"
+
+# ========== VLAN 配置 ==========
+# VLAN 配置
+vlan_conn_name: "eth0-vlan100"
+vlan_ifname: "eth0.100"
+vlan_id: 100
+vlan_ip: "192.168.100.10/24"
+vlan_master_conn: "eth0-vlan-master"
+vlan_master_if: "eth0"
+
+# ========== 网桥配置 ==========
+# 网桥配置
+bridge_conn_name: "br0"
+bridge_ifname: "br0"
+bridge_ip: "192.168.1.10/24"
+bridge_slave_conn: "eth0-br0"
+bridge_slave_if: "eth0"
+
+# ========== 绑定配置 ==========
+# 绑定配置
+bond_conn_name: "bond0"
+bond_ifname: "bond0"
+bond_ip: "192.168.1.10/24"
+bond_mode: "balance-rr"  # 轮询模式
+bond_slaves:
+  - conn_name: "eth0-bond0"
+    ifname: "eth0"
+  - conn_name: "eth1-bond0"
+    ifname: "eth1"
+
+# ========== IPv6 配置 ==========
+# IPv6 配置
+ipv6_conn_name: "eth0-ipv6"
+ipv6_ifname: "eth0"
+ipv6_address: "2001:db8::100/64"
+ipv6_gateway: "2001:db8::1"
+ipv6_dns_servers:
+  - "2001:4860:4860::8888"
+  - "2001:4860:4860::8844"
+
+# ========== 无线网络配置 ==========
+# WiFi 配置
+wifi_conn_name: "MyWiFi"
+wifi_ifname: "wlan0"
+wifi_key_mgmt: "wpa-psk"
+
+# 敏感的 WiFi 密码（应使用 Ansible Vault）
+vault_wifi_password: "{{ vault_wifi_key }}"
+
+# ========== 批量网络配置 ==========
+# 批量配置列表
+batch_network_configs:
+  - conn_name: "eth0-management"
+    ifname: "eth0"
+    type: "ethernet"
+    method4: "manual"
+    ip4: "192.168.1.10/24"
+    gw4: "192.168.1.1"
+    dns4:
+      - "8.8.8.8"
+      - "8.8.4.4"
+  - conn_name: "eth1-data"
+    ifname: "eth1"
+    type: "ethernet"
+    method4: "manual"
+    ip4: "10.0.0.10/24"
+    gw4: "10.0.0.1"
+    dns4:
+      - "8.8.8.8"
+  - conn_name: "eth2-backup"
+    ifname: "eth2"
+    type: "ethernet"
+    method4: "auto"  # DHCP
+
+# ========== 网络验证配置 ==========
+# 测试配置
+test_ping_target: "8.8.8.8"
+test_dns_domain: "example.com"
+test_dns_server: "8.8.8.8"
+
+# ========== 配置删除配置 ==========
+# 要删除的旧连接
+old_conn_name: "old-connection"
+
+# ========== 备份和恢复配置 ==========
+# 备份文件路径
+backup_file: "/tmp/network_backup_$(date +%Y%m%d_%H%M%S).txt"
+
+# 是否恢复网络配置
+restore_network: false
+
+# ========== 安全提示 ==========
+# ⚠️  特别注意：
+# 1. 敏感信息（如 WiFi 密码、网络密钥等）必须使用 Ansible Vault 加密存储
+# 2. 修改网络配置可能导致远程连接中断，请在控制台或维护窗口期操作
+# 3. 生产环境修改网络配置前必须：
+#    - 备份当前网络配置
+#    - 测试配置参数的正确性
+#    - 准备配置回滚方案
+#    - 确认有物理访问权限
+# 4. 确保目标主机已安装 NetworkManager 和 nmcli 工具
+# 5. 生产环境部署前，一定要使用 --check 模式预览：
+#    ansible-playbook network/nmcli/playbook.yml --check
+# 6. 网络配置修改后，务必验证网络连通性和服务可用性
+
+# ========== 常用网络配置模式 ==========
+# 网络绑定模式：
+bond_modes:
+  balance-rr: "轮询模式 - 数据包顺序传输"
+  active-backup: "主备模式 - 一个接口活动，其他备用"
+  balance-xor: "XOR 模式 - 基于 MAC 地址的负载均衡"
+  broadcast: "广播模式 - 所有接口传输相同数据"
+  802.3ad: "LACP 模式 - IEEE 802.3ad 动态链接聚合"
+  balance-tlb: "自适应负载均衡 - 出站负载均衡"
+  balance-alb: "自适应负载均衡 - 入站和出站负载均衡"
+
+# WiFi 安全模式：
+wifi_security_modes:
+  wpa-psk: "WPA-PSK - 预共享密钥认证"
+  wpa-eap: "WPA-EAP - 企业级认证"
+  wep: "WEP - 有线等效隐私（不推荐）"
+  open: "开放网络 - 无加密"
+
+# VLAN 类型：
+vlan_types:
+  access: "接入端口 - 属于单个 VLAN"
+  trunk: "中继端口 - 可传输多个 VLAN"
+  hybrid: "混合端口 - 支持接入和中继模式"
+
+# ========== 网络接口类型 ==========
+# 支持的接口类型：
+interface_types:
+  ethernet: "以太网接口"
+  wifi: "无线网络接口"
+  bridge: "网桥接口"
+  bond: "绑定接口"
+  vlan: "VLAN 接口"
+  dummy: "虚拟接口"
+  gre: "GRE 隧道接口"
+  ipip: "IPIP 隧道接口"
+  sit: "SIT 隧道接口"
+  tun: "TUN 隧道接口"
+  tap: "TAP 接口"
+  veth: "虚拟以太网对"
+  vlan: "VLAN 接口"
+  vxlan: "VXLAN 隧道接口"
+  geneve: "GENEVE 隧道接口"
+
+# ========== IP 配置方法 ==========
+# IPv4 配置方法：
+ipv4_methods:
+  auto: "自动配置 - DHCP 或自动私有地址"
+  manual: "手动配置 - 静态 IP 地址"
+  link-local: "链路本地地址 - 169.254.0.0/16"
+  disabled: "禁用 IPv4"
+  shared: "共享连接 - NAT 模式"
+
+# IPv6 配置方法：
+ipv6_methods:
+  auto: "自动配置 - SLAAC 或 DHCPv6"
+  manual: "手动配置 - 静态 IPv6 地址"
+  link-local: "链路本地地址 - FE80::/10"
+  ignore: "忽略 IPv6"
+  disabled: "禁用 IPv6"
+  dhcp: "DHCPv6 配置"
+
+# ========== DNS 配置示例 ==========
+# 常用 DNS 服务器：
+dns_servers:
+  public:
+    google:
+      - "8.8.8.8"
+      - "8.8.4.4"
+    cloudflare:
+      - "1.1.1.1"
+      - "1.0.0.1"
+    opendns:
+      - "208.67.222.222"
+      - "208.67.220.220"
+  
+  china:
+    aliyun:
+      - "223.5.5.5"
+      - "223.6.6.6"
+    tencent:
+      - "119.29.29.29"
+      - "182.254.116.116"
+    114dns:
+      - "114.114.114.114"
+      - "114.114.115.115"
+
+# ========== 网络配置验证命令 ==========
+# 常用网络验证命令：
+validation_commands:
+  # 连通性测试
+  connectivity:
+    ping: "ping -c 4 {target}"
+    traceroute: "traceroute {target}"
+    mtr: "mtr --report {target}"
+  
+  # DNS 解析测试
+  dns:
+    nslookup: "nslookup {domain} {server}"
+    dig: "dig @{server} {domain}"
+    host: "host {domain} {server}"
+  
+  # 网络接口状态
+  interface:
+    ip_addr: "ip addr show {interface}"
+    ifconfig: "ifconfig {interface}"
+    ethtool: "ethtool {interface}"
+  
+  # 路由表
+  routing:
+    ip_route: "ip route show"
+    route: "route -n"
+    netstat: "netstat -rn"
+  
+  # 网络连接
+  connections:
+    netstat: "netstat -tuln"
+    ss: "ss -tuln"
+    lsof: "lsof -i"
+
+# ========== 网络故障排查指南 ==========
+# 常见网络问题及解决方案：
+troubleshooting_guide:
+  # 无法获取 IP 地址
+  no_ip_address:
+    symptoms: ["接口没有 IP 地址", "DHCP 客户端失败"]
+    solutions: ["检查 DHCP 服务器", "验证网络连接", "检查接口驱动"]
+    commands: ["dhclient -v {interface}", "nmcli device connect {interface}"]
+  
+  # 无法连接网关
+  gateway_unreachable:
+    symptoms: ["无法 ping 通网关", "网络连接超时"]
+    solutions: ["检查网关配置", "验证物理连接", "检查防火墙规则"]
+    commands: ["ping -c 4 {gateway}", "ip route show", "traceroute {gateway}"]
+  
+  # DNS 解析失败
+  dns_resolution_failed:
+    symptoms: ["无法解析域名", "nslookup 超时"]
+    solutions: ["检查 DNS 服务器", "验证网络连通性", "检查防火墙规则"]
+    commands: ["nslookup {domain} {dns_server}", "dig @{dns_server} {domain}"]
+  
+  # 网络速度慢
+  slow_network:
+    symptoms: ["网络延迟高", "传输速度慢"]
+    solutions: ["检查网络拥塞", "验证 MTU 设置", "检查硬件状态"]
+    commands: ["ping -c 10 {target}", "iperf3 -c {server}", "ethtool {interface}"]
+
+# ========== 网络配置最佳实践 ==========
+# 生产环境网络配置建议：
+best_practices:
+  # 配置管理
+  configuration:
+    - "使用配置管理工具统一管理网络配置"
+    - "建立网络配置变更审批流程"
+    - "定期备份网络配置文件"
+    - "实施网络配置版本控制"
+  
+  # 安全加固
+  security:
+    - "禁用不安全的网络协议"
+    - "配置网络访问控制列表"
+    - "启用网络流量监控"
+    - "定期更新网络设备固件"
+  
+  # 高可用性
+  availability:
+    - "配置网络接口绑定"
+    - "实施多路径网络连接"
+    - "配置网络故障自动切换"
+    - "建立网络冗余架构"
+  
+  # 性能优化
+  performance:
+    - "根据网络环境优化 MTU"
+    - "配置网络队列和缓冲区"
+    - "启用网络卸载功能"
+    - "监控网络性能指标"
+  
+  # 监控告警
+  monitoring:
+    - "配置网络状态监控"
+    - "设置网络性能告警"
+    - "建立网络故障告警机制"
+    - "实施网络容量规划"

@@ -1,0 +1,403 @@
+---
+- name: blockinfile 模块使用示例演示
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 准备测试文件 ==========
+    - name: 创建基础配置文件
+      ansible.builtin.copy:
+        content: |
+          # 基础配置文件
+          [global]
+          timeout = 30
+          max_connections = 100
+          
+          [logging]
+          level = INFO
+          file = /var/log/app.log
+          
+          # 配置文件结束
+        dest: "{{ test_config_file }}"
+        mode: '0644'
+    
+    - name: 显示基础配置文件内容
+      ansible.builtin.debug:
+        msg: |
+          基础配置文件内容：
+          {{ lookup('file', test_config_file) }}
+    
+    # ========== 基础插入演示 ==========
+    - name: 基础插入 - 添加服务器配置块
+      ansible.builtin.blockinfile:
+        path: "{{ test_config_file }}"
+        block: |
+          # 服务器配置
+          [server]
+          host = {{ server_host }}
+          port = {{ server_port }}
+          workers = {{ server_workers }}
+        marker: "# {mark} SERVER CONFIG BLOCK"
+        backup: yes
+    
+    - name: 显示基础插入结果
+      ansible.builtin.debug:
+        msg: "已插入服务器配置块，主机: {{ server_host }}，端口: {{ server_port }}"
+    
+    # ========== 位置控制插入演示 ==========
+    - name: 位置控制 - 在文件末尾添加数据库配置块
+      ansible.builtin.blockinfile:
+        path: "{{ test_config_file }}"
+        block: |
+          # 数据库配置
+          [database]
+          host = {{ db_host }}
+          port = {{ db_port }}
+          username = {{ db_user }}
+          password = {{ vault_db_password }}
+          database = {{ db_name }}
+        marker: "# {mark} DATABASE CONFIG BLOCK"
+        insertafter: EOF
+        backup: yes
+      no_log: true  # 保护敏感信息
+    
+    - name: 显示位置控制插入结果
+      ansible.builtin.debug:
+        msg: "已在文件末尾插入数据库配置块"
+    
+    # ========== 条件插入演示 ==========
+    - name: 条件插入 - 根据环境添加调试配置块
+      ansible.builtin.blockinfile:
+        path: "{{ test_config_file }}"
+        block: |
+          # 调试配置
+          [debug]
+          enabled = true
+          log_level = DEBUG
+          verbose = true
+          profiling = true
+        marker: "# {mark} DEBUG CONFIG BLOCK"
+        insertbefore: EOF
+        backup: yes
+      when: enable_debug | default(false)
+    
+    - name: 显示条件插入结果
+      ansible.builtin.debug:
+        msg: "调试配置块 {{ '已插入' if enable_debug | default(false) else '未插入（条件不满足）' }}"
+    
+    # ========== 自定义标记演示 ==========
+    - name: 自定义标记 - 添加安全配置块
+      ansible.builtin.blockinfile:
+        path: "{{ test_config_file }}"
+        block: |
+          # 安全配置
+          [security]
+          ssl_enabled = true
+          ssl_cert_path = {{ ssl_cert_path }}
+          ssl_key_path = {{ ssl_key_path }}
+          ssl_protocols = TLSv1.2,TLSv1.3
+        marker: "# {mark} SECURITY CONFIG - {{ ansible_date_time.iso8601 }}"
+        insertbefore: "# 配置文件结束"
+        backup: yes
+    
+    - name: 显示自定义标记插入结果
+      ansible.builtin.debug:
+        msg: "已使用自定义时间戳标记插入安全配置块"
+    
+    # ========== 复杂标记管理演示 ==========
+    - name: 复杂标记 - 添加监控配置块
+      ansible.builtin.blockinfile:
+        path: "{{ test_config_file }}"
+        block: |
+          # 监控配置
+          [monitoring]
+          enabled = true
+          metrics_port = 9090
+          health_check_interval = 30
+          alert_webhook = {{ alert_webhook_url }}
+        marker_begin: "### BEGIN MONITORING CONFIG - {{ app_name }}"
+        marker_end: "### END MONITORING CONFIG - {{ app_name }}"
+        insertbefore: "# 配置文件结束"
+        backup: yes
+    
+    - name: 显示复杂标记插入结果
+      ansible.builtin.debug:
+        msg: "已使用复杂标记格式插入监控配置块"
+    
+    # ========== 文件创建和属性设置演示 ==========
+    - name: 文件创建 - 创建新的应用配置文件
+      ansible.builtin.blockinfile:
+        path: "{{ new_config_file }}"
+        block: |
+          # 应用配置文件
+          [application]
+          name = {{ app_name }}
+          version = {{ app_version }}
+          environment = {{ app_environment }}
+          
+          [features]
+          feature_a = true
+          feature_b = false
+          feature_c = {{ enable_feature_c | default(false) }}
+        create: yes
+        mode: '0644'
+        owner: 'appuser'
+        group: 'appuser'
+        marker: "# {mark} APP CONFIG"
+        backup: yes
+    
+    - name: 显示文件创建结果
+      ansible.builtin.debug:
+        msg: "已创建新配置文件 {{ new_config_file }} 并设置文件属性"
+    
+    # ========== 验证功能演示 ==========
+    - name: 创建配置验证脚本
+      ansible.builtin.copy:
+        content: |
+          #!/bin/bash
+          CONFIG_FILE="$1"
+          if [ -f "$CONFIG_FILE" ]; then
+            # 检查配置文件格式
+            if grep -q "^\[.*\]" "$CONFIG_FILE"; then
+              echo "配置文件格式正确"
+              # 检查必需的配置节
+              if grep -q "\[application\]" "$CONFIG_FILE" && grep -q "\[features\]" "$CONFIG_FILE"; then
+                echo "必需配置节存在"
+                exit 0
+              else
+                echo "缺少必需的配置节"
+                exit 1
+              fi
+            else
+              echo "配置文件格式错误：缺少配置节"
+              exit 1
+            fi
+          else
+            echo "配置文件不存在：$CONFIG_FILE"
+            exit 1
+          fi
+        dest: "{{ validate_script }}"
+        mode: '0755'
+    
+    - name: 带验证的插入 - 添加性能配置块
+      ansible.builtin.blockinfile:
+        path: "{{ new_config_file }}"
+        block: |
+          # 性能配置
+          [performance]
+          max_memory = {{ max_memory_mb }}
+          cpu_limit = {{ cpu_limit }}
+          connection_pool_size = {{ connection_pool_size }}
+          cache_size = {{ cache_size_mb }}
+        marker: "# {mark} PERFORMANCE CONFIG"
+        validate: "{{ validate_script }} %s"
+        backup: yes
+    
+    - name: 显示验证插入结果
+      ansible.builtin.debug:
+        msg: "已插入性能配置块并通过验证"
+    
+    # ========== 脚本代码插入演示 ==========
+    - name: 脚本插入 - 在 shell 脚本中插入函数块
+      ansible.builtin.copy:
+        content: |
+          #!/bin/bash
+          # 应用部署脚本
+          
+          echo "开始部署应用..."
+          
+          # 脚本结束
+        dest: "{{ deploy_script }}"
+        mode: '0755'
+    
+    - name: 插入部署函数块
+      ansible.builtin.blockinfile:
+        path: "{{ deploy_script }}"
+        block: |
+          # 部署函数
+          deploy_application() {
+              echo "停止旧版本服务..."
+              systemctl stop {{ app_name }}.service || true
+              
+              echo "备份当前版本..."
+              if [ -d "/opt/{{ app_name }}/current" ]; then
+                  cp -r /opt/{{ app_name }}/current /opt/{{ app_name }}/backup_$(date +%Y%m%d_%H%M%S)
+              fi
+              
+              echo "部署新版本..."
+              cp -r /opt/{{ app_name }}/new/* /opt/{{ app_name }}/current/
+              
+              echo "启动新版本服务..."
+              systemctl start {{ app_name }}.service
+              
+              echo "部署完成"
+          }
+          
+          # 健康检查函数
+          health_check() {
+              echo "执行健康检查..."
+              if curl -f http://localhost:{{ app_port }}/health; then
+                  echo "健康检查通过"
+                  return 0
+              else
+                  echo "健康检查失败"
+                  return 1
+              fi
+          }
+        marker: "# {mark} DEPLOYMENT FUNCTIONS"
+        insertbefore: "# 脚本结束"
+        backup: yes
+    
+    - name: 显示脚本插入结果
+      ansible.builtin.debug:
+        msg: "已在部署脚本中插入函数块"
+    
+    # ========== 批量文件插入演示 ==========
+    - name: 批量插入 - 在多个配置文件中添加通用配置块
+      ansible.builtin.copy:
+        content: |
+          # Web 服务器配置 1
+          server_name = web01.example.com
+          listen_port = 80
+        dest: "{{ item }}"
+        mode: '0644'
+      loop:
+        - "{{ web_config_1 }}"
+        - "{{ web_config_2 }}"
+    
+    - name: 在多个 Web 配置文件中插入通用安全配置
+      ansible.builtin.blockinfile:
+        path: "{{ item }}"
+        block: |
+          # 通用安全配置
+          security_headers = true
+          ssl_redirect = true
+          csrf_protection = true
+          xss_protection = true
+        marker: "# {mark} COMMON SECURITY CONFIG"
+        backup: yes
+      loop:
+        - "{{ web_config_1 }}"
+        - "{{ web_config_2 }}"
+      loop_control:
+        label: "{{ item }}"
+    
+    - name: 显示批量插入结果
+      ansible.builtin.debug:
+        msg: "已在 2 个 Web 配置文件中插入通用安全配置块"
+    
+    # ========== 删除配置块演示 ==========
+    - name: 删除配置块 - 删除过时的配置
+      ansible.builtin.blockinfile:
+        path: "{{ test_config_file }}"
+        state: absent
+        marker: "# {mark} OLD CONFIG BLOCK"
+      ignore_errors: yes
+    
+    - name: 显示删除结果
+      ansible.builtin.debug:
+        msg: "已尝试删除过时的配置块（如果存在）"
+    
+    # ========== 显示最终文件内容 ==========
+    - name: 读取主要配置文件的最终内容
+      ansible.builtin.slurp:
+        src: "{{ test_config_file }}"
+      register: final_main_config
+    
+    - name: 显示主要配置文件最终内容
+      ansible.builtin.debug:
+        msg: |
+          主要配置文件最终内容：
+          {{ final_main_config.content | b64decode }}
+    
+    - name: 读取新配置文件的最终内容
+      ansible.builtin.slurp:
+        src: "{{ new_config_file }}"
+      register: final_new_config
+    
+    - name: 显示新配置文件最终内容
+      ansible.builtin.debug:
+        msg: |
+          新配置文件最终内容：
+          {{ final_new_config.content | b64decode }}
+    
+    # ========== 清理演示文件 ==========
+    - name: 清理测试文件
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ test_config_file }}"
+        - "{{ new_config_file }}"
+        - "{{ deploy_script }}"
+        - "{{ validate_script }}"
+        - "{{ web_config_1 }}"
+        - "{{ web_config_2 }}"
+        - "{{ test_config_file }}.backup"
+        - "{{ new_config_file }}.backup"
+        - "{{ deploy_script }}.backup"
+        - "{{ web_config_1 }}.backup"
+        - "{{ web_config_2 }}.backup"
+      ignore_errors: yes
+    
+    # ========== 安全和最佳实践提醒 ==========
+    - name: blockinfile 模块最佳实践提醒
+      ansible.builtin.debug:
+        msg: |
+          === blockinfile 模块最佳实践 ===
+          1. 标记管理：
+             - 使用清晰、唯一的标记格式
+             - 在标记中包含时间戳或版本信息
+             - 避免在文件中使用重复的标记
+             - 在文档中记录标记的用途和格式
+          
+          2. 位置控制：
+             - 使用 insertafter 和 insertbefore 精确控制插入位置
+             - 使用 EOF 和 BOF 进行文件头尾插入
+             - 使用正则表达式匹配特定行
+             - 测试插入位置确保符合预期
+          
+          3. 备份和验证：
+             - 重要文件修改前启用备份功能
+             - 使用 validate 参数验证文件语法
+             - 保留备份文件便于故障恢复
+             - 实现适当的错误处理和回滚机制
+          
+          4. 安全考虑：
+             - 敏感信息使用 no_log: true 保护
+             - 使用 Ansible Vault 保护敏感配置
+             - 设置适当的文件权限和所有者
+             - 限制对配置文件的访问权限
+          
+          5. 文件管理：
+             - 使用 create 参数自动创建文件
+             - 设置正确的文件权限和所有者
+             - 考虑 SELinux 上下文设置
+             - 定期清理不再需要的配置块
+    
+    # ========== 总结 ==========
+    - name: blockinfile 模块演示完成总结
+      ansible.builtin.debug:
+        msg: |
+          已完成以下 blockinfile 模块操作演示：
+          1. 基础插入 - 添加服务器配置块
+          2. 位置控制插入 - 在文件末尾添加数据库配置
+          3. 条件插入 - 根据环境变量添加调试配置
+          4. 自定义标记 - 使用时间戳标记插入安全配置
+          5. 复杂标记管理 - 使用自定义开始/结束标记
+          6. 文件创建和属性设置 - 创建新配置文件
+          7. 验证功能 - 使用验证脚本检查配置
+          8. 脚本代码插入 - 在 shell 脚本中插入函数
+          9. 批量文件插入 - 在多个文件中插入通用配置
+          10. 删除配置块 - 删除过时的配置
+          11. 显示最终文件内容
+          12. 清理测试文件
+          
+          下一步建议：
+          - 根据实际需求设计合适的标记格式
+          - 建立配置文件管理的审批流程
+          - 配置配置文件的监控和告警
+          - 定期备份和审计配置文件
+          - 建立配置文件修改的文档和标准流程

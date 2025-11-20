@@ -1,0 +1,302 @@
+---
+- name: reboot 模块使用示例演示
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 重启前检查 ==========
+    - name: 检查系统当前运行时间
+      ansible.builtin.shell: uptime
+      register: uptime_before
+      changed_when: false
+    
+    - name: 显示重启前系统运行时间
+      ansible.builtin.debug:
+        msg: "重启前系统运行时间: {{ uptime_before.stdout }}"
+    
+    - name: 检查系统负载
+      ansible.builtin.shell: cat /proc/loadavg
+      register: load_avg
+      changed_when: false
+    
+    - name: 显示当前系统负载
+      ansible.builtin.debug:
+        msg: "当前系统负载: {{ load_avg.stdout }}"
+    
+    - name: 检查磁盘空间
+      ansible.builtin.shell: df -h /
+      register: disk_space
+      changed_when: false
+    
+    - name: 显示根分区磁盘空间
+      ansible.builtin.debug:
+        msg: "根分区磁盘使用情况: {{ disk_space.stdout_lines[1] }}"
+    
+    - name: 检查是否有重启需求标记文件
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+    
+    - name: 显示重启需求检查结果
+      ansible.builtin.debug:
+        msg: "系统重启需求: {{ '需要重启' if reboot_required.stat.exists else '无需重启' }}"
+    
+    # ========== 基础重启演示（模拟模式） ==========
+    - name: 演示基础重启命令（模拟模式）
+      ansible.builtin.debug:
+        msg: |
+          === 基础重启命令示例 ===
+          以下是将要执行的重启命令（仅在演示中显示）：
+          
+          - name: 基础重启系统
+            ansible.builtin.reboot:
+              msg: "{{ basic_reboot_message }}"
+          
+          参数说明：
+          - msg: 重启前向用户发送的消息
+          - reboot_timeout: 默认 600 秒（10分钟）
+          - connect_timeout: 默认 60 秒
+          - pre_reboot_delay: 默认 0 秒
+          - post_reboot_delay: 默认 0 秒
+    
+    # ========== 带超时控制的重启演示（模拟模式） ==========
+    - name: 演示带超时控制的重启命令（模拟模式）
+      ansible.builtin.debug:
+        msg: |
+          === 带超时控制的重启命令示例 ===
+          以下是将要执行的重启命令（仅在演示中显示）：
+          
+          - name: 带超时控制的系统重启
+            ansible.builtin.reboot:
+              msg: "{{ timeout_reboot_message }}"
+              reboot_timeout: {{ reboot_timeout }}
+              connect_timeout: {{ connect_timeout }}
+              pre_reboot_delay: {{ pre_reboot_delay }}
+              post_reboot_delay: {{ post_reboot_delay }}
+          
+          参数说明：
+          - reboot_timeout: {{ reboot_timeout }} 秒（重启总超时时间）
+          - connect_timeout: {{ connect_timeout }} 秒（SSH连接超时时间）
+          - pre_reboot_delay: {{ pre_reboot_delay }} 秒（重启前延迟时间）
+          - post_reboot_delay: {{ post_reboot_delay }} 秒（重启后延迟时间）
+    
+    # ========== 带验证命令的重启演示（模拟模式） ==========
+    - name: 演示带验证命令的重启命令（模拟模式）
+      ansible.builtin.debug:
+        msg: |
+          === 带验证命令的重启命令示例 ===
+          以下是将要执行的重启命令（仅在演示中显示）：
+          
+          - name: 带验证命令的系统重启
+            ansible.builtin.reboot:
+              msg: "{{ test_reboot_message }}"
+              reboot_timeout: {{ test_reboot_timeout }}
+              test_command: "{{ reboot_test_command }}"
+          
+          参数说明：
+          - test_command: "{{ reboot_test_command }}"（重启成功后执行的验证命令）
+          - 验证命令用于确认系统重启后功能正常
+    
+    # ========== 条件重启演示 ==========
+    - name: 检查系统是否需要重启
+      ansible.builtin.shell: |
+        if [ -f /var/run/reboot-required ]; then
+          echo "reboot_needed"
+        elif [ "$(awk '{print $1}' /proc/uptime | cut -d. -f1)" -lt "{{ max_uptime_seconds }}" ]; then
+          echo "no_reboot_recent"
+        else
+          echo "no_reboot"
+        fi
+      register: reboot_check
+      changed_when: false
+    
+    - name: 显示重启检查结果
+      ansible.builtin.debug:
+        msg: "重启检查结果: {{ reboot_check.stdout }}"
+    
+    - name: 演示条件重启逻辑（模拟模式）
+      ansible.builtin.debug:
+        msg: |
+          === 条件重启逻辑示例 ===
+          如果检查结果为 "reboot_needed"，将执行以下重启命令：
+          
+          - name: 条件重启系统
+            ansible.builtin.reboot:
+              msg: "{{ conditional_reboot_message }}"
+              reboot_timeout: {{ conditional_reboot_timeout }}
+            when: reboot_check.stdout == "reboot_needed"
+    
+    # ========== 分阶段重启演示 ==========
+    - name: 演示分阶段重启流程（模拟模式）
+      ansible.builtin.debug:
+        msg: |
+          === 分阶段重启流程示例 ===
+          第一阶段：通知用户
+          
+          - name: 通知用户即将重启
+            ansible.builtin.shell: |
+              echo "{{ user_notification_message }}" | wall
+              sleep {{ notification_delay }}
+          
+          第二阶段：执行重启
+          
+          - name: 执行计划重启
+            ansible.builtin.reboot:
+              msg: "{{ staged_reboot_message }}"
+              reboot_timeout: {{ staged_reboot_timeout }}
+              pre_reboot_delay: {{ staged_pre_delay }}
+              post_reboot_delay: {{ staged_post_delay }}
+    
+    # ========== 重启后验证演示 ==========
+    - name: 演示重启后验证流程（模拟模式）
+      ansible.builtin.debug:
+        msg: |
+          === 重启后验证流程示例 ===
+          重启完成后，将执行以下验证步骤：
+          
+          1. 验证系统服务状态：
+          - name: 验证关键服务状态
+            ansible.builtin.systemd:
+              name: "{{ item }}"
+              state: started
+            loop: "{{ critical_services }}"
+          
+          2. 验证网络连接：
+          - name: 测试网络连接
+            ansible.builtin.shell: ping -c 3 {{ test_host }}
+          
+          3. 验证应用功能：
+          - name: 测试应用功能
+            ansible.builtin.uri:
+              url: "{{ app_health_check_url }}"
+              method: GET
+              status_code: 200
+    
+    # ========== 批量重启演示 ==========
+    - name: 演示批量重启策略（模拟模式）
+      ansible.builtin.debug:
+        msg: |
+          === 批量重启策略示例 ===
+          对于多服务器环境，建议使用以下策略：
+          
+          1. 滚动重启（避免服务中断）：
+          - name: 滚动重启服务器组
+            ansible.builtin.reboot:
+              msg: "{{ rolling_reboot_message }}"
+              reboot_timeout: {{ rolling_reboot_timeout }}
+            delegate_to: "{{ item }}"
+            loop: "{{ target_servers }}"
+            serial: 1  # 逐个重启
+          
+          2. 分组重启（按业务分组）：
+          - name: 分组重启 Web 服务器
+            ansible.builtin.reboot:
+              msg: "{{ group_reboot_message }}"
+            delegate_to: "{{ item }}"
+            loop: "{{ groups['webservers'] }}"
+            run_once: false
+    
+    # ========== 安全重启演示 ==========
+    - name: 演示安全重启最佳实践（模拟模式）
+      ansible.builtin.debug:
+        msg: |
+          === 安全重启最佳实践示例 ===
+          生产环境安全重启流程：
+          
+          1. 重启前准备：
+          - name: 保存当前状态
+            ansible.builtin.shell: |
+              echo "{{ ansible_date_time.iso8601 }} - 重启前状态检查" >> /var/log/reboot.log
+              systemctl list-units --state=running >> /var/log/reboot.log
+          
+          2. 执行重启：
+          - name: 安全重启生产系统
+            ansible.builtin.reboot:
+              msg: "{{ safe_reboot_message }}"
+              reboot_timeout: {{ safe_reboot_timeout }}
+              pre_reboot_delay: {{ safe_pre_delay }}
+              post_reboot_delay: {{ safe_post_delay }}
+              test_command: "{{ safe_test_command }}"
+          
+          3. 重启后验证：
+          - name: 记录重启结果
+            ansible.builtin.lineinfile:
+              path: /var/log/reboot.log
+              line: "{{ ansible_date_time.iso8601 }} - 重启完成"
+              create: yes
+    
+    # ========== 模拟重启结果验证 ==========
+    - name: 模拟重启后的状态检查
+      ansible.builtin.shell: |
+        echo "=== 模拟重启后状态检查 ==="
+        echo "系统运行时间: $(uptime)"
+        echo "系统负载: $(cat /proc/loadavg)"
+        echo "磁盘使用: $(df -h / | tail -1)"
+        echo "内存使用: $(free -h | grep Mem)"
+        echo "网络状态: $(ip addr show | grep 'state UP')"
+      register: post_reboot_check
+      changed_when: false
+    
+    - name: 显示模拟重启后状态
+      ansible.builtin.debug:
+        msg: "{{ post_reboot_check.stdout_lines }}"
+    
+    # ========== 安全和最佳实践提醒 ==========
+    - name: 系统重启最佳实践提醒
+      ansible.builtin.debug:
+        msg: |
+          === 系统重启最佳实践 ===
+          1. 重启前准备：
+             - 保存所有重要数据和配置
+             - 通知相关用户和服务依赖方
+             - 检查系统负载和磁盘空间
+             - 确认备份已完成
+          
+          2. 重启过程控制：
+             - 设置合理的超时时间
+             - 使用适当的延迟时间
+             - 监控重启过程
+             - 准备失败应对方案
+          
+          3. 重启后验证：
+             - 检查关键服务状态
+             - 验证网络连接
+             - 测试应用功能
+             - 检查系统日志
+          
+          4. 生产环境注意事项：
+             - 在维护窗口期执行
+             - 使用滚动重启策略
+             - 准备回滚方案
+             - 记录重启操作日志
+          
+          5. 安全建议：
+             - 使用专用的重启账户
+             - 限制重启权限
+             - 启用操作审计
+             - 定期演练重启流程
+    
+    # ========== 总结 ==========
+    - name: reboot 模块演示完成总结
+      ansible.builtin.debug:
+        msg: |
+          已完成以下系统重启操作演示：
+          1. 重启前系统状态检查（运行时间、负载、磁盘空间）
+          2. 基础重启命令演示
+          3. 带超时控制的重启命令演示
+          4. 带验证命令的重启命令演示
+          5. 条件重启逻辑演示
+          6. 分阶段重启流程演示
+          7. 重启后验证流程演示
+          8. 批量重启策略演示
+          9. 安全重启最佳实践演示
+          10. 模拟重启后状态检查
+          
+          下一步建议：
+          - 根据实际环境调整超时和延迟参数
+          - 建立系统重启的审批流程
+          - 配置重启操作的监控和告警
+          - 定期进行重启演练和故障恢复测试
+          - 建立重启操作的文档和标准流程

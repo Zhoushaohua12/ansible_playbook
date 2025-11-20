@@ -1,0 +1,181 @@
+---
+- name: cron 模块使用示例演示
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 创建基础备份任务 ==========
+    - name: 创建每日数据库备份任务
+      ansible.builtin.cron:
+        name: "{{ backup_task_name }}"
+        job: "{{ backup_task_script }}"
+        minute: "{{ backup_task_minute }}"
+        hour: "{{ backup_task_hour }}"
+        user: "{{ backup_task_user }}"
+        state: present
+        backup: yes
+    
+    - name: 显示备份任务创建结果
+      ansible.builtin.debug:
+        msg: "已创建备份任务: {{ backup_task_name }}，执行时间: 每天 {{ backup_task_hour }}:{{ backup_task_minute }}"
+    
+    # ========== 创建日志清理任务 ==========
+    - name: 创建每周日志清理任务
+      ansible.builtin.cron:
+        name: "{{ cleanup_task_name }}"
+        job: "{{ cleanup_task_script }}"
+        minute: "{{ cleanup_task_minute }}"
+        hour: "{{ cleanup_task_hour }}"
+        weekday: "{{ cleanup_task_weekday }}"
+        user: "{{ cleanup_task_user }}"
+        state: present
+    
+    - name: 显示日志清理任务创建结果
+      ansible.builtin.debug:
+        msg: "已创建清理任务: {{ cleanup_task_name }}，执行时间: 每周 {{ cleanup_task_weekday }} {{ cleanup_task_hour }}:{{ cleanup_task_minute }}"
+    
+    # ========== 创建系统监控任务 ==========
+    - name: 创建系统监控任务（每15分钟）
+      ansible.builtin.cron:
+        name: "{{ monitor_task_name }}"
+        job: "{{ monitor_task_script }}"
+        minute: "{{ monitor_task_minute }}"
+        user: "{{ monitor_task_user }}"
+        state: present
+    
+    - name: 显示监控任务创建结果
+      ansible.builtin.debug:
+        msg: "已创建监控任务: {{ monitor_task_name }}，执行间隔: 每 {{ monitor_task_minute }} 分钟"
+    
+    # ========== 使用特殊时间字符串 ==========
+    - name: 创建重启时执行的任务
+      ansible.builtin.cron:
+        name: "{{ reboot_task_name }}"
+        job: "{{ reboot_task_script }}"
+        special_time: "@reboot"
+        user: "{{ reboot_task_user }}"
+        state: present
+    
+    - name: 显示重启任务创建结果
+      ansible.builtin.debug:
+        msg: "已创建重启任务: {{ reboot_task_name }}，执行时机: 系统重启时"
+    
+    - name: 创建每小时执行的任务
+      ansible.builtin.cron:
+        name: "{{ hourly_task_name }}"
+        job: "{{ hourly_task_script }}"
+        special_time: "@hourly"
+        user: "{{ hourly_task_user }}"
+        state: present
+    
+    - name: 显示小时任务创建结果
+      ansible.builtin.debug:
+        msg: "已创建小时任务: {{ hourly_task_name }}，执行时机: 每小时整点"
+    
+    # ========== 创建带环境变量的任务 ==========
+    - name: 创建带环境变量的任务
+      ansible.builtin.cron:
+        name: "{{ env_task_name }}"
+        job: "{{ env_task_script }}"
+        minute: "{{ env_task_minute }}"
+        hour: "{{ env_task_hour }}"
+        user: "{{ env_task_user }}"
+        environment:
+          PATH: "{{ env_task_path }}"
+          BACKUP_DIR: "{{ env_task_backup_dir }}"
+          LOG_LEVEL: "{{ env_task_log_level }}"
+        state: present
+    
+    - name: 显示环境变量任务创建结果
+      ansible.builtin.debug:
+        msg: "已创建环境变量任务: {{ env_task_name }}，包含环境变量: PATH, BACKUP_DIR, LOG_LEVEL"
+    
+    # ========== 验证任务创建结果 ==========
+    - name: 检查当前用户的 cron 任务
+      ansible.builtin.shell: crontab -l
+      register: current_crontab
+      changed_when: false
+      ignore_errors: yes
+    
+    - name: 显示当前 cron 任务列表
+      ansible.builtin.debug:
+        msg: |
+          当前用户的 cron 任务：
+          {{ current_crontab.stdout_lines | default(['无 cron 任务']) }}
+      when: current_crontab.stdout_lines is defined
+    
+    # ========== 演示任务禁用功能 ==========
+    - name: 演示禁用备份任务（注释掉）
+      ansible.builtin.cron:
+        name: "{{ backup_task_name }}"
+        job: "{{ backup_task_script }}"
+        minute: "{{ backup_task_minute }}"
+        hour: "{{ backup_task_hour }}"
+        user: "{{ backup_task_user }}"
+        disabled: yes
+        state: present
+    
+    - name: 显示任务禁用结果
+      ansible.builtin.debug:
+        msg: "已禁用备份任务: {{ backup_task_name }}（任务被注释但未删除）"
+    
+    # ========== 演示任务删除功能 ==========
+    - name: 演示删除监控任务
+      ansible.builtin.cron:
+        name: "{{ monitor_task_name }}"
+        state: absent
+        user: "{{ monitor_task_user }}"
+    
+    - name: 显示任务删除结果
+      ansible.builtin.debug:
+        msg: "已删除监控任务: {{ monitor_task_name }}"
+    
+    # ========== 验证最终状态 ==========
+    - name: 再次检查 cron 任务状态
+      ansible.builtin.shell: crontab -l
+      register: final_crontab
+      changed_when: false
+      ignore_errors: yes
+    
+    - name: 显示最终 cron 任务状态
+      ansible.builtin.debug:
+        msg: |
+          最终 cron 任务状态：
+          {{ final_crontab.stdout_lines | default(['无 cron 任务']) }}
+      when: final_crontab.stdout_lines is defined
+    
+    # ========== 安全和最佳实践提醒 ==========
+    - name: cron 任务管理最佳实践提醒
+      ansible.builtin.debug:
+        msg: |
+          === cron 任务管理最佳实践 ===
+          1. 使用绝对路径执行脚本，避免 PATH 劫持
+          2. 为不同任务创建专用用户，遵循最小权限原则
+          3. 在脚本中添加适当的错误处理和日志记录
+          4. 定期检查 cron 任务执行情况
+          5. 生产环境部署前使用 --check 模式预览
+          6. 重要任务设置邮件通知或监控告警
+          7. 使用 backup 参数备份原始 crontab 文件
+          8. 定期清理不再需要的 cron 任务
+    
+    # ========== 总结 ==========
+    - name: cron 模块演示完成总结
+      ansible.builtin.debug:
+        msg: |
+          已完成以下 cron 任务操作演示：
+          1. 创建每日备份任务（固定时间执行）
+          2. 创建每周日志清理任务（指定星期执行）
+          3. 创建系统监控任务（定时间隔执行）
+          4. 创建重启时执行任务（@reboot）
+          5. 创建每小时执行任务（@hourly）
+          6. 创建带环境变量的任务
+          7. 演示任务禁用功能
+          8. 演示任务删除功能
+          
+          下一步建议：
+          - 根据实际需求调整任务执行时间和用户
+          - 为 cron 任务编写相应的执行脚本
+          - 配置 cron 任务输出的邮件通知
+          - 设置监控告警确保任务正常执行

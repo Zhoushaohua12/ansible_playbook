@@ -1,0 +1,145 @@
+# ⚠️ 本文件仅为示例，占位符必须使用 Ansible Vault 或环境变量替换
+
+# ========== 用户配置 ==========
+# 部署用户
+deploy_user: "deploy"
+
+# 应用用户
+app_user: "appuser"
+
+# 运维用户
+ops_user: "ops"
+
+# 备份用户
+backup_user: "backup"
+
+# 监控用户
+monitor_user: "monitor"
+
+# 临时用户（用于演示删除功能）
+temp_user: "tempuser"
+
+# ========== SSH 公钥配置 ==========
+# 部署用户公钥（示例，实际使用时替换为真实公钥）
+deploy_public_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC3example_key_content_here deploy@workstation"
+
+# 部署用户密钥注释
+deploy_key_comment: "deploy@workstation"
+
+# 应用用户公钥
+app_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIexample_ed25519_key_content_here app@server"
+
+# 应用用户密钥选项（禁止端口转发和代理转发）
+app_key_options: "no-port-forwarding,no-agent-forwarding,no-X11-forwarding"
+
+# 应用用户密钥注释
+app_key_comment: "app_service@production"
+
+# 运维用户公钥
+ops_public_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7example_ops_key_content_here ops@laptop"
+
+# 运维用户密钥选项（来源 IP 限制）
+ops_allowed_from: "192.168.1.0/24,10.0.0.0/8"
+ops_key_options: "from=\"{{ ops_allowed_from }}\",no-port-forwarding"
+
+# 运维用户密钥注释
+ops_key_comment: "ops_team@company.com"
+
+# 备份用户公钥
+backup_public_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC9example_backup_key_content_here backup@server"
+
+# 备份用户密钥选项（仅允许执行特定命令）
+backup_allowed_command: "/usr/local/bin/backup_script.sh"
+backup_key_options: "command=\"{{ backup_allowed_command }}\",no-pty,no-agent-forwarding,no-port-forwarding"
+
+# 备份用户密钥注释
+backup_key_comment: "backup_only@automation"
+
+# 监控用户公钥
+monitor_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIexample_monitor_key_content_here monitor@nagios"
+
+# 监控用户密钥注释
+monitor_key_comment: "monitoring_service@nagios"
+
+# ========== 批量密钥配置 ==========
+# 批量密钥列表（用于演示批量操作）
+batch_keys:
+  - user: "webadmin"
+    key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC1example_webadmin_key webadmin@management"
+    comment: "webadmin@management-server"
+  - user: "dbadmin"
+    key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIexample_dbadmin_key dbadmin@database"
+    comment: "dbadmin@database-server"
+  - user: "logadmin"
+    key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC5example_logadmin_key logadmin@logging"
+    comment: "logadmin@log-server"
+
+# ========== 密钥更新配置 ==========
+# 部署用户的新公钥（用于演示更新功能）
+deploy_new_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIexample_deploy_new_key deploy@new-workstation"
+
+# 部署用户新密钥注释
+deploy_new_key_comment: "deploy@new-workstation-updated"
+
+# ========== 临时密钥配置 ==========
+# 临时用户公钥（用于演示删除功能）
+temp_public_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC3example_temp_key temp@temporary"
+
+# ========== 安全提示 ==========
+# ⚠️  特别注意：
+# 1. 以上公钥仅为示例格式，实际部署时必须替换为真实的 SSH 公钥
+# 2. 私钥必须使用强密码保护，并存储在安全的位置
+# 3. 生产环境建议使用 Ansible Vault 加密存储敏感的密钥信息
+# 4. 定期轮换 SSH 密钥，建议每 3-6 个月更新一次
+# 5. 为不同用途创建不同的密钥对，实现权限隔离
+# 6. 使用密钥选项限制访问来源、端口转发等功能
+# 7. 确保目标用户已存在，否则密钥添加会失败
+# 8. 生产环境部署前，一定要使用 --check 模式预览：
+#    ansible-playbook system/authorized_key/playbook.yml --check
+
+# ========== 密钥生成示例 ==========
+# 生成不同类型的 SSH 密钥：
+# 
+# 1. Ed25519 密钥（推荐）：
+#    ssh-keygen -t ed25519 -b 256 -C "user@hostname" -f ~/.ssh/id_ed25519
+#
+# 2. RSA 密钥（4096 位）：
+#    ssh-keygen -t rsa -b 4096 -C "user@hostname" -f ~/.ssh/id_rsa_4096
+#
+# 3. ECDSA 密钥：
+#    ssh-keygen -t ecdsa -b 521 -C "user@hostname" -f ~/.ssh/id_ecdsa
+
+# ========== 密钥选项说明 ==========
+# 常用密钥选项组合：
+#
+# 1. 基础限制：
+#    "no-port-forwarding,no-agent-forwarding,no-X11-forwarding"
+#
+# 2. 来源 IP 限制：
+#    "from=\"192.168.1.0/24,10.0.0.0/8\""
+#
+# 3. 命令执行限制：
+#    "command=\"/usr/local/bin/specific_script.sh\",no-pty"
+#
+# 4. 完全限制模式：
+#    "restrict,command=\"/usr/local/bin/backup.sh\""
+#
+# 5. 组合限制：
+#    "no-port-forwarding,no-agent-forwarding,from=\"10.0.0.0/8\",command=\"/usr/local/bin/limited.sh\""
+
+# ========== 目录权限要求 ==========
+# SSH 目录和文件的标准权限：
+# - ~/.ssh 目录：700 (rwx------)
+# - authorized_keys 文件：600 (rw-------)
+# - private key 文件：600 (rw-------)
+# - public key 文件：644 (rw-r--r--)
+
+# ========== 常见故障排查 ==========
+# 如果密钥无法正常使用，请检查：
+# 1. 目标用户是否存在
+# 2. ~/.ssh 目录权限是否为 700
+# 3. authorized_keys 文件权限是否为 600
+# 4. SSH 服务是否正常运行
+# 5. 防火墙是否允许 SSH 连接
+# 6. SELinux/AppArmor 是否限制了访问
+# 7. SSH 服务配置是否允许公钥认证
