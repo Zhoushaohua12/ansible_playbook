@@ -1,0 +1,161 @@
+# ⚠️ 本文件仅为示例，占位符必须使用 Ansible Vault 或环境变量替换
+
+# ========== auditd 基础配置 ==========
+# auditd 守护进程配置参数
+auditd_config:
+  log_file: /var/log/audit/audit.log
+  log_format: RAW
+  log_group: root
+  priority_boost: 4
+  flush: INCREMENTAL
+  freq: 20
+  max_log_file: 50
+  num_logs: 5
+  max_log_file_action: ROTATE
+  space_left: 75
+  space_left_action: SYSLOG
+  admin_space_left: 50
+  admin_space_left_action: SUSPEND
+  disk_full_action: SUSPEND
+  disk_error_action: SUSPEND
+
+# ========== 审计规则配置 ==========
+# 审计规则列表
+audit_rules:
+  # 文件监控规则
+  - type: file_watch
+    path: /etc/passwd
+    permissions: wa
+    key: identity
+  - type: file_watch
+    path: /etc/shadow
+    permissions: wa
+    key: identity
+  - type: file_watch
+    path: /etc/sudoers
+    permissions: wa
+    key: sudo
+  - type: file_watch
+    path: /var/log/secure
+    permissions: wa
+    key: logins
+  
+  # 系统调用监控
+  - type: syscall
+    action: always
+    arch: b64
+    syscalls:
+      - openat
+      - execve
+      - fork
+      - clone
+    key: process_creation
+  
+  # 用户监控
+  - type: user
+    uid: 0
+    key: root_commands
+
+# ========== 远程审计配置 ==========
+# 是否启用远程审计日志转发
+enable_remote_audit: false
+
+# 远程审计服务器配置（敏感信息，需要使用 Vault）
+# vault_auditd_remote_server: "audit.example.com"
+# vault_auditd_remote_port: 60
+# vault_auditd_remote_key: "your_secret_key_here"
+
+# ========== 日志管理配置 ==========
+# 审计日志轮转配置
+log_rotation:
+  max_log_file: 50
+  num_logs: 5
+  max_log_file_action: ROTATE
+  space_left_action: SYSLOG
+  admin_space_left_action: SUSPEND
+
+# ========== 性能优化配置 ==========
+# auditd 性能相关参数
+performance_config:
+  priority_boost: 4
+  flush: INCREMENTAL
+  freq: 20
+  max_restarts: 10
+
+# ========== 合规性配置 ==========
+# 合规性审计规则（根据具体标准启用）
+compliance_rules:
+  pci_dss:
+    enabled: false
+    rules:
+      - monitor_user_access: true
+      - monitor_privilege_escalation: true
+      - audit_log_protection: true
+  
+  hipaa:
+    enabled: false
+    rules:
+      - monitor_patient_data: true
+      - audit_trail_integrity: true
+      - user_activity_logging: true
+
+# ========== 监控配置 ==========
+# 审计系统监控参数
+monitoring:
+  # 磁盘空间警告阈值（MB）
+  disk_space_warning: 75
+  disk_space_critical: 50
+  
+  # 审计事件频率监控
+  event_rate_threshold: 1000
+  
+  # 服务健康检查
+  service_health_check: true
+
+# ========== 安全配置 ==========
+# auditd 安全相关参数
+security_config:
+  # 审计日志文件权限
+  log_file_mode: "0600"
+  log_dir_mode: "0700"
+  
+  # 配置文件权限
+  config_file_mode: "0640"
+  
+  # 审计规则文件权限
+  rules_file_mode: "0640"
+
+# ========== ⚠️ 重要安全提示 ==========
+# ⚠️  审计系统配置警告：
+# 1. 审计规则过多可能严重影响系统性能
+# 2. 敏感配置参数应使用 Ansible Vault 加密
+# 3. 审计日志文件需要特殊保护，防止篡改
+# 4. 远程审计转发需要网络和防火墙配置
+# 5. 在生产环境部署前必须充分测试
+
+# ⚠️  配置文件安全注意：
+# 1. auditd.conf 包含敏感的远程服务器配置
+# 2. audit.rules 包含系统安全策略信息
+# 3. 所有配置文件都应设置适当的权限
+# 4. 定期备份审计配置和规则文件
+
+# ⚠️  合规性要求：
+# 1. 根据具体合规标准（PCI DSS、HIPAA、SOX）配置审计规则
+# 2. 确保审计日志的完整性和不可篡改性
+# 3. 实施审计日志的长期保存策略
+# 4. 建立定期的审计日志审查机制
+
+# ⚠️  性能影响评估：
+# 1. 过度审计可能导致系统性能下降
+# 2. 监控审计系统的资源使用情况
+# 3. 在高负载环境中谨慎配置审计规则
+# 4. 定期评估和优化审计策略
+
+# ⚠️  在生产环境使用前的建议：
+# - 使用 --check 模式预览变更：ansible-playbook playbook.yml --check
+# - 在测试环境充分验证审计规则的有效性
+# - 评估审计配置对系统性能的影响
+# - 配置审计日志的备份和恢复策略
+# - 建立审计日志的定期审查和分析流程
+# - 考虑实施集中化的审计日志管理
+# - 确保审计系统本身的监控和告警机制
