@@ -47,6 +47,9 @@
 | **synchronize** | 使用 rsync 同步目录 | 增量备份、代码部署、镜像同步 | ✓ |
 | **replace** | 根据正则表达式替换文件内容 | 批量配置修改、日志脱敏、数据转换 | ✓ |
 | **blockinfile** | 在文件中插入或删除文本块 | 配置段管理、脚本插入、注释维护 | ✓ |
+| **get_url** | 从网络下载文件到远程主机 | 软件包下载、配置文件获取、资源部署 | ✓ |
+| **assemble** | 将多个文件片段组装成完整文件 | 配置文件组装、日志合并、证书链组装 | ✓ |
+| **slurp** | 从远程主机读取文件内容（base64编码） | 配置文件读取、证书内容获取、敏感信息提取 | ✓ |
 
 ## 学习路线指引
 
@@ -273,6 +276,9 @@ jinja2 templates/nginx.conf.j2 vars/example_vars.yml
 - [archive 模块](archive/README.md) - 文件压缩归档
 - [unarchive 模块](unarchive/README.md) - 文件解压缩部署
 - [synchronize 模块](synchronize/README.md) - 目录增量同步和备份
+- [get_url 模块](get_url/README.md) - 网络文件下载
+- [assemble 模块](assemble/README.md) - 文件片段组装
+- [slurp 模块](slurp/README.md) - 远程文件内容读取
 
 ## 参考资源
 
