@@ -1,0 +1,164 @@
+---
+# 数据库备份主任务文件
+# ⚠️ 教学声明：此角色主要用于学习数据库备份，请在测试环境验证后再应用于生产。
+
+- name: 创建数据库备份脚本目录
+  ansible.builtin.file:
+    path: "{{ backup_base_dir }}/scripts"
+    state: directory
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0755'
+  tags: [database, directories]
+
+- name: 创建数据库备份目录
+  ansible.builtin.file:
+    path: "{{ backup_base_dir }}/database"
+    state: directory
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0755'
+  tags: [database, directories]
+
+- name: 创建数据库备份脚本
+  ansible.builtin.template:
+    src: database_backup.sh.j2
+    dest: "{{ backup_base_dir }}/scripts/database_backup.sh"
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0755'
+  tags: [database, scripts]
+
+- name: 创建数据库恢复脚本
+  ansible.builtin.template:
+    src: database_restore.sh.j2
+    dest: "{{ backup_base_dir }}/scripts/database_restore.sh"
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0755'
+  tags: [database, scripts]
+
+- name: 创建数据库备份验证脚本
+  ansible.builtin.template:
+    src: database_verify.sh.j2
+    dest: "{{ backup_base_dir }}/scripts/database_verify.sh"
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0755'
+  tags: [database, scripts]
+
+- name: 为每个数据库引擎创建配置文件
+  ansible.builtin.template:
+    src: database_config.json.j2
+    dest: "{{ backup_base_dir }}/config/database_{{ item.engine }}.json"
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0600'
+  loop: "{{ database_backup_engines }}"
+  when: item.enabled
+  loop_control:
+    label: "{{ item.engine }}"
+  tags: [database, config]
+
+- name: 创建数据库备份 Cron 任务
+  ansible.builtin.cron:
+    name: "database_backup_{{ item.engine }}"
+    job: "{{ backup_base_dir }}/scripts/database_backup.sh {{ item.engine }}"
+    minute: "0"
+    hour: "3"
+    user: "{{ backup_user }}"
+    cron_file: "database_backup"
+    state: present
+  loop: "{{ database_backup_engines }}"
+  when: item.enabled and database_backup_enabled
+  loop_control:
+    label: "{{ item.engine }}"
+  tags: [database, cron]
+
+- name: 创建数据库日志目录
+  ansible.builtin.file:
+    path: "{{ backup_log_dir }}/database"
+    state: directory
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0755'
+  tags: [database, logging]
+
+- name: 创建 MySQL 配置文件
+  ansible.builtin.template:
+    src: mysql_backup.cnf.j2
+    dest: "{{ backup_base_dir }}/config/mysql_backup.cnf"
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0600'
+  when: database_backup_engines | selectattr('engine', 'equalto', 'mysql') | selectattr('enabled', 'equalto', true) | list | length > 0
+  tags: [database, config]
+
+- name: 创建 PostgreSQL 配置文件
+  ansible.builtin.template:
+    src: postgresql_backup.conf.j2
+    dest: "{{ backup_base_dir }}/config/postgresql_backup.conf"
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0600'
+  when: database_backup_engines | selectattr('engine', 'equalto', 'postgresql') | selectattr('enabled', 'equalto', true) | list | length > 0
+  tags: [database, config]
+
+- name: 创建 MongoDB 配置文件
+  ansible.builtin.template:
+    src: mongodb_backup.conf.j2
+    dest: "{{ backup_base_dir }}/config/mongodb_backup.conf"
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0600'
+  when: database_backup_engines | selectattr('engine', 'equalto', 'mongodb') | selectattr('enabled', 'equalto', true) | list | length > 0
+  tags: [database, config]
+
+- name: 配置数据库备份环境变量
+  ansible.builtin.lineinfile:
+    path: "/home/{{ backup_user }}/.backup_env"
+    line: 'export DATABASE_BACKUP_PARALLEL_JOBS="{{ database_backup_parallel_jobs }}"'
+    create: yes
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0600'
+  tags: [database, environment]
+
+- name: 测试数据库连接
+  ansible.builtin.shell: |
+    {% for engine in database_backup_engines %}
+    {% if engine.enabled %}
+    if command -v {{ engine.engine }} >/dev/null 2>&1; then
+      echo "Testing {{ engine.engine }} connection..."
+      {% if engine.engine == 'mysql' %}
+      mysql --host={{ engine.host }} --port={{ engine.port }} --user={{ engine.username }} --password='{{ engine.password }} -e "SELECT 1" >/dev/null 2>&1 && echo "{{ engine.engine }} connection OK" || echo "{{ engine.engine }} connection FAILED"
+      {% elif engine.engine == 'postgresql' %}
+      PGPASSWORD='{{ engine.password }}' psql --host={{ engine.host }} --port={{ engine.port }} --username={{ engine.username }} -c "SELECT 1" >/dev/null 2>&1 && echo "{{ engine.engine }} connection OK" || echo "{{ engine.engine }} connection FAILED"
+      {% elif engine.engine == 'mongodb' %}
+      mongosh --host={{ engine.host }}:{{ engine.port }} --username={{ engine.username }} --password='{{ engine.password }} --eval "db.adminCommand('ping')" >/dev/null 2>&1 && echo "{{ engine.engine }} connection OK" || echo "{{ engine.engine }} connection FAILED"
+      {% endif %}
+    fi
+    {% endfor %}
+  become_user: "{{ backup_user }}"
+  register: db_connection_test
+  failed_when: false
+  changed_when: false
+  tags: [database, test]
+
+- name: 显示数据库连接测试结果
+  ansible.builtin.debug:
+    msg: "{{ db_connection_test.stdout_lines }}"
+  tags: [database, test]
+
+- name: 测试数据库备份脚本
+  ansible.builtin.command: "{{ backup_base_dir }}/scripts/database_backup.sh --test"
+  become_user: "{{ backup_user }}"
+  register: database_backup_test
+  failed_when: false
+  changed_when: false
+  tags: [database, test]
+
+- name: 显示数据库备份测试结果
+  ansible.builtin.debug:
+    msg: "数据库备份脚本测试结果: {{ database_backup_test.stdout | default('测试通过') }}"
+  tags: [database, test]

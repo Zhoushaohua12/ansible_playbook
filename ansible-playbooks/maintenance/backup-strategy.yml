@@ -1,0 +1,233 @@
+---
+# ⚠️ 教学声明：本 playbook 主要用于学习备份策略配置，请在测试环境验证后再应用于生产。
+- name: 备份策略配置与执行
+  hosts: backup_servers
+  gather_facts: true
+  become: yes
+  vars_files:
+    - vars/default.yml
+
+  handlers:
+    - name: 重启 cron 服务
+      ansible.builtin.service:
+        name: cron
+        state: restarted
+
+    - name: 重新加载 systemd 守护进程
+      ansible.builtin.systemd:
+        daemon_reload: yes
+
+  tasks:
+    - name: 更新 APT 包缓存
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+      tags: [backup, packages]
+
+    - name: 安装备份依赖包
+      ansible.builtin.package:
+        name:
+          - rsync
+          - tar
+          - gzip
+          - openssl
+          - bc
+          - jq
+          - awscli
+          - python3-pip
+          - mysql-client
+          - postgresql-client
+          - mongodb-clients
+        state: present
+      tags: [backup, packages]
+
+    - name: 安装 Python 依赖包
+      ansible.builtin.pip:
+        name:
+          - boto3
+          - botocore
+          - aliyun-oss2
+          - azure-storage-blob
+          - requests
+        state: present
+      tags: [backup, python_packages]
+
+    - name: 创建备份用户
+      ansible.builtin.user:
+        name: "{{ backup_user }}"
+        group: "{{ backup_group }}"
+        shell: /bin/bash
+        system: yes
+        create_home: yes
+        home: "/home/{{ backup_user }}"
+        state: present
+      tags: [backup, user]
+
+    - name: 创建备份目录结构
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ backup_user }}"
+        group: "{{ backup_group }}"
+        mode: '0755'
+      loop:
+        - "{{ backup_base_dir }}"
+        - "{{ backup_log_dir }}"
+        - "{{ backup_base_dir }}/filesystem"
+        - "{{ backup_base_dir }}/database"
+        - "{{ backup_base_dir }}/cloud_sync"
+        - "/home/{{ backup_user }}/.aws"
+        - "/home/{{ backup_user }}/.config"
+      tags: [backup, directories]
+
+    - name: 配置文件系统备份
+      include_tasks: roles/filesystem_backup/tasks/main.yml
+      when: filesystem_backup_enabled
+      tags: [backup, filesystem]
+
+    - name: 配置数据库备份
+      include_tasks: roles/database_backup/tasks/main.yml
+      when: database_backup_enabled
+      tags: [backup, database]
+
+    - name: 配置云同步
+      include_tasks: roles/cloud_sync/tasks/main.yml
+      when: cloud_sync_enabled
+      tags: [backup, cloud_sync]
+
+    - name: 创建备份验证脚本
+      ansible.builtin.template:
+        src: templates/backup_verify.sh.j2
+        dest: "{{ backup_base_dir }}/scripts/backup_verify.sh"
+        owner: "{{ backup_user }}"
+        group: "{{ backup_group }}"
+        mode: '0755'
+      tags: [backup, verification]
+
+    - name: 创建备份清理脚本
+      ansible.builtin.template:
+        src: templates/backup_cleanup.sh.j2
+        dest: "{{ backup_base_dir }}/scripts/backup_cleanup.sh"
+        owner: "{{ backup_user }}"
+        group: "{{ backup_group }}"
+        mode: '0755'
+      tags: [backup, cleanup]
+
+    - name: 创建备份监控脚本
+      ansible.builtin.template:
+        src: templates/backup_monitor.sh.j2
+        dest: "{{ backup_base_dir }}/scripts/backup_monitor.sh"
+        owner: "{{ backup_user }}"
+        group: "{{ backup_group }}"
+        mode: '0755'
+      tags: [backup, monitoring]
+
+    - name: 配置备份 Cron 任务
+      ansible.builtin.template:
+        src: templates/backup_crontab.j2
+        dest: "/etc/cron.d/backup_tasks"
+        owner: root
+        group: root
+        mode: '0644'
+      notify: 重启 cron 服务
+      tags: [backup, cron]
+
+    - name: 配置备份通知脚本
+      ansible.builtin.template:
+        src: templates/backup_notify.sh.j2
+        dest: "{{ backup_base_dir }}/scripts/backup_notify.sh"
+        owner: "{{ backup_user }}"
+        group: "{{ backup_group }}"
+        mode: '0755'
+      tags: [backup, notification]
+
+    - name: 创建备份配置文件
+      ansible.builtin.template:
+        src: templates/backup_config.json.j2
+        dest: "{{ backup_base_dir }}/config/backup_config.json"
+        owner: "{{ backup_user }}"
+        group: "{{ backup_group }}"
+        mode: '0644'
+      tags: [backup, config]
+
+    - name: 配置备份日志轮转
+      ansible.builtin.template:
+        src: templates/backup_logrotate.j2
+        dest: "/etc/logrotate.d/backup"
+        owner: root
+        group: root
+        mode: '0644'
+      tags: [backup, logging]
+
+    - name: 设置备份脚本权限
+      ansible.builtin.file:
+        path: "{{ backup_base_dir }}/scripts"
+        state: directory
+        owner: "{{ backup_user }}"
+        group: "{{ backup_group }}"
+        mode: '0755'
+        recurse: yes
+      tags: [backup, permissions]
+
+    - name: 配置备份环境变量
+      ansible.builtin.template:
+        src: templates/backup_env.j2
+        dest: "/home/{{ backup_user }}/.backup_env"
+        owner: "{{ backup_user }}"
+        group: "{{ backup_group }}"
+        mode: '0600'
+      tags: [backup, environment]
+
+    - name: 创建备份恢复脚本
+      ansible.builtin.template:
+        src: templates/backup_restore.sh.j2
+        dest: "{{ backup_base_dir }}/scripts/backup_restore.sh"
+        owner: "{{ backup_user }}"
+        group: "{{ backup_group }}"
+        mode: '0755'
+      tags: [backup, restore]
+
+    - name: 执行备份验证
+      ansible.builtin.command: "{{ backup_base_dir }}/scripts/backup_verify.sh --test"
+      become_user: "{{ backup_user }}"
+      register: backup_verify_result
+      changed_when: false
+      tags: [backup, verification]
+
+    - name: 配置防火墙规则（如果需要）
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - '22'  # SSH
+      when: ansible_os_family == "Debian"
+      tags: [backup, firewall]
+
+    - name: 输出备份策略配置信息
+      ansible.builtin.debug:
+        msg:
+          - "备份策略配置完成！"
+          - "备份目录: {{ backup_base_dir }}"
+          - "日志目录: {{ backup_log_dir }}"
+          - "备份用户: {{ backup_user }}"
+          - "文件系统备份: {{ '启用' if filesystem_backup_enabled else '禁用' }}"
+          - "数据库备份: {{ '启用' if database_backup_enabled else '禁用' }}"
+          - "云同步: {{ '启用' if cloud_sync_enabled else '禁用' }}"
+          - "备份验证: {{ '启用' if backup_verification_enabled else '禁用' }}"
+          - "备份通知: {{ '启用' if backup_notification_enabled else '禁用' }}"
+          - "备份监控: {{ '启用' if backup_monitoring_enabled else '禁用' }}"
+      tags: [backup, info]
+
+    - name: 显示备份命令示例
+      ansible.builtin.debug:
+        msg:
+          - "常用备份命令："
+          - "手动执行文件系统备份: sudo -u {{ backup_user }} {{ backup_base_dir }}/scripts/filesystem_backup.sh"
+          - "手动执行数据库备份: sudo -u {{ backup_user }} {{ backup_base_dir }}/scripts/database_backup.sh"
+          - "手动执行云同步: sudo -u {{ backup_user }} {{ backup_base_dir }}/scripts/cloud_sync.sh"
+          - "验证备份完整性: sudo -u {{ backup_user }} {{ backup_base_dir }}/scripts/backup_verify.sh"
+          - "清理过期备份: sudo -u {{ backup_user }} {{ backup_base_dir }}/scripts/backup_cleanup.sh"
+          - "查看备份状态: sudo -u {{ backup_user }} {{ backup_base_dir }}/scripts/backup_monitor.sh --status"
+      tags: [backup, info]

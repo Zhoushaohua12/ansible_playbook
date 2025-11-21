@@ -1,0 +1,272 @@
+#!/bin/bash
+# 云同步脚本
+# ⚠️ 教学声明：此脚本主要用于学习云同步备份，请在测试环境验证后再应用于生产。
+
+set -euo pipefail
+
+# 加载环境变量
+source "/home/{{ backup_user }}/.backup_env"
+
+# 配置变量
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_DIR="{{ backup_base_dir }}/config"
+BACKUP_DIR="{{ backup_base_dir }}/cloud_sync"
+LOG_DIR="{{ backup_log_dir }}/cloud_sync"
+DATE=$(date +%Y%m%d_%H%M%S)
+RETRY_COUNT="{{ cloud_sync_retry_count | default(3) }}"
+RETRY_DELAY="{{ cloud_sync_retry_delay | default(60) }}"
+
+# 日志函数
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_DIR/cloud_sync_$DATE.log"
+}
+
+# 错误处理
+error_exit() {
+    log "ERROR: $1"
+    exit 1
+}
+
+# 重试函数
+retry() {
+    local attempts=$1
+    local delay=$2
+    shift 2
+    local cmd=("$@")
+    
+    for ((i=1; i<=attempts; i++)); do
+        log "尝试执行: ${cmd[*]} (第 $i 次)"
+        if "${cmd[@]}"; then
+            return 0
+        else
+            if [[ $i -lt $attempts ]]; then
+                log "执行失败，${delay}秒后重试..."
+                sleep "$delay"
+            else
+                log "所有尝试均失败"
+                return 1
+            fi
+        fi
+    done
+}
+
+# 检查参数
+if [[ $# -lt 1 ]]; then
+    echo "Usage: $0 <provider> [--test]"
+    echo "Supported providers: aws_s3, aliyun_oss, azure_blob"
+    exit 1
+fi
+
+PROVIDER="$1"
+TEST_MODE="${2:-}"
+
+# 检查配置文件
+CONFIG_FILE="$CONFIG_DIR/cloud_${PROVIDER}.json"
+if [[ ! -f "$CONFIG_FILE" ]]; then
+    error_exit "配置文件不存在: $CONFIG_FILE"
+fi
+
+# 读取配置
+ENABLED=$(jq -r '.enabled' "$CONFIG_FILE")
+if [[ "$ENABLED" != "true" ]]; then
+    log "云服务提供商 $PROVIDER 未启用"
+    exit 0
+fi
+
+# 根据提供商读取配置
+case "$PROVIDER" in
+    "aws_s3")
+        BUCKET_NAME=$(jq -r '.bucket_name' "$CONFIG_FILE")
+        REGION=$(jq -r '.region' "$CONFIG_FILE")
+        ACCESS_KEY=$(jq -r '.access_key' "$CONFIG_FILE")
+        SECRET_KEY=$(jq -r '.secret_key' "$CONFIG_FILE")
+        ENDPOINT_URL=$(jq -r '.endpoint_url // ""' "$CONFIG_FILE")
+        STORAGE_CLASS=$(jq -r '.storage_class // "STANDARD"' "$CONFIG_FILE")
+        ENCRYPTION=$(jq -r '.encryption // "AES256"' "$CONFIG_FILE")
+        MULTIPART_THRESHOLD=$(jq -r '.multipart_threshold // "64MB"' "$CONFIG_FILE")
+        CONCURRENCY=$(jq -r '.concurrency // 10' "$CONFIG_FILE")
+        RETENTION_DAYS=$(jq -r '.retention_days // 90' "$CONFIG_FILE")
+        
+        # 设置环境变量
+        export AWS_ACCESS_KEY_ID="$ACCESS_KEY"
+        export AWS_SECRET_ACCESS_KEY="$SECRET_KEY"
+        export AWS_DEFAULT_REGION="$REGION"
+        
+        log "开始 AWS S3 同步"
+        log "存储桶: $BUCKET_NAME"
+        log "区域: $REGION"
+        log "存储类别: $STORAGE_CLASS"
+        ;;
+        
+    "aliyun_oss")
+        BUCKET_NAME=$(jq -r '.bucket_name' "$CONFIG_FILE")
+        REGION=$(jq -r '.region' "$CONFIG_FILE")
+        ACCESS_KEY=$(jq -r '.access_key' "$CONFIG_FILE")
+        SECRET_KEY=$(jq -r '.secret_key' "$CONFIG_FILE")
+        ENDPOINT_URL=$(jq -r '.endpoint_url // ""' "$CONFIG_FILE")
+        STORAGE_CLASS=$(jq -r '.storage_class // "IA"' "$CONFIG_FILE")
+        ENCRYPTION=$(jq -r '.encryption // "AES256"' "$CONFIG_FILE")
+        MULTIPART_THRESHOLD=$(jq -r '.multipart_threshold // "64MB"' "$CONFIG_FILE")
+        CONCURRENCY=$(jq -r '.concurrency // 8' "$CONFIG_FILE")
+        RETENTION_DAYS=$(jq -r '.retention_days // 60' "$CONFIG_FILE")
+        
+        log "开始阿里云 OSS 同步"
+        log "存储桶: $BUCKET_NAME"
+        log "区域: $REGION"
+        log "存储类别: $STORAGE_CLASS"
+        ;;
+        
+    "azure_blob")
+        ACCOUNT_NAME=$(jq -r '.account_name' "$CONFIG_FILE")
+        CONTAINER_NAME=$(jq -r '.container_name' "$CONFIG_FILE")
+        ACCESS_KEY=$(jq -r '.access_key' "$CONFIG_FILE")
+        SAS_TOKEN=$(jq -r '.sas_token // ""' "$CONFIG_FILE")
+        TIER=$(jq -r '.tier // "Cool"' "$CONFIG_FILE")
+        ENCRYPTION=$(jq -r '.encryption // true' "$CONFIG_FILE")
+        MULTIPART_THRESHOLD=$(jq -r '.multipart_threshold // "64MB"' "$CONFIG_FILE")
+        CONCURRENCY=$(jq -r '.concurrency // 6' "$CONFIG_FILE")
+        RETENTION_DAYS=$(jq -r '.retention_days // 45' "$CONFIG_FILE")
+        
+        log "开始 Azure Blob 同步"
+        log "存储账户: $ACCOUNT_NAME"
+        log "容器: $CONTAINER_NAME"
+        log "访问层: $TIER"
+        ;;
+        
+    *)
+        error_exit "不支持的云服务提供商: $PROVIDER"
+        ;;
+esac
+
+# 创建同步目录
+mkdir -p "$BACKUP_DIR/$PROVIDER"
+
+# 读取同步路径配置
+SYNC_PATHS=$(jq -r '.sync_paths[]?' "$CONFIG_FILE")
+
+# 执行同步
+for sync_path in $SYNC_PATHS; do
+    LOCAL_PATH=$(echo "$sync_path" | jq -r '.local')
+    REMOTE_PATH=$(echo "$sync_path" | jq -r '.remote')
+    
+    if [[ ! -d "$LOCAL_PATH" ]]; then
+        log "警告: 本地路径不存在: $LOCAL_PATH"
+        continue
+    fi
+    
+    log "同步路径: $LOCAL_PATH -> $REMOTE_PATH"
+    
+    case "$PROVIDER" in
+        "aws_s3")
+            S3_URI="s3://$BUCKET_NAME/$REMOTE_PATH"
+            
+            # 构建 AWS CLI 命令
+            AWS_CMD="aws s3 sync \"$LOCAL_PATH\" \"$S3_URI\""
+            AWS_CMD="$AWS_CMD --storage-class $STORAGE_CLASS"
+            AWS_CMD="$AWS_CMD --sse $ENCRYPTION"
+            AWS_CMD="$AWS_CMD --multipart-threshold $MULTIPART_THRESHOLD"
+            AWS_CMD="$AWS_CMD --concurrency $CONCURRENCY"
+            
+            if [[ -n "$ENDPOINT_URL" ]]; then
+                AWS_CMD="$AWS_CMD --endpoint-url $ENDPOINT_URL"
+            fi
+            
+            if [[ "$TEST_MODE" == "--test" ]]; then
+                log "测试模式: $AWS_CMD --dryrun"
+                eval "$AWS_CMD --dryrun"
+            else
+                log "执行: $AWS_CMD"
+                retry $RETRY_COUNT $RETRY_DELAY eval "$AWS_CMD"
+            fi
+            ;;
+            
+        "aliyun_oss")
+            OSS_ENDPOINT="https://$BUCKET_NAME.$REGION.aliyuncs.com"
+            
+            # 构建 OSS CLI 命令 (使用 aliyun-oss2)
+            if [[ "$TEST_MODE" == "--test" ]]; then
+                log "测试模式: ossutil sync \"$LOCAL_PATH\" oss://$BUCKET_NAME/$REMOTE_PATH"
+                echo "ossutil sync \"$LOCAL_PATH\" oss://$BUCKET_NAME/$REMOTE_PATH"
+            else
+                log "执行: ossutil sync \"$LOCAL_PATH\" oss://$BUCKET_NAME/$REMOTE_PATH"
+                retry $RETRY_COUNT $RETRY_DELAY ossutil sync "$LOCAL_PATH" "oss://$BUCKET_NAME/$REMOTE_PATH" --config-file "$CONFIG_DIR/aliyun_oss_config"
+            fi
+            ;;
+            
+        "azure_blob")
+            # 构建 Azure CLI 命令
+            AZURE_CMD="az storage blob sync --container \"$CONTAINER_NAME\" --source \"$LOCAL_PATH\" --destination \"$REMOTE_PATH\""
+            
+            if [[ -n "$ACCESS_KEY" ]]; then
+                AZURE_CMD="$AZURE_CMD --account-key \"$ACCESS_KEY\""
+            fi
+            
+            if [[ -n "$SAS_TOKEN" ]]; then
+                AZURE_CMD="$AZURE_CMD --sas-token \"$SAS_TOKEN\""
+            fi
+            
+            if [[ "$TEST_MODE" == "--test" ]]; then
+                log "测试模式: $AZURE_CMD --dryrun"
+                echo "$AZURE_CMD --dryrun"
+            else
+                log "执行: $AZURE_CMD"
+                retry $RETRY_COUNT $RETRY_DELAY eval "$AZURE_CMD"
+            fi
+            ;;
+    esac
+done
+
+# 清理云端过期文件
+if [[ "$TEST_MODE" != "--test" && $RETENTION_DAYS -gt 0 ]]; then
+    log "清理云端 $RETENTION_DAYS 天前的文件..."
+    
+    case "$PROVIDER" in
+        "aws_s3")
+            for sync_path in $SYNC_PATHS; do
+                REMOTE_PATH=$(echo "$sync_path" | jq -r '.remote')
+                DELETE_CMD="aws s3 ls \"s3://$BUCKET_NAME/$REMOTE_PATH\" --recursive | while read -r line; do"
+                DELETE_CMD="$DELETE_CMD create_date=\$(echo \$line | awk '{print \$1\" \"\$2}');"
+                DELETE_CMD="$DELETE_CMD create_date=\$(date -d\"\$create_date\" +%s);"
+                DELETE_CMD="$DELETE_CMD older_than=\$(date -d\"$RETENTION_DAYS days ago\" +%s);"
+                DELETE_CMD="$DELETE_CMD if [[ \$create_date -lt \$older_than ]]; then"
+                DELETE_CMD="$DELETE_CMD file_path=\$(echo \$line | awk '{print \$4}');"
+                DELETE_CMD="$DELETE_CMD aws s3 rm \"s3://$BUCKET_NAME/\$file_path\";"
+                DELETE_CMD="$DELETE_CMD fi;"
+                DELETE_CMD="$DELETE_CMD done"
+                
+                log "清理 S3 路径: $REMOTE_PATH"
+                eval "$DELETE_CMD"
+            done
+            ;;
+            
+        "aliyun_oss")
+            log "清理 OSS 过期文件..."
+            # OSS 清理逻辑
+            ;;
+            
+        "azure_blob")
+            log "清理 Azure Blob 过期文件..."
+            # Azure 清理逻辑
+            ;;
+    esac
+fi
+
+# 记录同步信息
+BACKUP_INFO_FILE="$LOG_DIR/sync_info.json"
+SYNC_INFO=$(cat <<EOF
+{
+  "timestamp": "$(date -Iseconds)",
+  "provider": "$PROVIDER",
+  "sync_paths": "$SYNC_PATHS",
+  "retention_days": $RETENTION_DAYS,
+  "retry_count": $RETRY_COUNT,
+  "retry_delay": $RETRY_DELAY,
+  "test_mode": $([[ "$TEST_MODE" == "--test" ]] && echo "true" || echo "false")
+}
+EOF
+)
+
+echo "$SYNC_INFO" >> "$BACKUP_INFO_FILE"
+
+log "云同步完成: $PROVIDER"
+exit 0

@@ -1,0 +1,176 @@
+# Logstash 管道配置文件
+# ⚠️ 教学声明：此配置文件主要用于学习环境，生产环境请根据实际需求调整
+
+input {
+  # Beats 输入
+  beats {
+    port => {{ logstash_port }}
+    host => "0.0.0.0"
+  }
+  
+  # TCP 输入
+  tcp {
+    port => 5000
+    codec => json_lines
+  }
+  
+  # UDP 输入
+  udp {
+    port => 5001
+    codec => json
+  }
+  
+  # Syslog 输入
+  syslog {
+    port => 5140
+    type => syslog
+  }
+  
+  # HTTP 输入
+  http {
+    port => 8080
+    codec => json
+  }
+}
+
+filter {
+  # 处理系统日志
+  if [fields][logtype] == "syslog" {
+    grok {
+      match => { "message" => "%{SYSLOGBASE}" }
+    }
+    
+    date {
+      match => [ "timestamp", "MMM  d HH:mm:ss", "MMM dd HH:mm:ss" ]
+    }
+    
+    mutate {
+      replace => { "host" => "%{syslogserver}" }
+    }
+  }
+  
+  # 处理 Nginx 访问日志
+  if [fields][logtype] == "nginx" {
+    grok {
+      match => { "message" => "%{NGINXACCESS}" }
+    }
+    
+    date {
+      match => [ "timestamp", "dd/MMM/yyyy:HH:mm:ss Z" ]
+    }
+    
+    mutate {
+      convert => { "response" => "integer" }
+      convert => { "bytes" => "integer" }
+      convert => { "upstream_time" => "float" }
+    }
+    
+    # 处理用户代理
+    if [agent] != "-" {
+      useragent {
+        source => "agent"
+        target => "user_agent"
+      }
+    }
+    
+    # 处理地理位置（如果需要）
+    # geoip {
+    #   source => "clientip"
+    #   target => "geoip"
+    # }
+  }
+  
+  # 处理 MySQL 日志
+  if [fields][logtype] == "mysql" {
+    grok {
+      match => { "message" => "%{TIMESTAMP_ISO8601:timestamp} \[%{NUMBER:thread_id}\] %{WORD:log_level} %{GREEDYDATA:message}" }
+    }
+    
+    date {
+      match => [ "timestamp", "ISO8601" ]
+    }
+    
+    mutate {
+      convert => { "thread_id" => "integer" }
+    }
+  }
+  
+  # 处理应用日志（JSON 格式）
+  if [fields][logtype] == "application" {
+    json {
+      source => "message"
+    }
+  }
+  
+  # 处理错误日志
+  if [log_level] == "ERROR" or [log_level] == "error" {
+    mutate {
+      add_tag => [ "error" ]
+    }
+  }
+  
+  # 处理警告日志
+  if [log_level] == "WARN" or [log_level] == "warning" {
+    mutate {
+      add_tag => [ "warning" ]
+    }
+  }
+  
+  # 添加时间戳
+  if ![timestamp] {
+    mutate {
+      add_field => { "timestamp" => "%{@timestamp}" }
+    }
+  }
+  
+  # 清理字段
+  mutate {
+    remove_field => [ "host", "agent", "ecs", "input", "log" ]
+  }
+  
+  # 添加环境标签
+  mutate {
+    add_field => { "environment" => "{{ ansible_hostname }}" }
+  }
+}
+
+output {
+  # 输出到 Elasticsearch
+  elasticsearch {
+    hosts => ["http://localhost:{{ elasticsearch_http_port }}"]
+    index => "logstash-%{+YYYY.MM.dd}"
+    template_name => "logstash"
+    template => "/etc/logstash/templates/logstash-template.json"
+    template_overwrite => true
+  }
+  
+  # 输出到文件（调试用）
+  if [@metadata][debug] {
+    file {
+      path => "/var/log/logstash/debug.log"
+    }
+  }
+  
+  # 输出到标准输出（调试用）
+  if [@metadata][debug] {
+    stdout {
+      codec => rubydebug
+    }
+  }
+  
+  # 错误日志输出
+  if "error" in [tags] {
+    elasticsearch {
+      hosts => ["http://localhost:{{ elasticsearch_http_port }}"]
+      index => "error-logs-%{+YYYY.MM.dd}"
+    }
+  }
+  
+  # 警告日志输出
+  if "warning" in [tags] {
+    elasticsearch {
+      hosts => ["http://localhost:{{ elasticsearch_http_port }}"]
+      index => "warning-logs-%{+YYYY.MM.dd}"
+    }
+  }
+}

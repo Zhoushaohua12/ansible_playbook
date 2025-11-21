@@ -1,0 +1,55 @@
+[Unit]
+Description={{ nodejs_app_name }} Node.js Application
+Documentation=https://nodejs.org/docs/
+After=network.target
+Wants=network.target
+
+[Service]
+# ⚠️ 教学声明：此服务文件主要用于学习环境，生产环境请根据实际需求调整
+
+# 用户和组设置
+User={{ nodejs_app_user }}
+Group={{ nodejs_app_group }}
+
+# 工作目录
+WorkingDirectory={{ nodejs_app_path }}
+
+# 环境变量
+Environment=NODE_ENV={{ nodejs_node_env }}
+Environment=PORT={{ nodejs_app_port }}
+Environment=PATH=/usr/bin:/usr/local/bin
+
+# 启动命令
+ExecStart=/usr/bin/node app.js
+
+# 重启策略
+Restart=always
+RestartSec=10
+
+# 超时设置
+TimeoutStartSec=60
+TimeoutStopSec=30
+
+# 进程管理
+KillMode=mixed
+KillSignal=SIGTERM
+SendSIGKILL=no
+
+# 安全设置
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths={{ nodejs_app_path }} /var/log/{{ nodejs_app_name }}
+
+# 资源限制
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# 日志设置
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier={{ nodejs_app_name }}
+
+[Install]
+WantedBy=multi-user.target

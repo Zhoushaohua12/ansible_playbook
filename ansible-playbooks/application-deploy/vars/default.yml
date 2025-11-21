@@ -1,0 +1,84 @@
+---
+# 应用部署变量配置
+# ⚠️ 重要提示：这些变量为示例配置，请在生产环境使用前根据实际情况调整
+
+# Docker 配置
+docker_enabled: true
+docker_install_compose: true
+docker_registry_mirror: "https://registry.docker-cn.com"
+docker_daemon_json_config:
+  log-driver: "json-file"
+  log-opts:
+    max-size: "10m"
+    max-file: "3"
+  storage-driver: "overlay2"
+docker_users: []
+docker_test_container_image: "hello-world"
+docker_test_container_name: "hello-test"
+
+# ⚠️ 安全提示：
+# 1. 生产环境请使用可信的镜像仓库
+# 2. 请勿在版本控制中提交敏感信息如 registry 密码
+# 3. 建议使用 Vault 加密存储敏感配置
+vault_registry_password: ""
+
+# LAMP 栈配置
+lamp_enabled: true
+lamp_web_root: "/var/www/html"
+lamp_server_name: "lamp.local"
+lamp_mysql_root_password: "secure_password_change_me"
+lamp_mysql_database: "webapp"
+lamp_mysql_user: "webuser"
+lamp_mysql_password: "user_password_change_me"
+lamp_php_version: "8.1"
+lamp_php_memory_limit: "256M"
+lamp_upload_max_filesize: "64M"
+
+# LNMP 栈配置
+lnmp_enabled: true
+lnmp_web_root: "/var/www/html"
+lnmp_server_name: "lnmp.local"
+lnmp_mysql_root_password: "secure_password_change_me"
+lnmp_mysql_database: "webapp"
+lnmp_mysql_user: "webuser"
+lnmp_mysql_password: "user_password_change_me"
+lnmp_php_version: "8.1"
+lnmp_php_fpm_workers: "auto"
+nginx_worker_processes: "auto"
+nginx_worker_connections: "1024"
+
+# Node.js 应用配置
+nodejs_enabled: true
+nodejs_version: "18"
+nodejs_app_name: "myapp"
+nodejs_app_path: "/opt/nodejs/{{ nodejs_app_name }}"
+nodejs_app_user: "nodejs"
+nodejs_app_group: "nodejs"
+nodejs_app_port: "3000"
+nodejs_app_environment: "production"
+nodejs_use_pm2: true
+nodejs_pm2_app_name: "{{ nodejs_app_name }}"
+nodejs_systemd_service: true
+nodejs_git_repo: ""
+nodejs_git_branch: "main"
+nodejs_node_env: "production"
+nodejs_npm_install_args: "--production"
+
+# ⚠️ 数据库安全警告：
+# 1. 请务必修改默认的数据库密码
+# 2. 生产环境建议使用强密码并定期更换
+# 3. 限制数据库访问权限，避免使用 root 用户进行应用连接
+# 4. 考虑启用 SSL/TLS 加密数据库连接
+
+# 通用配置
+app_firewall_enabled: true
+app_backup_enabled: false
+app_monitoring_enabled: false
+app_ssl_enabled: false
+app_ssl_cert_path: "/etc/ssl/certs/app.crt"
+app_ssl_key_path: "/etc/ssl/private/app.key"
+
+# 错误处理配置
+app_retry_count: 3
+app_retry_delay: 5
+app_timeout: 300

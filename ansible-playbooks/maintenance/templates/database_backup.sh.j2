@@ -1,0 +1,223 @@
+#!/bin/bash
+# 数据库备份脚本
+# ⚠️ 教学声明：此脚本主要用于学习数据库备份，请在测试环境验证后再应用于生产。
+
+set -euo pipefail
+
+# 加载环境变量
+source "/home/{{ backup_user }}/.backup_env"
+
+# 配置变量
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_DIR="{{ backup_base_dir }}/config"
+BACKUP_DIR="{{ backup_base_dir }}/database"
+LOG_DIR="{{ backup_log_dir }}/database"
+DATE=$(date +%Y%m%d_%H%M%S)
+COMPRESSION_LEVEL="{{ database_backup_compression_level | default(6) }}"
+PARALLEL_JOBS="{{ database_backup_parallel_jobs | default(2) }}"
+
+# 日志函数
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_DIR/database_backup_$DATE.log"
+}
+
+# 错误处理
+error_exit() {
+    log "ERROR: $1"
+    exit 1
+}
+
+# 检查参数
+if [[ $# -lt 1 ]]; then
+    echo "Usage: $0 <engine> [--test]"
+    echo "Supported engines: mysql, postgresql, mongodb"
+    exit 1
+fi
+
+ENGINE="$1"
+TEST_MODE="${2:-}"
+
+# 检查配置文件
+CONFIG_FILE="$CONFIG_DIR/database_${ENGINE}.json"
+if [[ ! -f "$CONFIG_FILE" ]]; then
+    error_exit "配置文件不存在: $CONFIG_FILE"
+fi
+
+# 读取配置
+ENABLED=$(jq -r '.enabled' "$CONFIG_FILE")
+if [[ "$ENABLED" != "true" ]]; then
+    log "数据库引擎 $ENGINE 未启用"
+    exit 0
+fi
+
+USERNAME=$(jq -r '.username' "$CONFIG_FILE")
+PASSWORD=$(jq -r '.password' "$CONFIG_FILE")
+HOST=$(jq -r '.host' "$CONFIG_FILE")
+PORT=$(jq -r '.port' "$CONFIG_FILE")
+DATABASES=$(jq -r '.databases[]?' "$CONFIG_FILE")
+OPTIONS=$(jq -r '.options // ""' "$CONFIG_FILE")
+RETENTION_DAYS=$(jq -r '.retention_days // {{ backup_retention_days }}' "$CONFIG_FILE")
+COMPRESSION=$(jq -r '.compression // true' "$CONFIG_FILE")
+ENCRYPTION=$(jq -r '.encryption // false' "$CONFIG_FILE")
+
+log "开始数据库备份: $ENGINE"
+log "主机: $HOST:$PORT"
+log "用户: $USERNAME"
+log "数据库: $DATABASES"
+log "压缩: $COMPRESSION"
+log "加密: $ENCRYPTION"
+
+# 创建备份目录
+mkdir -p "$BACKUP_DIR/$ENGINE"
+
+# 根据引擎执行备份
+case "$ENGINE" in
+    "mysql")
+        # 创建 MySQL 配置文件
+        MYSQL_CONFIG="$CONFIG_DIR/mysql_backup.cnf"
+        cat > "$MYSQL_CONFIG" << EOF
+[client]
+user=$USERNAME
+password=$PASSWORD
+host=$HOST
+port=$PORT
+EOF
+        
+        if [[ "$DATABASES" == "--all-databases" ]]; then
+            BACKUP_FILE="$BACKUP_DIR/$ENGINE/all_databases_$DATE.sql"
+            CMD="mysqldump --defaults-extra-file=$MYSQL_CONFIG $OPTIONS $DATABASES"
+        else
+            for DB in $DATABASES; do
+                BACKUP_FILE="$BACKUP_DIR/$ENGINE/${DB}_$DATE.sql"
+                CMD="mysqldump --defaults-extra-file=$MYSQL_CONFIG $OPTIONS $DB"
+                
+                log "备份数据库: $DB"
+                if [[ "$TEST_MODE" == "--test" ]]; then
+                    log "测试模式: $CMD"
+                    echo "$CMD"
+                else
+                    log "执行: $CMD"
+                    $CMD > "$BACKUP_FILE"
+                fi
+            done
+        fi
+        
+        # 清理配置文件
+        rm -f "$MYSQL_CONFIG"
+        ;;
+        
+    "postgresql")
+        export PGPASSWORD="$PASSWORD"
+        
+        if [[ "$DATABASES" == "all" ]]; then
+            BACKUP_FILE="$BACKUP_DIR/$ENGINE/all_databases_$DATE.sql"
+            CMD="pg_dumpall --host=$HOST --port=$PORT --username=$USERNAME $OPTIONS"
+        else
+            for DB in $DATABASES; do
+                BACKUP_FILE="$BACKUP_DIR/$ENGINE/${DB}_$DATE.sql"
+                CMD="pg_dump --host=$HOST --port=$PORT --username=$USERNAME $OPTIONS $DB"
+                
+                log "备份数据库: $DB"
+                if [[ "$TEST_MODE" == "--test" ]]; then
+                    log "测试模式: $CMD"
+                    echo "$CMD"
+                else
+                    log "执行: $CMD"
+                    $CMD > "$BACKUP_FILE"
+                fi
+            done
+        fi
+        
+        unset PGPASSWORD
+        ;;
+        
+    "mongodb")
+        if [[ "$DATABASES" == "--all" ]]; then
+            BACKUP_FILE="$BACKUP_DIR/$ENGINE/all_databases_$DATE"
+            CMD="mongodump --host=$HOST:$PORT --username=$USERNAME --password=$PASSWORD $OPTIONS --out=$BACKUP_FILE"
+        else
+            for DB in $DATABASES; do
+                BACKUP_FILE="$BACKUP_DIR/$ENGINE/${DB}_$DATE"
+                CMD="mongodump --host=$HOST:$PORT --username=$USERNAME --password=$PASSWORD --db=$DB $OPTIONS --out=$BACKUP_FILE"
+                
+                log "备份数据库: $DB"
+                if [[ "$TEST_MODE" == "--test" ]]; then
+                    log "测试模式: $CMD"
+                    echo "$CMD"
+                else
+                    log "执行: $CMD"
+                    $CMD
+                fi
+            done
+        fi
+        ;;
+        
+    *)
+        error_exit "不支持的数据库引擎: $ENGINE"
+        ;;
+esac
+
+# 压缩备份文件
+if [[ "$TEST_MODE" != "--test" && "$COMPRESSION" == "true" ]]; then
+    log "压缩备份文件..."
+    if [[ -f "$BACKUP_FILE" ]]; then
+        gzip -$COMPRESSION_LEVEL "$BACKUP_FILE"
+        BACKUP_FILE="${BACKUP_FILE}.gz"
+    elif [[ -d "$BACKUP_FILE" ]]; then
+        tar -czf "${BACKUP_FILE}.tar.gz" -C "$(dirname "$BACKUP_FILE")" "$(basename "$BACKUP_FILE")"
+        rm -rf "$BACKUP_FILE"
+        BACKUP_FILE="${BACKUP_FILE}.tar.gz"
+    fi
+fi
+
+# 加密备份文件
+if [[ "$TEST_MODE" != "--test" && "$ENCRYPTION" == "true" ]]; then
+    log "加密备份文件..."
+    ENCRYPTED_FILE="${BACKUP_FILE}.enc"
+    openssl enc -aes-256-cbc -salt -in "$BACKUP_FILE" -out "$ENCRYPTED_FILE" -pass pass:"{{ backup_encryption_key }}"
+    rm -f "$BACKUP_FILE"
+    BACKUP_FILE="$ENCRYPTED_FILE"
+fi
+
+# 生成校验和
+if [[ "$TEST_MODE" != "--test" && -f "$BACKUP_FILE" ]]; then
+    log "生成校验和..."
+    sha256sum "$BACKUP_FILE" > "${BACKUP_FILE}.sha256"
+fi
+
+# 计算备份大小
+BACKUP_SIZE=$(du -sh "$BACKUP_FILE" 2>/dev/null | cut -f1 || echo "0")
+log "备份完成，大小: $BACKUP_SIZE"
+
+# 清理过期备份
+if [[ "$TEST_MODE" != "--test" ]]; then
+    log "清理 $RETENTION_DAYS 天前的备份..."
+    find "$BACKUP_DIR/$ENGINE" -name "*_$DATE.sql*" -mtime +$RETENTION_DAYS -delete 2>/dev/null || true
+    find "$BACKUP_DIR/$ENGINE" -name "*_$DATE.tar.gz*" -mtime +$RETENTION_DAYS -delete 2>/dev/null || true
+    find "$BACKUP_DIR/$ENGINE" -name "*.sha256" -mtime +$RETENTION_DAYS -delete 2>/dev/null || true
+fi
+
+# 记录备份信息
+BACKUP_INFO_FILE="$LOG_DIR/backup_info.json"
+BACKUP_INFO=$(cat <<EOF
+{
+  "timestamp": "$(date -Iseconds)",
+  "engine": "$ENGINE",
+  "host": "$HOST",
+  "port": $PORT,
+  "username": "$USERNAME",
+  "databases": "$DATABASES",
+  "backup_file": "$BACKUP_FILE",
+  "backup_size": "$BACKUP_SIZE",
+  "retention_days": $RETENTION_DAYS,
+  "compression": $COMPRESSION,
+  "encryption": $ENCRYPTION,
+  "test_mode": $([[ "$TEST_MODE" == "--test" ]] && echo "true" || echo "false")
+}
+EOF
+)
+
+echo "$BACKUP_INFO" >> "$BACKUP_INFO_FILE"
+
+log "数据库备份完成: $ENGINE"
+exit 0

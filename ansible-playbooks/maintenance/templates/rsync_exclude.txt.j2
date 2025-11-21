@@ -1,0 +1,85 @@
+# rsync 排除模式文件
+# ⚠️ 教学声明：此文件主要用于学习环境，生产环境请根据实际需求调整
+
+# 临时文件
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# 日志文件
+*.log
+*.log.*
+logs/
+log/
+
+# 缓存目录
+cache/
+caches/
+tmp/
+temp/
+.tmp/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 编辑器文件
+.vscode/
+.idea/
+*.sublime-*
+
+# 版本控制
+.git/
+.svn/
+.hg/
+
+# 备份文件
+*.bak
+*.backup
+*.old
+
+# 编译文件
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 压缩文件
+*.zip
+*.tar.gz
+*.rar
+
+# 大文件
+*.iso
+*.dmg
+*.img
+
+# 数据库文件
+*.db
+*.sqlite
+*.sqlite3
+
+# 环境配置
+.env
+.env.local
+.env.*.local
+
+# 媒体文件（可选）
+*.mp4
+*.avi
+*.mov
+*.mp3
+*.wav
+
+# 自定义排除模式（根据需要添加）
+# custom_exclude_pattern/
+# large_data_directory/

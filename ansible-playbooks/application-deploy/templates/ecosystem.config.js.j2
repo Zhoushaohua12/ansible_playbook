@@ -1,0 +1,40 @@
+module.exports = {
+  apps: [{
+    name: '{{ nodejs_pm2_app_name }}',
+    script: 'app.js',
+    instances: 'max',
+    exec_mode: 'cluster',
+    watch: false,
+    max_memory_restart: '1G',
+    env: {
+      NODE_ENV: '{{ nodejs_node_env }}',
+      PORT: {{ nodejs_app_port }}
+    },
+    env_production: {
+      NODE_ENV: 'production',
+      PORT: {{ nodejs_app_port }}
+    },
+    env_development: {
+      NODE_ENV: 'development',
+      PORT: {{ nodejs_app_port }}
+    },
+    log_file: '/var/log/{{ nodejs_app_name }}/combined.log',
+    out_file: '/var/log/{{ nodejs_app_name }}/out.log',
+    error_file: '/var/log/{{ nodejs_app_name }}/error.log',
+    log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+    merge_logs: true,
+    time: true,
+    min_uptime: '10s',
+    max_restarts: 10,
+    autorestart: true,
+    kill_timeout: 5000,
+    wait_ready: true,
+    listen_timeout: 10000,
+    cron_restart: '0 2 * * *',
+    restart_delay: 4000,
+    source_map_support: true,
+    disable_logs: false,
+    log_type: 'json',
+    node_args: '--max-old-space-size=1024'
+  }]
+};

@@ -1,0 +1,175 @@
+#!/bin/bash
+# 文件系统备份脚本
+# ⚠️ 教学声明：此脚本主要用于学习文件系统备份，请在测试环境验证后再应用于生产。
+
+set -euo pipefail
+
+# 加载环境变量
+source "/home/{{ backup_user }}/.backup_env"
+
+# 配置变量
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_DIR="{{ backup_base_dir }}/config"
+BACKUP_DIR="{{ backup_base_dir }}/filesystem"
+LOG_DIR="{{ backup_log_dir }}/filesystem"
+DATE=$(date +%Y%m%d_%H%M%S)
+BACKUP_METHOD="{{ filesystem_backup_method }}"
+COMPRESSION_LEVEL="{{ filesystem_backup_compression_level | default(6) }}"
+
+# 日志函数
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_DIR/filesystem_backup_$DATE.log"
+}
+
+# 错误处理
+error_exit() {
+    log "ERROR: $1"
+    exit 1
+}
+
+# 检查参数
+if [[ $# -lt 1 ]]; then
+    echo "Usage: $0 <source_path> [--test]"
+    exit 1
+fi
+
+SOURCE_PATH="$1"
+TEST_MODE="${2:-}"
+
+# 检查源路径是否存在
+if [[ ! -d "$SOURCE_PATH" ]]; then
+    error_exit "源路径不存在: $SOURCE_PATH"
+fi
+
+# 查找对应的配置文件
+CONFIG_FILE="$CONFIG_DIR/filesystem_$(echo "$SOURCE_PATH" | sed 's|/|_|g').json"
+if [[ ! -f "$CONFIG_FILE" ]]; then
+    error_exit "配置文件不存在: $CONFIG_FILE"
+fi
+
+# 读取配置
+DESCRIPTION=$(jq -r '.description' "$CONFIG_FILE")
+EXCLUDE_PATTERNS=$(jq -r '.exclude_patterns[]?' "$CONFIG_FILE" 2>/dev/null || echo "")
+RETENTION_DAYS=$(jq -r '.retention_days // {{ backup_retention_days }}' "$CONFIG_FILE")
+
+log "开始文件系统备份: $DESCRIPTION"
+log "源路径: $SOURCE_PATH"
+log "备份方法: $BACKUP_METHOD"
+log "压缩级别: $COMPRESSION_LEVEL"
+
+# 创建备份目录
+BACKUP_NAME="filesystem_$(basename "$SOURCE_PATH")_$DATE"
+BACKUP_PATH="$BACKUP_DIR/$BACKUP_NAME"
+mkdir -p "$BACKUP_PATH"
+
+# 构建排除参数
+EXCLUDE_ARGS=""
+if [[ -n "$EXCLUDE_PATTERNS" ]]; then
+    while IFS= read -r pattern; do
+        if [[ -n "$pattern" && "$pattern" != "null" ]]; then
+            EXCLUDE_ARGS="$EXCLUDE_ARGS --exclude=$pattern"
+        fi
+    done <<< "$EXCLUDE_PATTERNS"
+fi
+
+# 执行备份
+case "$BACKUP_METHOD" in
+    "rsync")
+        log "使用 rsync 进行备份"
+        RSYNC_CMD="rsync -avh --progress --delete $EXCLUDE_ARGS \"$SOURCE_PATH/\" \"$BACKUP_PATH/\""
+        
+        if [[ "$TEST_MODE" == "--test" ]]; then
+            log "测试模式: $RSYNC_CMD --dry-run"
+            rsync -avh --progress --delete $EXCLUDE_ARGS --dry-run "$SOURCE_PATH/" "$BACKUP_PATH/"
+        else
+            log "执行: $RSYNC_CMD"
+            eval "$RSYNC_CMD"
+        fi
+        ;;
+        
+    "tar")
+        log "使用 tar 进行备份"
+        BACKUP_FILE="$BACKUP_DIR/${BACKUP_NAME}.tar.gz"
+        
+        # 构建排除文件
+        EXCLUDE_FILE="$CONFIG_DIR/rsync_exclude_$(basename "$SOURCE_PATH").txt"
+        EXCLUDE_TAR_ARGS=""
+        if [[ -f "$EXCLUDE_FILE" ]]; then
+            EXCLUDE_TAR_ARGS="--exclude-from=$EXCLUDE_FILE"
+        fi
+        
+        if [[ "$TEST_MODE" == "--test" ]]; then
+            log "测试模式: tar $EXCLUDE_TAR_ARGS -czf \"$BACKUP_FILE\" \"$SOURCE_PATH\""
+            tar $EXCLUDE_TAR_ARGS -czf "$BACKUP_FILE" "$SOURCE_PATH"
+        else
+            log "执行: tar $EXCLUDE_TAR_ARGS -czf \"$BACKUP_FILE\" \"$SOURCE_PATH\""
+            tar $EXCLUDE_TAR_ARGS -czf "$BACKUP_FILE" "$SOURCE_PATH"
+        fi
+        ;;
+        
+    "dd")
+        log "使用 dd 进行块级备份"
+        BACKUP_FILE="$BACKUP_DIR/${BACKUP_NAME}.img.gz"
+        
+        if [[ "$TEST_MODE" == "--test" ]]; then
+            log "测试模式: dd if=\"$SOURCE_PATH\" bs=4M | gzip -c > \"$BACKUP_FILE\""
+            echo "dd if=\"$SOURCE_PATH\" bs=4M | gzip -c > \"$BACKUP_FILE\""
+        else
+            log "执行: dd if=\"$SOURCE_PATH\" bs=4M | gzip -c > \"$BACKUP_FILE\""
+            dd if="$SOURCE_PATH" bs=4M | gzip -c > "$BACKUP_FILE"
+        fi
+        ;;
+        
+    *)
+        error_exit "不支持的备份方法: $BACKUP_METHOD"
+        ;;
+esac
+
+# 计算备份大小
+BACKUP_SIZE=$(du -sh "$BACKUP_PATH" 2>/dev/null | cut -f1 || echo "0")
+if [[ "$BACKUP_METHOD" == "tar" && -f "$BACKUP_FILE" ]]; then
+    BACKUP_SIZE=$(du -sh "$BACKUP_FILE" | cut -f1)
+fi
+
+log "备份完成，大小: $BACKUP_SIZE"
+
+# 生成校验和
+if [[ "$TEST_MODE" != "--test" ]]; then
+    log "生成校验和..."
+    if [[ -d "$BACKUP_PATH" ]]; then
+        find "$BACKUP_PATH" -type f -exec sha256sum {} \; > "$BACKUP_PATH.sha256"
+    elif [[ -f "$BACKUP_FILE" ]]; then
+        sha256sum "$BACKUP_FILE" > "$BACKUP_FILE.sha256"
+    fi
+fi
+
+# 清理过期备份
+if [[ "$TEST_MODE" != "--test" ]]; then
+    log "清理 $RETENTION_DAYS 天前的备份..."
+    find "$BACKUP_DIR" -name "filesystem_$(basename "$SOURCE_PATH")_*" -type d -mtime +$RETENTION_DAYS -exec rm -rf {} \; 2>/dev/null || true
+    find "$BACKUP_DIR" -name "filesystem_$(basename "$SOURCE_PATH")_*.tar.gz" -mtime +$RETENTION_DAYS -delete 2>/dev/null || true
+    find "$BACKUP_DIR" -name "filesystem_$(basename "$SOURCE_PATH")_*.img.gz" -mtime +$RETENTION_DAYS -delete 2>/dev/null || true
+    find "$BACKUP_DIR" -name "*.sha256" -mtime +$RETENTION_DAYS -delete 2>/dev/null || true
+fi
+
+# 记录备份信息
+BACKUP_INFO_FILE="$LOG_DIR/backup_info.json"
+BACKUP_INFO=$(cat <<EOF
+{
+  "timestamp": "$(date -Iseconds)",
+  "source_path": "$SOURCE_PATH",
+  "description": "$DESCRIPTION",
+  "backup_method": "$BACKUP_METHOD",
+  "backup_path": "$BACKUP_PATH",
+  "backup_file": "${BACKUP_FILE:-}",
+  "backup_size": "$BACKUP_SIZE",
+  "retention_days": $RETENTION_DAYS,
+  "test_mode": $([[ "$TEST_MODE" == "--test" ]] && echo "true" || echo "false")
+}
+EOF
+)
+
+echo "$BACKUP_INFO" >> "$BACKUP_INFO_FILE"
+
+log "文件系统备份完成: $DESCRIPTION"
+exit 0

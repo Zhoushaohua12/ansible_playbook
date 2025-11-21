@@ -1,0 +1,194 @@
+# AlertManager 配置文件
+# ⚠️ 教学声明：此配置文件主要用于学习环境，生产环境请根据实际需求调整
+
+global:
+  # SMTP 配置
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alertmanager@example.com'
+  smtp_auth_username: 'alertmanager@example.com'
+  smtp_auth_password: 'your_smtp_password'
+  
+  # 全局模板文件
+  templates:
+    - '/etc/alertmanager/templates/*.tmpl'
+
+# 路由配置
+route:
+  # 默认接收器
+  receiver: 'web.hook'
+  
+  # 分组配置
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  
+  # 路由规则
+  routes:
+    # 严重告警立即发送
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 0s
+      repeat_interval: 5m
+      
+    # 警告级别告警
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+      repeat_interval: 30m
+      
+    # 系统相关告警
+    - match:
+        service: system
+      receiver: 'system-alerts'
+      
+    # Prometheus 相关告警
+    - match:
+        service: prometheus
+      receiver: 'prometheus-alerts'
+      
+    # 网络相关告警
+    - match:
+        service: network
+      receiver: 'network-alerts'
+
+# 抑制规则
+inhibit_rules:
+  # 如果实例宕机，抑制该实例的其他告警
+  - source_match:
+      alertname: 'InstanceDown'
+    target_match_re:
+      alertname: '(HighCPUUsage|HighMemoryUsage|DiskSpaceLow)'
+    equal: ['instance']
+    
+  # 如果系统负载过高，抑制CPU告警
+  - source_match:
+      alertname: 'HighSystemLoad'
+    target_match:
+      alertname: 'HighCPUUsage'
+    equal: ['instance']
+
+# 接收器配置
+receivers:
+  # 默认 Webhook 接收器
+  - name: 'web.hook'
+    webhook_configs:
+      - url: 'http://localhost:5001/'
+        send_resolved: true
+        http_config:
+          basic_auth:
+            username: 'webhook_user'
+            password: 'webhook_password'
+
+  # 严重告警接收器
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'admin@example.com'
+        subject: '[CRITICAL] {{ .GroupLabels.alertname }} - {{ .GroupLabels.cluster }}'
+        body: |
+          {{ range .Alerts }}
+          告警名称: {{ .Annotations.summary }}
+          告警描述: {{ .Annotations.description }}
+          告警级别: {{ .Labels.severity }}
+          实例: {{ .Labels.instance }}
+          服务: {{ .Labels.service }}
+          开始时间: {{ .StartsAt }}
+          {{ end }}
+        send_resolved: true
+        
+    # Slack 通知
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+        channel: '#alerts-critical'
+        title: '🚨 严重告警'
+        text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        send_resolved: true
+        
+    # 钉钉通知
+    dingtalk_configs:
+      - webhook_url: 'https://oapi.dingtalk.com/robot/send?access_token=YOUR_TOKEN'
+        message_type: 'markdown'
+        title: '严重告警通知'
+        text: |
+          # 🚨 严重告警
+          
+          {{ range .Alerts }}
+          ## {{ .Annotations.summary }}
+          
+          **描述**: {{ .Annotations.description }}
+          
+          **级别**: {{ .Labels.severity }}
+          
+          **实例**: {{ .Labels.instance }}
+          
+          **服务**: {{ .Labels.service }}
+          
+          **时间**: {{ .StartsAt }}
+          
+          ---
+          {{ end }}
+        send_resolved: true
+
+  # 警告级别告警接收器
+  - name: 'warning-alerts'
+    email_configs:
+      - to: 'ops@example.com'
+        subject: '[WARNING] {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          告警名称: {{ .Annotations.summary }}
+          告警描述: {{ .Annotations.description }}
+          实例: {{ .Labels.instance }}
+          服务: {{ .Labels.service }}
+          开始时间: {{ .StartsAt }}
+          {{ end }}
+        send_resolved: true
+        
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+        channel: '#alerts-warning'
+        title: '⚠️ 警告告警'
+        text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        send_resolved: true
+
+  # 系统告警接收器
+  - name: 'system-alerts'
+    email_configs:
+      - to: 'sysadmin@example.com'
+        subject: '[SYSTEM] {{ .GroupLabels.alertname }}'
+        send_resolved: true
+
+  # Prometheus 告警接收器
+  - name: 'prometheus-alerts'
+    email_configs:
+      - to: 'monitoring@example.com'
+        subject: '[PROMETHEUS] {{ .GroupLabels.alertname }}'
+        send_resolved: true
+
+  # 网络告警接收器
+  - name: 'network-alerts'
+    email_configs:
+      - to: 'network@example.com'
+        subject: '[NETWORK] {{ .GroupLabels.alertname }}'
+        send_resolved: true
+
+# 时间模板
+time_intervals:
+  - name: 'business-hours'
+    time_intervals:
+      - times:
+          - start_time: '09:00'
+            end_time: '18:00'
+        weekdays: ['monday:friday']
+        
+  - name: 'after-hours'
+    time_intervals:
+      - times:
+          - start_time: '18:01'
+            end_time: '08:59'
+        weekdays: ['monday:friday']
+      - weekdays: ['saturday', 'sunday']
+
+# 静默规则（示例）
+# 可以通过 API 或 Web UI 创建静默规则

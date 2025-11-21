@@ -1,0 +1,218 @@
+# Blackbox Exporter 配置文件
+# ⚠️ 教学声明：此配置文件主要用于学习环境，生产环境请根据实际需求调整
+
+modules:
+  # HTTP 2xx 检测模块
+  http_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      valid_http_versions:
+        - "HTTP/1.1"
+        - "HTTP/2.0"
+      valid_status_codes: [200, 201, 202, 204]
+      method: GET
+      follow_redirects: true
+      fail_if_ssl: false
+      fail_if_not_ssl: false
+      tls_config:
+        insecure_skip_verify: false
+      preferred_ip_protocol: "ip4"
+      ip_protocol_fallback: false
+
+  # HTTPS 检测模块
+  https_2xx:
+    prober: http
+    timeout: 10s
+    http:
+      valid_http_versions:
+        - "HTTP/1.1"
+        - "HTTP/2.0"
+      valid_status_codes: [200, 201, 202, 204]
+      method: GET
+      follow_redirects: true
+      fail_if_ssl: true
+      fail_if_not_ssl: true
+      tls_config:
+        insecure_skip_verify: false
+        preferred_ip_protocol: "ip4"
+      headers:
+        User-Agent: "Blackbox-Exporter/1.0"
+
+  # HTTP POST 检测模块
+  http_post_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      valid_http_versions:
+        - "HTTP/1.1"
+        - "HTTP/2.0"
+      valid_status_codes: [200, 201, 202, 204]
+      method: POST
+      follow_redirects: true
+      fail_if_ssl: false
+      fail_if_not_ssl: false
+      body: |
+        {
+          "test": "probe"
+        }
+      headers:
+        Content-Type: application/json
+
+  # TCP 连接检测模块
+  tcp_connect:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      preferred_ip_protocol: "ip4"
+      ip_protocol_fallback: false
+
+  # ICMP ping 检测模块
+  icmp:
+    prober: icmp
+    timeout: 5s
+    icmp:
+      preferred_ip_protocol: "ip4"
+      ip_protocol_fallback: false
+
+  # DNS 解析检测模块
+  dns_tcp:
+    prober: dns
+    timeout: 5s
+    dns:
+      query_name: "www.google.com"
+      query_type: "A"
+      valid_rcodes:
+        - NOERROR
+      validate_answer_rrs:
+        fail_if_matches_regexp:
+          - ".*127.0.0.1"
+        fail_if_not_matches_regexp:
+          - ".*"
+      validate_authority_rrs:
+        fail_if_matches_regexp:
+          - ".*127.0.0.1"
+      validate_additional_rrs:
+        fail_if_matches_regexp:
+          - ".*127.0.0.1"
+      preferred_ip_protocol: "ip4"
+      ip_protocol_fallback: false
+
+  # DNS over TCP 检测模块
+  dns_udp:
+    prober: dns
+    timeout: 5s
+    dns:
+      transport_protocol: "udp"
+      query_name: "www.google.com"
+      query_type: "A"
+      valid_rcodes:
+        - NOERROR
+      preferred_ip_protocol: "ip4"
+      ip_protocol_fallback: false
+
+  # SSH 连接检测模块
+  ssh_banner:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      query_response:
+        - expect: "^SSH-2.0-"
+      tls: false
+      preferred_ip_protocol: "ip4"
+
+  # SSL 证书检测模块
+  ssl_connect:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      tls: true
+      preferred_ip_protocol: "ip4"
+    tls_config:
+      insecure_skip_verify: false
+
+  # HTTP 代理检测模块
+  http_connect_proxy:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      preferred_ip_protocol: "ip4"
+      query_response:
+        - expect: "^HTTP/1.1 200"
+
+  # IMAP 检测模块
+  imap_starttls:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      preferred_ip_protocol: "ip4"
+      query_response:
+        - expect: "OK.*STARTTLS"
+        - send: ". STARTTLS"
+        - expect: "OK"
+        - starttls: true
+        - expect: "OK.*IMAP4"
+
+  # SMTP 检测模块
+  smtp_starttls:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      preferred_ip_protocol: "ip4"
+      query_response:
+        - expect: "^220"
+        - send: "EHLO prober"
+        - expect: "^250-STARTTLS"
+        - send: "STARTTLS"
+        - expect: "^220"
+        - starttls: true
+        - send: "EHLO prober"
+        - expect: "^250-AUTH"
+        - send: "QUIT"
+
+  # FTP 检测模块
+  ftp:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      preferred_ip_protocol: "ip4"
+      query_response:
+        - expect: "^220.*FTP"
+        - send: "USER anonymous"
+        - expect: "^331.*"
+        - send: "PASS anonymous@"
+        - expect: "^230.*"
+        - send: "QUIT"
+
+  # POP3S 检测模块
+  pop3s:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      preferred_ip_protocol: "ip4"
+      tls: true
+      query_response:
+        - expect: "^+OK"
+
+  # HTTP 基础认证检测模块
+  http_basic_auth:
+    prober: http
+    timeout: 5s
+    http:
+      valid_status_codes: [200]
+      method: GET
+      headers:
+        Authorization: "Basic dXNlcjpwYXNz"  # base64("user:pass")
+      preferred_ip_protocol: "ip4"
+
+  # HTTP 响应时间检测模块
+  http_response_time:
+    prober: http
+    timeout: 10s
+    http:
+      valid_status_codes: [200]
+      method: GET
+      preferred_ip_protocol: "ip4"
+      fail_if_body_matches_regexp:
+        - ".*error.*"
+        - ".*timeout.*"

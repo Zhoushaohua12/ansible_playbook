@@ -1,0 +1,20 @@
+# 数据库备份配置
+# ⚠️ 教学声明：此配置文件主要用于学习环境，生产环境请根据实际需求调整
+
+{
+  "engine": "{{ item.engine }}",
+  "enabled": {{ item.enabled | default(false) }},
+  "databases": {{ item.databases | default([]) | to_nice_json }},
+  "username": "{{ item.username | default('') }}",
+  "password": "{{ item.password | default('') }}",
+  "host": "{{ item.host | default('localhost') }}",
+  "port": {{ item.port | default(3306) }},
+  "options": "{{ item.options | default('') }}",
+  "retention_days": {{ item.retention_days | default(backup_retention_days) }},
+  "compression": {{ item.compression | default(true) }},
+  "encryption": {{ item.encryption | default(false) }},
+  "parallel_jobs": {{ database_backup_parallel_jobs | default(2) }},
+  "compression_level": {{ database_backup_compression_level | default(6) }},
+  "created_at": "{{ ansible_date_time.iso8601 }}",
+  "updated_at": "{{ ansible_date_time.iso8601 }}"
+}

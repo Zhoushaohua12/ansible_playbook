@@ -1,0 +1,54 @@
+[Unit]
+Description=Node Exporter
+Documentation=https://github.com/prometheus/node_exporter
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+# ⚠️ 教学声明：此服务文件主要用于学习环境，生产环境请根据实际需求调整
+
+# 用户和组
+User=node_exporter
+Group=node_exporter
+
+# 启动命令
+ExecStart=/usr/local/bin/node_exporter \
+  --web.listen-address=0.0.0.0:{{ node_exporter_port }} \
+  --path.rootfs=/host \
+  --path.procfs=/host/proc \
+  --path.sysfs=/host/sys \
+  --collector.filesystem.mount-points-exclude='^/(sys|proc|dev|host|etc)($$|/)'
+
+# 重启策略
+Restart=always
+RestartSec=5
+
+# 超时设置
+TimeoutStartSec=30
+TimeoutStopSec=15
+
+# 进程管理
+KillMode=control-group
+KillSignal=SIGTERM
+SendSIGKILL=no
+
+# 安全设置
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+# 资源限制
+LimitNOFILE=65536
+LimitNPROC=32768
+
+# 环境变量
+Environment=HOME=/nonexistent
+
+# 日志设置
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=node_exporter
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,129 @@
+---
+# 文件系统备份主任务文件
+# ⚠️ 教学声明：此角色主要用于学习文件系统备份，请在测试环境验证后再应用于生产。
+
+- name: 创建文件系统备份脚本目录
+  ansible.builtin.file:
+    path: "{{ backup_base_dir }}/scripts"
+    state: directory
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0755'
+  tags: [filesystem, directories]
+
+- name: 创建文件系统备份目录
+  ansible.builtin.file:
+    path: "{{ backup_base_dir }}/filesystem"
+    state: directory
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0755'
+  tags: [filesystem, directories]
+
+- name: 创建文件系统备份脚本
+  ansible.builtin.template:
+    src: filesystem_backup.sh.j2
+    dest: "{{ backup_base_dir }}/scripts/filesystem_backup.sh"
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0755'
+  tags: [filesystem, scripts]
+
+- name: 创建文件系统增量备份脚本
+  ansible.builtin.template:
+    src: filesystem_incremental_backup.sh.j2
+    dest: "{{ backup_base_dir }}/scripts/filesystem_incremental_backup.sh"
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0755'
+  tags: [filesystem, scripts]
+
+- name: 创建文件系统恢复脚本
+  ansible.builtin.template:
+    src: filesystem_restore.sh.j2
+    dest: "{{ backup_base_dir }}/scripts/filesystem_restore.sh"
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0755'
+  tags: [filesystem, scripts]
+
+- name: 为每个备份源创建配置文件
+  ansible.builtin.template:
+    src: filesystem_source_config.json.j2
+    dest: "{{ backup_base_dir }}/config/filesystem_{{ item.path | regex_replace('/', '_') }}.json"
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0644'
+  loop: "{{ filesystem_backup_sources }}"
+  loop_control:
+    label: "{{ item.description }}"
+  tags: [filesystem, config]
+
+- name: 创建文件系统备份 Cron 任务
+  ansible.builtin.cron:
+    name: "filesystem_backup_{{ item.description | regex_replace(' ', '_') }}"
+    job: "{{ backup_base_dir }}/scripts/filesystem_backup.sh {{ item.path }}"
+    minute: "0"
+    hour: "2"
+    user: "{{ backup_user }}"
+    cron_file: "filesystem_backup"
+    state: present
+  loop: "{{ filesystem_backup_sources }}"
+  when: filesystem_backup_enabled
+  tags: [filesystem, cron]
+
+- name: 创建增量备份 Cron 任务
+  ansible.builtin.cron:
+    name: "filesystem_incremental_backup"
+    job: "{{ backup_base_dir }}/scripts/filesystem_incremental_backup.sh"
+    minute: "30"
+    hour: "*/6"
+    user: "{{ backup_user }}"
+    cron_file: "filesystem_backup"
+    state: present
+  when: filesystem_backup_enabled and filesystem_backup_incremental
+  tags: [filesystem, cron]
+
+- name: 创建文件系统备份日志目录
+  ansible.builtin.file:
+    path: "{{ backup_log_dir }}/filesystem"
+    state: directory
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0755'
+  tags: [filesystem, logging]
+
+- name: 创建文件系统备份排除模式文件
+  ansible.builtin.template:
+    src: rsync_exclude.txt.j2
+    dest: "{{ backup_base_dir }}/config/rsync_exclude_{{ item.description | regex_replace(' ', '_') }}.txt"
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0644'
+  loop: "{{ filesystem_backup_sources }}"
+  loop_control:
+    label: "{{ item.description }}"
+  tags: [filesystem, config]
+
+- name: 配置文件系统备份环境变量
+  ansible.builtin.lineinfile:
+    path: "/home/{{ backup_user }}/.backup_env"
+    line: 'export FILESYSTEM_BACKUP_METHOD="{{ filesystem_backup_method }}"'
+    create: yes
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0600'
+  tags: [filesystem, environment]
+
+- name: 测试文件系统备份脚本
+  ansible.builtin.command: "{{ backup_base_dir }}/scripts/filesystem_backup.sh --test"
+  become_user: "{{ backup_user }}"
+  register: filesystem_backup_test
+  failed_when: false
+  changed_when: false
+  tags: [filesystem, test]
+
+- name: 显示文件系统备份测试结果
+  ansible.builtin.debug:
+    msg: "文件系统备份脚本测试结果: {{ filesystem_backup_test.stdout | default('测试通过') }}"
+  tags: [filesystem, test]

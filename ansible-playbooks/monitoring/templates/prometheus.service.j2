@@ -1,0 +1,62 @@
+[Unit]
+Description=Prometheus Server
+Documentation=https://prometheus.io/docs/introduction/overview/
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+# ⚠️ 教学声明：此服务文件主要用于学习环境，生产环境请根据实际需求调整
+
+# 用户和组
+User={{ prometheus_user }}
+Group={{ prometheus_group }}
+
+# 工作目录
+WorkingDirectory={{ prometheus_home }}
+
+# 启动命令
+ExecStart={{ prometheus_home }}/prometheus \
+  --config.file={{ prometheus_config_dir }}/prometheus.yml \
+  --storage.tsdb.path={{ prometheus_data_dir }} \
+  --web.console.libraries={{ prometheus_config_dir }}/console_libraries \
+  --web.console.templates={{ prometheus_config_dir }}/consoles \
+  --web.listen-address=0.0.0.0:{{ prometheus_port }} \
+  --web.enable-lifecycle \
+  --storage.tsdb.retention.time={{ prometheus_storage_tsdb_retention_time }} \
+  --storage.tsdb.retention.size={{ prometheus_storage_tsdb_retention_size }} \
+  --web.enable-admin-api
+
+# 重启策略
+Restart=always
+RestartSec=5
+
+# 超时设置
+TimeoutStartSec=60
+TimeoutStopSec=30
+
+# 进程管理
+KillMode=control-group
+KillSignal=SIGTERM
+SendSIGKILL=no
+
+# 安全设置
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths={{ prometheus_data_dir }} {{ prometheus_log_dir }}
+
+# 资源限制
+LimitNOFILE=65536
+LimitNPROC=32768
+
+# 环境变量
+Environment=HOME={{ prometheus_home }}
+
+# 日志设置
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=prometheus
+
+[Install]
+WantedBy=multi-user.target

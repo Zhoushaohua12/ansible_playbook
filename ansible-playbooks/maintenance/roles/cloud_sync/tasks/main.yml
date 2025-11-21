@@ -1,0 +1,239 @@
+---
+# 云同步主任务文件
+# ⚠️ 教学声明：此角色主要用于学习云同步备份，请在测试环境验证后再应用于生产。
+
+- name: 创建云同步脚本目录
+  ansible.builtin.file:
+    path: "{{ backup_base_dir }}/scripts"
+    state: directory
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0755'
+  tags: [cloud_sync, directories]
+
+- name: 创建云同步目录
+  ansible.builtin.file:
+    path: "{{ backup_base_dir }}/cloud_sync"
+    state: directory
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0755'
+  tags: [cloud_sync, directories]
+
+- name: 创建云同步脚本
+  ansible.builtin.template:
+    src: cloud_sync.sh.j2
+    dest: "{{ backup_base_dir }}/scripts/cloud_sync.sh"
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0755'
+  tags: [cloud_sync, scripts]
+
+- name: 创建云同步配置文件
+  ansible.builtin.template:
+    src: cloud_sync_config.json.j2
+    dest: "{{ backup_base_dir }}/config/cloud_sync.json"
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0600'
+  tags: [cloud_sync, config]
+
+- name: 为每个云服务提供商创建配置文件
+  ansible.builtin.template:
+    src: cloud_provider_config.json.j2
+    dest: "{{ backup_base_dir }}/config/cloud_{{ item.provider }}.json"
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0600'
+  loop: "{{ cloud_sync_providers }}"
+  when: item.enabled
+  loop_control:
+    label: "{{ item.provider }}"
+  tags: [cloud_sync, config]
+
+- name: 配置 AWS CLI
+  ansible.builtin.template:
+    src: aws_config.j2
+    dest: "/home/{{ backup_user }}/.aws/config"
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0600'
+  when: cloud_sync_providers | selectattr('provider', 'equalto', 'aws_s3') | selectattr('enabled', 'equalto', true) | list | length > 0
+  tags: [cloud_sync, aws]
+
+- name: 配置 AWS 凭证
+  ansible.builtin.template:
+    src: aws_credentials.j2
+    dest: "/home/{{ backup_user }}/.aws/credentials"
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0600'
+  when: cloud_sync_providers | selectattr('provider', 'equalto', 'aws_s3') | selectattr('enabled', 'equalto', true) | list | length > 0
+  tags: [cloud_sync, aws]
+
+- name: 创建阿里云 OSS 配置文件
+  ansible.builtin.template:
+    src: aliyun_oss_config.j2
+    dest: "{{ backup_base_dir }}/config/aliyun_oss_config"
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0600'
+  when: cloud_sync_providers | selectattr('provider', 'equalto', 'aliyun_oss') | selectattr('enabled', 'equalto', true) | list | length > 0
+  tags: [cloud_sync, aliyun]
+
+- name: 创建 Azure Blob 配置文件
+  ansible.builtin.template:
+    src: azure_blob_config.j2
+    dest: "{{ backup_base_dir }}/config/azure_blob_config"
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0600'
+  when: cloud_sync_providers | selectattr('provider', 'equalto', 'azure_blob') | selectattr('enabled', 'equalto', true) | list | length > 0
+  tags: [cloud_sync, azure]
+
+- name: 创建云同步 Cron 任务
+  ansible.builtin.cron:
+    name: "cloud_sync_{{ item.provider }}"
+    job: "{{ backup_base_dir }}/scripts/cloud_sync.sh {{ item.provider }}"
+    minute: "0"
+    hour: "4"
+    user: "{{ backup_user }}"
+    cron_file: "cloud_sync"
+    state: present
+  loop: "{{ cloud_sync_providers }}"
+  when: item.enabled and cloud_sync_enabled
+  loop_control:
+    label: "{{ item.provider }}"
+  tags: [cloud_sync, cron]
+
+- name: 创建云同步日志目录
+  ansible.builtin.file:
+    path: "{{ backup_log_dir }}/cloud_sync"
+    state: directory
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0755'
+  tags: [cloud_sync, logging]
+
+- name: 创建云同步验证脚本
+  ansible.builtin.template:
+    src: cloud_sync_verify.sh.j2
+    dest: "{{ backup_base_dir }}/scripts/cloud_sync_verify.sh"
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0755'
+  tags: [cloud_sync, scripts]
+
+- name: 创建云同步清理脚本
+  ansible.builtin.template:
+    src: cloud_sync_cleanup.sh.j2
+    dest: "{{ backup_base_dir }}/scripts/cloud_sync_cleanup.sh"
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0755'
+  tags: [cloud_sync, scripts]
+
+- name: 配置云同步环境变量
+  ansible.builtin.lineinfile:
+    path: "/home/{{ backup_user }}/.backup_env"
+    line: 'export CLOUD_SYNC_RETRY_COUNT="{{ cloud_sync_retry_count }}"'
+    create: yes
+    owner: "{{ backup_user }}"
+    group: "{{ backup_group }}"
+    mode: '0600'
+  tags: [cloud_sync, environment]
+
+- name: 安装云同步工具
+  ansible.builtin.pip:
+    name:
+      - boto3
+      - aliyun-oss2
+      - azure-storage-blob
+      - azure-identity
+    state: present
+  tags: [cloud_sync, packages]
+
+- name: 测试 AWS S3 连接
+  ansible.builtin.shell: |
+    {% for provider in cloud_sync_providers %}
+    {% if provider.provider == 'aws_s3' and provider.enabled %}
+    aws s3 ls s3://{{ provider.bucket_name }} --region {{ provider.region }} >/dev/null 2>&1 && echo "AWS S3 connection OK" || echo "AWS S3 connection FAILED"
+    {% endif %}
+    {% endfor %}
+  become_user: "{{ backup_user }}"
+  register: aws_connection_test
+  failed_when: false
+  changed_when: false
+  environment:
+    AWS_ACCESS_KEY_ID: "{{ cloud_sync_providers | selectattr('provider', 'equalto', 'aws_s3') | selectattr('enabled', 'equalto', true) | map(attribute='access_key') | first | default('') }}"
+    AWS_SECRET_ACCESS_KEY: "{{ cloud_sync_providers | selectattr('provider', 'equalto', 'aws_s3') | selectattr('enabled', 'equalto', true) | map(attribute='secret_key') | first | default('') }}"
+  tags: [cloud_sync, test]
+
+- name: 显示 AWS 连接测试结果
+  ansible.builtin.debug:
+    msg: "{{ aws_connection_test.stdout_lines }}"
+  when: aws_connection_test.stdout_lines is defined
+  tags: [cloud_sync, test]
+
+- name: 测试阿里云 OSS 连接
+  ansible.builtin.shell: |
+    {% for provider in cloud_sync_providers %}
+    {% if provider.provider == 'aliyun_oss' and provider.enabled %}
+    python3 -c "
+import oss2
+auth = oss2.Auth('{{ provider.access_key }}', '{{ provider.secret_key }}')
+bucket = oss2.Bucket(auth, '{{ provider.bucket_name }}.{{ provider.region }}.aliyuncs.com', '{{ provider.bucket_name }}')
+bucket.list_objects()
+print('Aliyun OSS connection OK')
+" 2>/dev/null || echo "Aliyun OSS connection FAILED"
+    {% endif %}
+    {% endfor %}
+  become_user: "{{ backup_user }}"
+  register: aliyun_connection_test
+  failed_when: false
+  changed_when: false
+  tags: [cloud_sync, test]
+
+- name: 显示阿里云连接测试结果
+  ansible.builtin.debug:
+    msg: "{{ aliyun_connection_test.stdout_lines }}"
+  when: aliyun_connection_test.stdout_lines is defined
+  tags: [cloud_sync, test]
+
+- name: 测试 Azure Blob 连接
+  ansible.builtin.shell: |
+    {% for provider in cloud_sync_providers %}
+    {% if provider.provider == 'azure_blob' and provider.enabled %}
+    python3 -c "
+from azure.storage.blob import BlobServiceClient
+blob_service_client = BlobServiceClient(account_url='https://{{ provider.account_name }}.blob.core.windows.net', credential='{{ provider.access_key }}')
+container_client = blob_service_client.get_container_client('{{ provider.container_name }}')
+container_client.list_blobs()
+print('Azure Blob connection OK')
+" 2>/dev/null || echo "Azure Blob connection FAILED"
+    {% endif %}
+    {% endfor %}
+  become_user: "{{ backup_user }}"
+  register: azure_connection_test
+  failed_when: false
+  changed_when: false
+  tags: [cloud_sync, test]
+
+- name: 显示 Azure 连接测试结果
+  ansible.builtin.debug:
+    msg: "{{ azure_connection_test.stdout_lines }}"
+  when: azure_connection_test.stdout_lines is defined
+  tags: [cloud_sync, test]
+
+- name: 测试云同步脚本
+  ansible.builtin.command: "{{ backup_base_dir }}/scripts/cloud_sync.sh --test"
+  become_user: "{{ backup_user }}"
+  register: cloud_sync_test
+  failed_when: false
+  changed_when: false
+  tags: [cloud_sync, test]
+
+- name: 显示云同步测试结果
+  ansible.builtin.debug:
+    msg: "云同步脚本测试结果: {{ cloud_sync_test.stdout | default('测试通过') }}"
+  tags: [cloud_sync, test]

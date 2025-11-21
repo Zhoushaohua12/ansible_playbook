@@ -1,0 +1,70 @@
+# MySQL 备份配置文件
+# ⚠️ 教学声明：此配置文件主要用于学习环境，生产环境请根据实际需求调整
+
+[client]
+# MySQL 客户端配置
+user = {{ database_backup_engines | selectattr('engine', 'equalto', 'mysql') | selectattr('enabled', 'equalto', true) | map(attribute='username') | first | default('root') }}
+password = {{ database_backup_engines | selectattr('engine', 'equalto', 'mysql') | selectattr('enabled', 'equalto', true) | map(attribute='password') | first | default('') }}
+host = {{ database_backup_engines | selectattr('engine', 'equalto', 'mysql') | selectattr('enabled', 'equalto', true) | map(attribute='host') | first | default('localhost') }}
+port = {{ database_backup_engines | selectattr('engine', 'equalto', 'mysql') | selectattr('enabled', 'equalto', true) | map(attribute='port') | first | default('3306') }}
+
+# 连接配置
+connect_timeout = 60
+read_timeout = 300
+write_timeout = 300
+
+# 字符集配置
+default-character-set = utf8mb4
+
+# SSL 配置（可选）
+# ssl-ca = /path/to/ca.pem
+# ssl-cert = /path/to/client-cert.pem
+# ssl-key = /path/to/client-key.pem
+
+# 其他配置
+max_allowed_packet = 1G
+net_buffer_length = 16384
+socket = /var/run/mysqld/mysqld.sock
+
+[mysqldump]
+# mysqldump 特定配置
+quick
+quote-names
+max_allowed_packet = 1G
+single-transaction
+routines
+triggers
+events
+lock-tables = false
+disable-keys = true
+extended-insert = true
+hex-blob = true
+set-charset
+default-character-set = utf8mb4
+
+# 压缩配置
+compress = true
+compression-algorithm = zlib
+
+# 性能配置
+net_buffer_length = 16384
+max_allowed_packet = 1G
+
+# 安全配置
+skip-lock-tables = false
+skip-add-locks = false
+
+# 输出配置
+tz-utc = true
+set-gtid-purged = OFF
+
+# 过滤配置（可选）
+# ignore-table = database.table1
+# ignore-table = database.table2
+
+[mysql]
+# MySQL 客户端交互配置
+auto-rehash
+default-character-set = utf8mb4
+prompt = '\\u@\\h [\\d]>\\_ '
+pager = 'less -S -F -R -X'

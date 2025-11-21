@@ -1,0 +1,23 @@
+# 云同步配置
+# ⚠️ 教学声明：此配置文件主要用于学习环境，生产环境请根据实际需求调整
+
+{
+  "provider": "{{ item.provider }}",
+  "enabled": {{ item.enabled | default(false) }},
+  "bucket_name": "{{ item.bucket_name | default('') }}",
+  "region": "{{ item.region | default('') }}",
+  "access_key": "{{ item.access_key | default('') }}",
+  "secret_key": "{{ item.secret_key | default('') }}",
+  "endpoint_url": "{{ item.endpoint_url | default('') }}",
+  "storage_class": "{{ item.storage_class | default('STANDARD') }}",
+  "encryption": "{{ item.encryption | default('AES256') }}",
+  "multipart_threshold": "{{ item.multipart_threshold | default('64MB') }}",
+  "concurrency": {{ item.concurrency | default(10) }},
+  "retention_days": {{ item.retention_days | default(90) }},
+  "sync_paths": {{ item.sync_paths | default([]) | to_nice_json }},
+  "bandwidth_limit": "{{ cloud_sync_bandwidth_limit | default('') }}",
+  "retry_count": {{ cloud_sync_retry_count | default(3) }},
+  "retry_delay": {{ cloud_sync_retry_delay | default(60) }},
+  "created_at": "{{ ansible_date_time.iso8601 }}",
+  "updated_at": "{{ ansible_date_time.iso8601 }}"
+}

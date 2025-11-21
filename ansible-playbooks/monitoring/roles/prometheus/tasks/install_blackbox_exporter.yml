@@ -1,0 +1,96 @@
+---
+# Blackbox Exporter 安装任务
+# ⚠️ 教学声明：此任务主要用于学习 Blackbox Exporter 部署
+
+- name: 创建 Blackbox Exporter 用户
+  ansible.builtin.user:
+    name: "blackbox_exporter"
+    shell: /bin/false
+    system: yes
+    create_home: no
+    state: present
+  tags: [blackbox_exporter, user]
+
+- name: 下载 Blackbox Exporter 二进制文件
+  ansible.builtin.get_url:
+    url: "https://github.com/prometheus/blackbox_exporter/releases/download/v{{ blackbox_exporter_version }}/blackbox_exporter-{{ blackbox_exporter_version }}.linux-amd64.tar.gz"
+    dest: "/tmp/blackbox_exporter-{{ blackbox_exporter_version }}.linux-amd64.tar.gz"
+    mode: '0644'
+  tags: [blackbox_exporter, download]
+
+- name: 解压 Blackbox Exporter 二进制文件
+  ansible.builtin.unarchive:
+    src: "/tmp/blackbox_exporter-{{ blackbox_exporter_version }}.linux-amd64.tar.gz"
+    dest: "/tmp"
+    remote_src: yes
+    creates: "/tmp/blackbox_exporter-{{ blackbox_exporter_version }}.linux-amd64/blackbox_exporter"
+  tags: [blackbox_exporter, install]
+
+- name: 创建 Blackbox Exporter 目录
+  ansible.builtin.file:
+    path: "/opt/blackbox_exporter"
+    state: directory
+    owner: blackbox_exporter
+    group: blackbox_exporter
+    mode: '0755'
+  tags: [blackbox_exporter, directories]
+
+- name: 复制 Blackbox Exporter 二进制文件
+  ansible.builtin.copy:
+    src: "/tmp/blackbox_exporter-{{ blackbox_exporter_version }}.linux-amd64/blackbox_exporter"
+    dest: "/opt/blackbox_exporter/blackbox_exporter"
+    remote_src: yes
+    owner: blackbox_exporter
+    group: blackbox_exporter
+    mode: '0755'
+  tags: [blackbox_exporter, install]
+
+- name: 复制 Blackbox Exporter 配置文件
+  ansible.builtin.template:
+    src: blackbox.yml.j2
+    dest: "/opt/blackbox_exporter/blackbox.yml"
+    owner: blackbox_exporter
+    group: blackbox_exporter
+    mode: '0644'
+  tags: [blackbox_exporter, config]
+
+- name: 创建 Blackbox Exporter systemd 服务文件
+  ansible.builtin.template:
+    src: blackbox_exporter.service.j2
+    dest: /etc/systemd/system/blackbox_exporter.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: 重新加载 systemd 守护进程
+  tags: [blackbox_exporter, service]
+
+- name: 启动并启用 Blackbox Exporter 服务
+  ansible.builtin.service:
+    name: blackbox_exporter
+    state: started
+    enabled: yes
+  tags: [blackbox_exporter, service]
+
+- name: 等待 Blackbox Exporter 服务就绪
+  ansible.builtin.wait_for:
+    port: "{{ blackbox_exporter_port }}"
+    delay: 3
+    timeout: 30
+    state: started
+  tags: [blackbox_exporter, verify]
+
+- name: 验证 Blackbox Exporter 指标
+  ansible.builtin.uri:
+    url: "http://localhost:{{ blackbox_exporter_port }}/metrics"
+    method: GET
+    status_code: 200
+  register: blackbox_exporter_metrics
+  retries: 3
+  delay: 3
+  tags: [blackbox_exporter, verify]
+
+- name: 清理 Blackbox Exporter 临时文件
+  ansible.builtin.file:
+    path: "/tmp/blackbox_exporter-{{ blackbox_exporter_version }}.linux-amd64.tar.gz"
+    state: absent
+  tags: [blackbox_exporter, cleanup]

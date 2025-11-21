@@ -1,0 +1,191 @@
+# 告警规则文件
+# ⚠️ 教学声明：此告警规则主要用于学习环境，生产环境请根据实际需求调整
+
+groups:
+  - name: system_alerts
+    interval: 30s
+    rules:
+      # 实例宕机告警
+      - alert: InstanceDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: prometheus
+        annotations:
+          summary: "实例 {{ $labels.instance }} 已宕机"
+          description: "实例 {{ $labels.instance }} 在过去5分钟内无法访问"
+
+      # CPU 使用率过高告警
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 10m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "实例 {{ $labels.instance }} CPU 使用率过高"
+          description: "实例 {{ $labels.instance }} CPU 使用率在过去10分钟内持续高于80%，当前值：{{ $value }}%"
+
+      # 内存使用率过高告警
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "实例 {{ $labels.instance }} 内存使用率过高"
+          description: "实例 {{ $labels.instance }} 内存使用率在过去10分钟内持续高于85%，当前值：{{ $value }}%"
+
+      # 磁盘空间不足告警
+      - alert: DiskSpaceLow
+        expr: (1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"})) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+          service: system
+        annotations:
+          summary: "实例 {{ $labels.instance }} 磁盘空间不足"
+          description: "实例 {{ $labels.instance }} 文件系统 {{ $labels.mountpoint }} 磁盘使用率超过90%，当前值：{{ $value }}%"
+
+      # 磁盘 I/O 过高告警
+      - alert: HighDiskIO
+        expr: irate(node_disk_io_time_seconds_total[5m]) * 100 > 80
+        for: 15m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "实例 {{ $labels.instance }} 磁盘 I/O 过高"
+          description: "实例 {{ $labels.instance }} 磁盘 I/O 使用率在过去15分钟内持续高于80%，当前值：{{ $value }}%"
+
+      # 网络错误率过高告警
+      - alert: HighNetworkErrors
+        expr: rate(node_network_receive_errs_total[5m]) + rate(node_network_transmit_errs_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: network
+        annotations:
+          summary: "实例 {{ $labels.instance }} 网络错误率过高"
+          description: "实例 {{ $labels.instance }} 网络错误率在过去5分钟内持续高于10/秒，当前值：{{ $value }}"
+
+  - name: prometheus_alerts
+    interval: 60s
+    rules:
+      # Prometheus 配置重载失败
+      - alert: PrometheusConfigReloadFailed
+        expr: prometheus_config_last_reload_successful == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: prometheus
+        annotations:
+          summary: "Prometheus 配置重载失败"
+          description: "Prometheus 最后一次配置重载失败，请检查配置文件语法"
+
+      # Prometheus 目标采集失败
+      - alert: PrometheusTargetScrapesFailed
+        expr: increase(prometheus_target_scrapes_exceeded_timestamp_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: prometheus
+        annotations:
+          summary: "Prometheus 目标采集失败"
+          description: "Prometheus 在过去5分钟内有目标采集失败"
+
+      # Prometheus 存储即将写满
+      - alert: PrometheusNearDiskLimit
+        expr: (prometheus_tsdb_head_samples_appended_total / prometheus_tsdb_retention_limit_bytes) * 100 > 90
+        for: 30m
+        labels:
+          severity: warning
+          service: prometheus
+        annotations:
+          summary: "Prometheus 存储空间即将用完"
+          description: "Prometheus 存储使用率超过90%，请清理数据或增加存储空间"
+
+  - name: blackbox_alerts
+    interval: 60s
+    rules:
+      # HTTP 探测失败
+      - alert: BlackboxHTTPProbeFailed
+        expr: probe_success{job="blackbox-http"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: blackbox
+        annotations:
+          summary: "HTTP 探测失败"
+          description: "目标 {{ $labels.instance }} HTTP 探测失败，持续2分钟"
+
+      # ICMP 探测失败
+      - alert: BlackboxICMPProbeFailed
+        expr: probe_success{job="blackbox-icmp"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          service: blackbox
+        annotations:
+          summary: "ICMP 探测失败"
+          description: "目标 {{ $labels.instance }} ICMP 探测失败，持续2分钟"
+
+      # TCP 连接探测失败
+      - alert: BlackboxTCPProbeFailed
+        expr: probe_success{job="blackbox-tcp"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          service: blackbox
+        annotations:
+          summary: "TCP 连接探测失败"
+          description: "目标 {{ $labels.instance }} TCP 连接探测失败，持续2分钟"
+
+      # HTTP 响应时间过长
+      - alert: BlackboxHTTPLatencyHigh
+        expr: probe_duration_seconds{job="blackbox-http"} > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: blackbox
+        annotations:
+          summary: "HTTP 响应时间过长"
+          description: "目标 {{ $labels.instance }} HTTP 响应时间超过5秒，当前值：{{ $value }}秒"
+
+  - name: node_exporter_alerts
+    interval: 60s
+    rules:
+      # Node Exporter 宕机
+      - alert: NodeExporterDown
+        expr: up{job="node-exporter"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: node_exporter
+        annotations:
+          summary: "Node Exporter 宕机"
+          description: "实例 {{ $labels.instance }} 的 Node Exporter 已宕机5分钟"
+
+      # 系统负载过高
+      - alert: HighSystemLoad
+        expr: node_load15 > (count by (instance) (node_cpu_seconds_total{mode="idle"}) * 1.5)
+        for: 10m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "系统负载过高"
+          description: "实例 {{ $labels.instance }} 15分钟平均负载 {{ $value }} 超过 CPU 核心数的1.5倍"
+
+      # 系统时间不同步
+      - alert: ClockSkew
+        expr: abs(node_time_seconds - time()) > 300
+        for: 2m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "系统时间不同步"
+          description: "实例 {{ $labels.instance }} 系统时间与标准时间相差超过5分钟"

@@ -1,0 +1,180 @@
+<?php
+/**
+ * LNMP 栈数据库连接测试页面
+ * ⚠️ 教学声明：此页面主要用于测试数据库连接，生产环境请删除或限制访问
+ */
+
+// 数据库配置
+$db_host = 'localhost';
+$db_name = '{{ lnmp_mysql_database }}';
+$db_user = '{{ lnmp_mysql_user }}';
+$db_pass = '{{ lnmp_mysql_password }}';
+
+// 字符编码
+header('Content-Type: text/html; charset=utf-8');
+
+?>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LNMP 栈数据库连接测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background-color: #f5f5f5; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; border-bottom: 2px solid #009688; padding-bottom: 10px; }
+        .success { color: #28a745; background: #d4edda; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        .error { color: #dc3545; background: #f8d7da; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        .info { color: #17a2b8; background: #d1ecf1; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        .warning { color: #856404; background: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f8f9fa; font-weight: bold; }
+        .status { display: inline-block; padding: 4px 8px; border-radius: 3px; font-size: 12px; font-weight: bold; }
+        .status-ok { background: #28a745; color: white; }
+        .status-error { background: #dc3545; color: white; }
+        .nginx-info { background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        .php-info { background: #f3e5f5; padding: 15px; border-radius: 5px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 LNMP 栈数据库连接测试</h1>
+        
+        <?php
+        try {
+            // 创建 PDO 连接
+            $pdo = new PDO("mysql:host=$db_host;dbname=$db_name;charset=utf8mb4", $db_user, $db_pass);
+            $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            
+            echo '<div class="success">✅ 数据库连接成功！</div>';
+            
+            // 显示连接信息
+            echo '<h2>📊 数据库连接信息</h2>';
+            echo '<table>';
+            echo '<tr><th>配置项</th><th>值</th></tr>';
+            echo '<tr><td>数据库主机</td><td>' . htmlspecialchars($db_host) . '</td></tr>';
+            echo '<tr><td>数据库名称</td><td>' . htmlspecialchars($db_name) . '</td></tr>';
+            echo '<tr><td>用户名</td><td>' . htmlspecialchars($db_user) . '</td></tr>';
+            echo '<tr><td>字符集</td><td>utf8mb4</td></tr>';
+            echo '</table>';
+            
+            // 获取 MySQL 版本信息
+            $version = $pdo->query("SELECT VERSION() as version")->fetch(PDO::FETCH_ASSOC);
+            echo '<h2>🔧 数据库服务器信息</h2>';
+            echo '<table>';
+            echo '<tr><th>属性</th><th>值</th></tr>';
+            echo '<tr><td>MySQL 版本</td><td>' . htmlspecialchars($version['version']) . '</td></tr>';
+            echo '<tr><td>PDO 驱动</td><td>' . htmlspecialchars($pdo->getAttribute(PDO::ATTR_DRIVER_NAME)) . '</td></tr>';
+            echo '<tr><td>连接状态</td><td><span class="status status-ok">正常</span></td></tr>';
+            echo '</table>';
+            
+            // 测试基本查询
+            echo '<h2>🧪 数据库查询测试</h2>';
+            $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
+            if (count($tables) > 0) {
+                echo '<div class="info">📋 数据库中的表：</div>';
+                echo '<table>';
+                echo '<tr><th>表名</th><th>记录数</th></tr>';
+                foreach ($tables as $table) {
+                    $count = $pdo->query("SELECT COUNT(*) as cnt FROM `$table`")->fetch(PDO::FETCH_ASSOC);
+                    echo '<tr><td>' . htmlspecialchars($table) . '</td><td>' . htmlspecialchars($count['cnt']) . '</td></tr>';
+                }
+                echo '</table>';
+            } else {
+                echo '<div class="warning">⚠️ 数据库中暂无表，这是正常的初始状态。</div>';
+            }
+            
+            // 创建测试表（如果不存在）
+            $pdo->exec("CREATE TABLE IF NOT EXISTS lnmp_test_connection (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                message VARCHAR(255) NOT NULL,
+                server_info VARCHAR(255),
+                php_version VARCHAR(50),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            
+            // 插入测试数据
+            $stmt = $pdo->prepare("INSERT INTO lnmp_test_connection (message, server_info, php_version) VALUES (:message, :server_info, :php_version)");
+            $stmt->execute([
+                'message' => 'LNMP 栈连接测试 - ' . date('Y-m-d H:i:s'),
+                'server_info' => ($_SERVER['SERVER_SOFTWARE'] ?? '未知'),
+                'php_version' => PHP_VERSION
+            ]);
+            
+            // 查询测试数据
+            $test_data = $pdo->query("SELECT * FROM lnmp_test_connection ORDER BY created_at DESC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC);
+            
+            if (count($test_data) > 0) {
+                echo '<h2>📝 测试数据记录（最近5条）</h2>';
+                echo '<table>';
+                echo '<tr><th>ID</th><th>消息</th><th>服务器信息</th><th>PHP版本</th><th>创建时间</th></tr>';
+                foreach ($test_data as $row) {
+                    echo '<tr>';
+                    echo '<td>' . htmlspecialchars($row['id']) . '</td>';
+                    echo '<td>' . htmlspecialchars($row['message']) . '</td>';
+                    echo '<td>' . htmlspecialchars($row['server_info']) . '</td>';
+                    echo '<td>' . htmlspecialchars($row['php_version']) . '</td>';
+                    echo '<td>' . htmlspecialchars($row['created_at']) . '</td>';
+                    echo '</tr>';
+                }
+                echo '</table>';
+            }
+            
+        } catch (PDOException $e) {
+            echo '<div class="error">❌ 数据库连接失败！</div>';
+            echo '<div class="error"><strong>错误信息：</strong> ' . htmlspecialchars($e->getMessage()) . '</div>';
+            echo '<div class="info"><strong>排查建议：</strong></div>';
+            echo '<ul>';
+            echo '<li>检查 MySQL 服务是否正在运行</li>';
+            echo '<li>验证数据库用户名和密码是否正确</li>';
+            echo '<li>确认数据库是否存在</li>';
+            echo '<li>检查用户权限设置</li>';
+            echo '<li>确认 PHP-FPM 和 Nginx 配置正确</li>';
+            echo '</ul>';
+        }
+        ?>
+        
+        <div class="nginx-info">
+            <h3>🌐 Nginx 服务器信息</h3>
+            <table>
+                <tr><th>配置项</th><th>值</th></tr>
+                <tr><td>服务器软件</td><td><?php echo htmlspecialchars($_SERVER['SERVER_SOFTWARE'] ?? '未知'); ?></td></tr>
+                <tr><td>服务器名称</td><td><?php echo htmlspecialchars($_SERVER['SERVER_NAME'] ?? '未知'); ?></td></tr>
+                <tr><td>文档根目录</td><td><?php echo htmlspecialchars($_SERVER['DOCUMENT_ROOT'] ?? '未知'); ?></td></tr>
+                <tr><td>请求URI</td><td><?php echo htmlspecialchars($_SERVER['REQUEST_URI'] ?? '未知'); ?></td></tr>
+                <tr><td>HTTPS 状态</td><td><?php echo (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? '启用' : '未启用'; ?></td></tr>
+            </table>
+        </div>
+        
+        <div class="php-info">
+            <h3>⚙️ PHP-FPM 环境信息</h3>
+            <table>
+                <tr><th>配置项</th><th>值</th></tr>
+                <tr><td>PHP 版本</td><td><?php echo htmlspecialchars(PHP_VERSION); ?></td></tr>
+                <tr><td>SAPI</td><td><?php echo htmlspecialchars(php_sapi_name()); ?></td></tr>
+                <tr><td>内存限制</td><td><?php echo htmlspecialchars(ini_get('memory_limit')); ?></td></tr>
+                <tr><td>上传文件大小限制</td><td><?php echo htmlspecialchars(ini_get('upload_max_filesize')); ?></td></tr>
+                <tr><td>执行时间限制</td><td><?php echo htmlspecialchars(ini_get('max_execution_time')); ?>秒</td></tr>
+                <tr><td>OpCache 状态</td><td><?php echo extension_loaded('Zend OPcache') ? '已启用' : '未启用'; ?></td></tr>
+            </table>
+        </div>
+        
+        <div class="warning">
+            <strong>⚠️ 安全提醒：</strong>
+            <ul>
+                <li>此测试页面包含敏感信息，生产环境中请务必删除或限制访问权限</li>
+                <li>建议使用 IP 白名单或基本认证来保护此页面</li>
+                <li>定期检查和更新数据库密码</li>
+                <li>启用数据库连接的 SSL/TLS 加密</li>
+                <li>配置适当的防火墙规则限制数据库访问</li>
+                <li>定期备份重要数据</li>
+            </ul>
+        </div>
+        
+        <p><strong>测试完成时间：</strong> <?php echo date('Y-m-d H:i:s'); ?></p>
+        <p><strong>LNMP 栈组件：</strong> Nginx + PHP-FPM + MySQL</p>
+    </div>
+</body>
+</html>

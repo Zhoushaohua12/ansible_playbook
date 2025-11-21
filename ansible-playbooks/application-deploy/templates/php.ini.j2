@@ -1,0 +1,104 @@
+[PHP]
+; PHP 配置文件
+; ⚠️ 教学声明：此配置文件主要用于学习环境，生产环境请根据实际需求调整
+
+; 引擎设置
+engine = On
+short_open_tag = Off
+precision = 14
+output_buffering = 4096
+zlib.output_compression = Off
+implicit_flush = Off
+unserialize_callback_func =
+serialize_precision = -1
+disable_functions =
+disable_classes =
+zend.enable_gc = On
+zend.exception_ignore_args = On
+exception_string_param_max = 15
+
+; 资源限制
+max_execution_time = 30
+max_input_time = 60
+memory_limit = {{ lamp_php_memory_limit }}
+
+; 错误处理和日志
+error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT
+display_errors = Off
+display_startup_errors = Off
+log_errors = On
+log_errors_max_len = 1024
+ignore_repeated_errors = Off
+ignore_repeated_source = Off
+report_memleaks = On
+variables_order = "GPCS"
+request_order = "GP"
+register_argc_argv = Off
+auto_globals_jit = On
+
+; 文件上传
+file_uploads = On
+upload_tmp_dir =
+upload_max_filesize = {{ lamp_upload_max_filesize }}
+max_file_uploads = 20
+
+; POST 数据
+post_max_size = {{ lamp_upload_max_filesize }}
+auto_prepend_file =
+auto_append_file =
+default_mimetype = "text/html"
+default_charset = "UTF-8"
+
+; 数据库
+pdo_mysql.default_socket=
+mysqli.default_socket =
+
+; 时间
+date.timezone = Asia/Shanghai
+
+; 会话
+session.save_handler = files
+session.use_strict_mode = 0
+session.use_cookies = 1
+session.use_only_cookies = 1
+session.name = PHPSESSID
+session.auto_start = 0
+session.cookie_lifetime = 0
+session.cookie_path = /
+session.cookie_domain =
+session.cookie_httponly =
+session.cookie_samesite =
+session.serialize_handler = php
+session.gc_probability = 0
+session.gc_divisor = 1000
+session.gc_maxlifetime = 1440
+session.referer_check =
+session.cache_limiter = nocache
+session.cache_expire = 180
+session.use_trans_sid = 0
+session.sid_length = 26
+session.trans_sid_tags = "a=href,area=href,frame=src,form="
+session.sid_bits_per_character = 5
+
+; 安全相关
+allow_url_fopen = On
+allow_url_include = Off
+default_socket_timeout = 60
+
+; 扩展相关
+extension=pdo_mysql
+extension=mysqli
+extension=gd
+extension=curl
+extension=zip
+extension=mbstring
+extension=intl
+
+; OpCache 配置
+opcache.enable=1
+opcache.enable_cli=1
+opcache.memory_consumption=128
+opcache.interned_strings_buffer=8
+opcache.max_accelerated_files=4000
+opcache.revalidate_freq=2
+opcache.fast_shutdown=1

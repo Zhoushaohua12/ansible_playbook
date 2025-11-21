@@ -1,0 +1,52 @@
+# 备份任务定时任务配置
+# ⚠️ 教学声明：此配置文件主要用于学习环境，生产环境请根据实际需求调整
+
+# 文件系统备份任务
+{% if filesystem_backup_enabled %}
+# 每日凌晨2点执行文件系统备份
+0 2 * * * {{ backup_user }} {{ backup_base_dir }}/scripts/filesystem_backup.sh /etc
+0 2 * * * {{ backup_user }} {{ backup_base_dir }}/scripts/filesystem_backup.sh /home
+0 2 * * * {{ backup_user }} {{ backup_base_dir }}/scripts/filesystem_backup.sh /var/www
+0 2 * * * {{ backup_user }} {{ backup_base_dir }}/scripts/filesystem_backup.sh /opt
+
+# 每6小时执行增量备份
+30 */6 * * * {{ backup_user }} {{ backup_base_dir }}/scripts/filesystem_incremental_backup.sh
+{% endif %}
+
+# 数据库备份任务
+{% if database_backup_enabled %}
+# 每日凌晨3点执行数据库备份
+{% for engine in database_backup_engines %}
+{% if engine.enabled %}
+0 3 * * * {{ backup_user }} {{ backup_base_dir }}/scripts/database_backup.sh {{ engine.engine }}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+# 云同步任务
+{% if cloud_sync_enabled %}
+# 每日凌晨4点执行云同步
+{% for provider in cloud_sync_providers %}
+{% if provider.enabled %}
+0 4 * * * {{ backup_user }} {{ backup_base_dir }}/scripts/cloud_sync.sh {{ provider.provider }}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+# 备份验证任务
+{% if backup_verification_enabled %}
+# 每日凌晨5点执行备份验证
+0 5 * * * {{ backup_user }} {{ backup_base_dir }}/scripts/backup_verify.sh
+{% endif %}
+
+# 备份清理任务
+{% if backup_cleanup_enabled %}
+# 每周日凌晨5点执行备份清理
+0 5 * * 0 {{ backup_user }} {{ backup_base_dir }}/scripts/backup_cleanup.sh
+{% endif %}
+
+# 备份监控任务
+{% if backup_monitoring_enabled %}
+# 每小时执行备份监控
+0 * * * * {{ backup_user }} {{ backup_base_dir }}/scripts/backup_monitor.sh --status
+{% endif %}

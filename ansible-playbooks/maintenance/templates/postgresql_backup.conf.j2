@@ -1,0 +1,117 @@
+# PostgreSQL 备份配置文件
+# ⚠️ 教学声明：此配置文件主要用于学习环境，生产环境请根据实际需求调整
+
+# PostgreSQL 客户端配置
+
+# 连接配置
+host = {{ database_backup_engines | selectattr('engine', 'equalto', 'postgresql') | selectattr('enabled', 'equalto', true) | map(attribute='host') | first | default('localhost') }}
+port = {{ database_backup_engines | selectattr('engine', 'equalto', 'postgresql') | selectattr('enabled', 'equalto', true) | map(attribute='port') | first | default('5432') }}
+user = {{ database_backup_engines | selectattr('engine', 'equalto', 'postgresql') | selectattr('enabled', 'equalto', true) | map(attribute='username') | first | default('postgres') }}
+dbname = {{ database_backup_engines | selectattr('engine', 'equalto', 'postgresql') | selectattr('enabled', 'equalto', true) | map(attribute='databases') | first | default('postgres') }}
+
+# 认证配置
+password = {{ database_backup_engines | selectattr('engine', 'equalto', 'postgresql') | selectattr('enabled', 'equalto', true) | map(attribute='password') | first | default('') }}
+
+# 连接超时配置
+connect_timeout = 60
+statement_timeout = 300
+lock_timeout = 300
+idle_in_transaction_session_timeout = 300
+
+# 字符集配置
+client_encoding = UTF8
+
+# 日期时间配置
+timezone = 'Asia/Shanghai'
+
+# 搜索路径配置
+search_path = '"$user", public'
+
+# 性能配置
+application_name = 'backup_client'
+tcp_keepalives_idle = 300
+tcp_keepalives_interval = 30
+tcp_keepalives_count = 3
+
+# SSL 配置（可选）
+# sslmode = require
+# sslcert = /path/to/client-cert.pem
+# sslkey = /path/to/client-key.pem
+# sslrootcert = /path/to/ca.pem
+
+# pg_dump 特定配置
+[pg_dump]
+# 备份格式
+format = custom
+compress = 9
+verbose = true
+
+# 备份内容
+clean = false
+if-exists = false
+create = false
+no-owner = true
+no-privileges = true
+
+# 对象类型
+schema = public
+table = *
+exclude-table = pg_toast.*
+exclude-table = pg_statistic.*
+exclude-table = pg_type
+
+# 大对象配置
+large-objects = true
+
+# 事务配置
+lock-wait-timeout = 300
+serializable-deferrable = false
+
+# 输出配置
+inserts = false
+column-inserts = false
+attribute-inserts = false
+oids = false
+
+# 其他选项
+disable-dollar-quoting = false
+disable-triggers = false
+use-set-session-authorization = false
+
+[pg_dumpall]
+# 全量备份配置
+globals-only = false
+roles-only = false
+tablespaces-only = false
+no-role-passwords = false
+
+# 清理选项
+clean = false
+if-exists = false
+
+# 其他选项
+verbose = true
+
+[psql]
+# 交互式客户端配置
+quiet = false
+pset = 'pager=off'
+pset = 'null=\N'
+pset = 'border=2'
+pset = 'linestyle=unicode'
+
+# 提示符配置
+prompt1 = '%n@%M:%> '
+prompt2 = '%n@%M:%R-# '
+prompt3 = '>> '
+
+# 历史配置
+HISTSIZE = 2000
+HISTFILE = ~/.psql_history
+
+# 其他配置
+echo = false
+echo-hidden = false
+on-error-stop = false
+single-step = false
+single-line = false

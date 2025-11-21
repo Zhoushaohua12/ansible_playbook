@@ -1,0 +1,72 @@
+# Elasticsearch 配置文件
+# ⚠️ 教学声明：此配置文件主要用于学习环境，生产环境请根据实际需求调整
+
+# 集群配置
+cluster.name: {{ elasticsearch_cluster_name }}
+node.name: {{ elasticsearch_node_name }}
+
+# 网络配置
+network.host: {{ elasticsearch_network_host }}
+http.port: {{ elasticsearch_http_port }}
+
+# 发现配置
+discovery.type: {{ elasticsearch_discovery_type }}
+
+# 路径配置
+path.data: {{ elasticsearch_data_dir }}
+path.logs: {{ elasticsearch_log_dir }}
+
+# 内存配置
+bootstrap.memory_lock: {{ elasticsearch_bootstrap_memory_lock }}
+
+# 安全配置
+xpack.security.enabled: false
+xpack.security.enrollment.enabled: false
+xpack.security.http.ssl.enabled: false
+xpack.security.transport.ssl.enabled: false
+
+# 监控配置
+xpack.monitoring.collection.enabled: true
+
+# 集群路由配置
+cluster.routing.allocation.awareness.attributes: zone
+cluster.routing.allocation.disk.threshold_enabled: true
+cluster.routing.allocation.disk.watermark.low: 85%
+cluster.routing.allocation.disk.watermark.high: 90%
+cluster.routing.allocation.disk.watermark.flood_stage: 95%
+
+# 索引配置
+action.auto_create_index: true
+action.destructive_requires_name: true
+
+# 线程池配置
+thread_pool.write.queue_size: 1000
+thread_pool.search.queue_size: 1000
+
+# 缓存配置
+indices.queries.cache.size: 5%
+indices.fielddata.cache.size: 40%
+
+# 传输配置
+transport.tcp.port: 9300
+transport.tcp.compress: true
+
+# HTTP 配置
+http.cors.enabled: true
+http.cors.allow-origin: "*"
+http.max_content_length: 100mb
+
+# 索引生命周期管理
+xpack.ilm.enabled: true
+
+# 机器学习
+xpack.ml.enabled: false
+
+# 地图配置
+xpack.graph.enabled: false
+
+# SQL 支持
+xpack.sql.enabled: true
+
+# 监控代理
+xpack.monitoring.elasticsearch.collection.enabled: false

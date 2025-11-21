@@ -1,0 +1,22 @@
+{
+{%- if docker_registry_mirror is defined and docker_registry_mirror != "" %}
+  "registry-mirrors": ["{{ docker_registry_mirror }}"],
+{%- endif %}
+  "log-driver": "{{ docker_daemon_json_config.log_driver | default('json-file') }}",
+  "log-opts": {
+{%- for key, value in docker_daemon_json_config.log_opts.items() %}
+    "{{ key }}": "{{ value }}"{% if not loop.last %},{% endif %}
+{%- endfor %}
+  },
+  "storage-driver": "{{ docker_daemon_json_config.storage_driver | default('overlay2') }}",
+  "live-restore": true,
+  "userland-proxy": false,
+  "experimental": false,
+  "default-ulimits": {
+    "nofile": {
+      "Name": "nofile",
+      "Hard": 64000,
+      "Soft": 64000
+    }
+  }
+}
