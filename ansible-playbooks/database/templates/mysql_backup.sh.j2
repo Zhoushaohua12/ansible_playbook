@@ -1,0 +1,195 @@
+#!/bin/bash
+# MySQL 数据库备份脚本
+# 由 Ansible 自动生成 - 请勿手动编辑
+# 生成时间: {{ ansible_date_time.iso8601 }}
+
+set -euo pipefail
+
+# ============================================================================
+# 配置变量
+# ============================================================================
+BACKUP_DIR="{{ postgresql_backup_dir }}"
+BACKUP_USER="{{ mysql_backup_user }}"
+BACKUP_PASSWORD="{{ mysql_backup_password }}"
+BACKUP_TYPE="{{ mysql_backup_type }}"
+BACKUP_COMPRESS="{{ mysql_backup_compress | lower }}"
+BACKUP_COMPRESS_METHOD="{{ mysql_backup_compress_method }}"
+RETENTION_DAYS="{{ mysql_backup_retention_days }}"
+MYSQL_HOST="localhost"
+MYSQL_PORT="{{ mysql_port }}"
+
+# 日志文件
+LOG_FILE="${BACKUP_DIR}/logs/backup.log"
+DATE=$(date +%Y%m%d_%H%M%S)
+TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
+
+# ============================================================================
+# 函数定义
+# ============================================================================
+
+# 日志函数
+log() {
+    echo "[${TIMESTAMP}] $1" | tee -a "${LOG_FILE}"
+}
+
+# 错误处理函数
+error_exit() {
+    log "错误: $1"
+    exit 1
+}
+
+# 检查命令是否存在
+check_command() {
+    if ! command -v "$1" &> /dev/null; then
+        error_exit "命令 $1 未找到，请先安装"
+    fi
+}
+
+# 获取数据库列表
+get_databases() {
+    mysql -h"${MYSQL_HOST}" -P"${MYSQL_PORT}" -u"${BACKUP_USER}" -p"${BACKUP_PASSWORD}" \
+        -Bse "SHOW DATABASES;" 2>/dev/null | \
+        grep -Ev "^(information_schema|performance_schema|sys|mysql)$" || true
+}
+
+# 逻辑备份函数（使用 mysqldump）
+logical_backup() {
+    local db=$1
+    local backup_file="${BACKUP_DIR}/daily/${db}_${DATE}.sql"
+    
+    log "开始备份数据库: ${db}"
+    
+    if mysqldump -h"${MYSQL_HOST}" -P"${MYSQL_PORT}" -u"${BACKUP_USER}" -p"${BACKUP_PASSWORD}" \
+        --single-transaction \
+        --quick \
+        --lock-tables=false \
+        --routines \
+        --triggers \
+        --events \
+        --hex-blob \
+        --default-character-set=utf8mb4 \
+        "${db}" > "${backup_file}" 2>> "${LOG_FILE}"; then
+        
+        # 压缩备份文件
+        if [ "${BACKUP_COMPRESS}" = "true" ]; then
+            log "压缩备份文件: ${backup_file}"
+            case "${BACKUP_COMPRESS_METHOD}" in
+                gzip)
+                    gzip -f "${backup_file}" && backup_file="${backup_file}.gz"
+                    ;;
+                bzip2)
+                    bzip2 -f "${backup_file}" && backup_file="${backup_file}.bz2"
+                    ;;
+                xz)
+                    xz -f "${backup_file}" && backup_file="${backup_file}.xz"
+                    ;;
+            esac
+        fi
+        
+        log "备份完成: ${backup_file}"
+        log "备份大小: $(du -h "${backup_file}" | cut -f1)"
+        return 0
+    else
+        error_exit "备份失败: ${db}"
+    fi
+}
+
+# 全库备份函数
+full_backup() {
+    local backup_file="${BACKUP_DIR}/daily/all_databases_${DATE}.sql"
+    
+    log "开始全库备份"
+    
+    if mysqldump -h"${MYSQL_HOST}" -P"${MYSQL_PORT}" -u"${BACKUP_USER}" -p"${BACKUP_PASSWORD}" \
+        --all-databases \
+        --single-transaction \
+        --quick \
+        --lock-tables=false \
+        --routines \
+        --triggers \
+        --events \
+        --hex-blob \
+        --default-character-set=utf8mb4 > "${backup_file}" 2>> "${LOG_FILE}"; then
+        
+        # 压缩备份文件
+        if [ "${BACKUP_COMPRESS}" = "true" ]; then
+            log "压缩备份文件: ${backup_file}"
+            case "${BACKUP_COMPRESS_METHOD}" in
+                gzip)
+                    gzip -f "${backup_file}" && backup_file="${backup_file}.gz"
+                    ;;
+                bzip2)
+                    bzip2 -f "${backup_file}" && backup_file="${backup_file}.bz2"
+                    ;;
+                xz)
+                    xz -f "${backup_file}" && backup_file="${backup_file}.xz"
+                    ;;
+            esac
+        fi
+        
+        log "全库备份完成: ${backup_file}"
+        log "备份大小: $(du -h "${backup_file}" | cut -f1)"
+        return 0
+    else
+        error_exit "全库备份失败"
+    fi
+}
+
+# 清理旧备份
+cleanup_old_backups() {
+    log "清理 ${RETENTION_DAYS} 天前的备份文件"
+    find "${BACKUP_DIR}/daily" -type f -mtime +${RETENTION_DAYS} -delete 2>> "${LOG_FILE}" || true
+    log "清理完成"
+}
+
+# ============================================================================
+# 主程序
+# ============================================================================
+
+main() {
+    log "=========================================="
+    log "MySQL 数据库备份开始"
+    log "=========================================="
+    
+    # 检查必需命令
+    check_command mysql
+    check_command mysqldump
+    
+    # 创建备份目录
+    mkdir -p "${BACKUP_DIR}/daily" "${BACKUP_DIR}/logs"
+    
+    # 检查磁盘空间
+    DISK_USAGE=$(df -h "${BACKUP_DIR}" | tail -1 | awk '{print $5}' | sed 's/%//')
+    if [ "${DISK_USAGE}" -gt 90 ]; then
+        log "警告: 备份磁盘空间不足 (使用率: ${DISK_USAGE}%)"
+    fi
+    
+{% if mysql_backup_databases | default([]) | length > 0 %}
+    # 备份指定数据库
+{% for db in mysql_backup_databases %}
+    logical_backup "{{ db }}"
+{% endfor %}
+{% else %}
+    # 备份所有数据库
+    DATABASE_LIST=$(get_databases)
+    
+    if [ -z "${DATABASE_LIST}" ]; then
+        log "未找到需要备份的数据库"
+        full_backup
+    else
+        for db in ${DATABASE_LIST}; do
+            logical_backup "${db}"
+        done
+    fi
+{% endif %}
+    
+    # 清理旧备份
+    cleanup_old_backups
+    
+    log "=========================================="
+    log "MySQL 数据库备份完成"
+    log "=========================================="
+}
+
+# 执行主程序
+main "$@"

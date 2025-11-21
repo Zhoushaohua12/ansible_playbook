@@ -1,0 +1,350 @@
+---
+# 数据库操作包变量配置
+# ⚠️ 重要提示：这些变量为示例配置，请在生产环境使用前根据实际情况调整
+# 教学说明：本配置涵盖 MySQL/MariaDB 和 PostgreSQL 的安装、复制和备份参数
+
+# ============================================================================
+# MySQL/MariaDB 通用配置
+# ============================================================================
+mysql_enabled: true
+mysql_version: "8.0"  # 可选: "5.7", "8.0"
+mariadb_enabled: false  # 设置为 true 则使用 MariaDB 替代 MySQL
+mariadb_version: "10.11"
+
+# MySQL 包名（根据发行版自动选择）
+mysql_packages_redhat:
+  - mysql-server
+  - mysql
+  - python3-PyMySQL
+mysql_packages_debian:
+  - mysql-server
+  - mysql-client
+  - python3-pymysql
+
+# MariaDB 包名
+mariadb_packages_redhat:
+  - mariadb-server
+  - mariadb
+  - python3-PyMySQL
+mariadb_packages_debian:
+  - mariadb-server
+  - mariadb-client
+  - python3-pymysql
+
+# MySQL 仓库配置
+mysql_repo_url_redhat_8: "https://dev.mysql.com/get/mysql80-community-release-el8-7.noarch.rpm"
+mysql_repo_url_redhat_9: "https://dev.mysql.com/get/mysql80-community-release-el9-5.noarch.rpm"
+mysql_repo_url_debian: "http://repo.mysql.com/apt/debian"
+mysql_repo_key_url: "https://repo.mysql.com/RPM-GPG-KEY-mysql-2022"
+
+# MySQL 服务配置
+mysql_service_name: "mysqld"
+mysql_service_name_debian: "mysql"
+mariadb_service_name: "mariadb"
+mysql_user: "mysql"
+mysql_group: "mysql"
+mysql_port: 3306
+mysql_bind_address: "0.0.0.0"
+mysql_data_dir: "/var/lib/mysql"
+mysql_log_dir: "/var/log/mysql"
+mysql_pid_file: "/var/run/mysqld/mysqld.pid"
+mysql_socket: "/var/run/mysqld/mysqld.sock"
+
+# MySQL 字符集配置
+mysql_character_set: "utf8mb4"
+mysql_collation: "utf8mb4_unicode_ci"
+
+# MySQL 性能调优参数
+mysql_max_connections: 200
+mysql_max_allowed_packet: "64M"
+mysql_innodb_buffer_pool_size: "1G"
+mysql_innodb_log_file_size: "256M"
+mysql_innodb_flush_log_at_trx_commit: 1
+mysql_innodb_flush_method: "O_DIRECT"
+mysql_query_cache_size: 0  # MySQL 8.0 已移除查询缓存
+mysql_table_open_cache: 2000
+mysql_thread_cache_size: 50
+mysql_tmp_table_size: "64M"
+mysql_max_heap_table_size: "64M"
+
+# MySQL 日志配置
+mysql_log_error: "{{ mysql_log_dir }}/error.log"
+mysql_slow_query_log: 1
+mysql_slow_query_log_file: "{{ mysql_log_dir }}/slow-query.log"
+mysql_long_query_time: 2
+mysql_log_queries_not_using_indexes: 1
+
+# MySQL 二进制日志配置（复制必需）
+mysql_log_bin: "mysql-bin"
+mysql_binlog_format: "ROW"  # 可选: ROW, STATEMENT, MIXED
+mysql_expire_logs_days: 7
+mysql_max_binlog_size: "1G"
+mysql_binlog_do_db: []  # 需要复制的数据库列表
+mysql_binlog_ignore_db: ["mysql", "information_schema", "performance_schema"]
+
+# MySQL 根用户配置
+mysql_root_password: "{{ vault_mysql_root_password | default('ChangeMe123!') }}"
+mysql_root_password_update: false  # 设置为 true 强制更新根密码
+
+# MySQL 应用数据库和用户
+mysql_databases:
+  - name: "appdb"
+    encoding: "{{ mysql_character_set }}"
+    collation: "{{ mysql_collation }}"
+    state: present
+  - name: "testdb"
+    encoding: "{{ mysql_character_set }}"
+    collation: "{{ mysql_collation }}"
+    state: present
+
+mysql_users:
+  - name: "appuser"
+    password: "{{ vault_mysql_appuser_password | default('AppUser123!') }}"
+    priv: "appdb.*:ALL"
+    host: "localhost"
+    state: present
+  - name: "appuser"
+    password: "{{ vault_mysql_appuser_password | default('AppUser123!') }}"
+    priv: "appdb.*:ALL"
+    host: "%"
+    state: present
+
+# ============================================================================
+# MySQL 主从复制配置
+# ============================================================================
+mysql_replication_enabled: false
+mysql_replication_role: "master"  # 可选: master, slave
+mysql_replication_master_host: ""
+mysql_replication_master_port: 3306
+
+# 复制用户配置
+mysql_replication_user: "repl_user"
+mysql_replication_password: "{{ vault_mysql_replication_password | default('ReplUser123!') }}"
+
+# 主服务器配置
+mysql_server_id: 1  # 主服务器使用 1，从服务器使用不同的 ID（如 2、3 等）
+mysql_gtid_mode: "ON"  # MySQL 8.0+ 推荐使用 GTID
+mysql_enforce_gtid_consistency: "ON"
+
+# 从服务器配置
+mysql_read_only: 0  # 从服务器设置为 1
+mysql_slave_parallel_workers: 4
+mysql_slave_parallel_type: "LOGICAL_CLOCK"
+mysql_relay_log: "relay-bin"
+mysql_relay_log_recovery: 1
+
+# ============================================================================
+# MySQL 备份配置
+# ============================================================================
+mysql_backup_enabled: true
+mysql_backup_dir: "/backup/mysql"
+mysql_backup_retention_days: 7
+mysql_backup_user: "backup_user"
+mysql_backup_password: "{{ vault_mysql_backup_password | default('BackupUser123!') }}"
+
+# 备份时间窗口（cron 格式）
+mysql_backup_cron_hour: "2"
+mysql_backup_cron_minute: "0"
+mysql_backup_cron_weekday: "*"
+
+# 备份类型
+mysql_backup_type: "logical"  # 可选: logical (mysqldump), physical (xtrabackup)
+mysql_backup_compress: true
+mysql_backup_compress_method: "gzip"  # 可选: gzip, bzip2, xz
+
+# 备份数据库列表（空列表表示所有数据库）
+mysql_backup_databases: []
+mysql_backup_ignore_databases: ["information_schema", "performance_schema", "sys"]
+
+# ============================================================================
+# PostgreSQL 通用配置
+# ============================================================================
+postgresql_enabled: true
+postgresql_version: "15"  # 可选: "12", "13", "14", "15", "16"
+
+# PostgreSQL 包名
+postgresql_packages_redhat:
+  - "postgresql{{ postgresql_version }}-server"
+  - "postgresql{{ postgresql_version }}"
+  - "postgresql{{ postgresql_version }}-contrib"
+  - python3-psycopg2
+postgresql_packages_debian:
+  - "postgresql-{{ postgresql_version }}"
+  - "postgresql-client-{{ postgresql_version }}"
+  - "postgresql-contrib-{{ postgresql_version }}"
+  - python3-psycopg2
+
+# PostgreSQL 仓库配置
+postgresql_repo_url_redhat: "https://download.postgresql.org/pub/repos/yum/reporpms/EL-{{ ansible_distribution_major_version }}-x86_64/pgdg-redhat-repo-latest.noarch.rpm"
+postgresql_repo_url_debian: "http://apt.postgresql.org/pub/repos/apt"
+postgresql_repo_key_url: "https://www.postgresql.org/media/keys/ACCC4CF8.asc"
+
+# PostgreSQL 服务配置
+postgresql_service_name: "postgresql-{{ postgresql_version }}"
+postgresql_service_name_debian: "postgresql"
+postgresql_user: "postgres"
+postgresql_group: "postgres"
+postgresql_port: 5432
+postgresql_listen_addresses: "*"
+postgresql_data_dir: "/var/lib/pgsql/{{ postgresql_version }}/data"
+postgresql_config_dir: "/var/lib/pgsql/{{ postgresql_version }}/data"
+postgresql_data_dir_debian: "/var/lib/postgresql/{{ postgresql_version }}/main"
+postgresql_config_dir_debian: "/etc/postgresql/{{ postgresql_version }}/main"
+
+# PostgreSQL 编码配置
+postgresql_encoding: "UTF8"
+postgresql_locale: "en_US.UTF-8"
+postgresql_lc_collate: "en_US.UTF-8"
+postgresql_lc_ctype: "en_US.UTF-8"
+
+# PostgreSQL 性能调优参数
+postgresql_max_connections: 200
+postgresql_shared_buffers: "256MB"
+postgresql_effective_cache_size: "1GB"
+postgresql_maintenance_work_mem: "64MB"
+postgresql_work_mem: "4MB"
+postgresql_wal_buffers: "16MB"
+postgresql_checkpoint_completion_target: 0.9
+postgresql_random_page_cost: 1.1
+postgresql_effective_io_concurrency: 200
+postgresql_max_worker_processes: 4
+postgresql_max_parallel_workers_per_gather: 2
+postgresql_max_parallel_workers: 4
+
+# PostgreSQL 日志配置
+postgresql_log_destination: "stderr"
+postgresql_logging_collector: "on"
+postgresql_log_directory: "log"
+postgresql_log_filename: "postgresql-%a.log"
+postgresql_log_truncate_on_rotation: "on"
+postgresql_log_rotation_age: "1d"
+postgresql_log_rotation_size: 0
+postgresql_log_line_prefix: "%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h "
+postgresql_log_timezone: "UTC"
+postgresql_log_min_duration_statement: 1000  # 记录超过 1 秒的查询
+
+# PostgreSQL 认证配置
+postgresql_auth_method: "scram-sha-256"  # 可选: md5, scram-sha-256
+postgresql_auth_local: "peer"
+
+# PostgreSQL 超级用户密码
+postgresql_admin_user: "postgres"
+postgresql_admin_password: "{{ vault_postgresql_admin_password | default('PostgresAdmin123!') }}"
+
+# PostgreSQL 应用数据库和用户
+postgresql_databases:
+  - name: "appdb"
+    encoding: "{{ postgresql_encoding }}"
+    lc_collate: "{{ postgresql_lc_collate }}"
+    lc_ctype: "{{ postgresql_lc_ctype }}"
+    state: present
+  - name: "testdb"
+    encoding: "{{ postgresql_encoding }}"
+    lc_collate: "{{ postgresql_lc_collate }}"
+    lc_ctype: "{{ postgresql_lc_ctype }}"
+    state: present
+
+postgresql_users:
+  - name: "appuser"
+    password: "{{ vault_postgresql_appuser_password | default('AppUser123!') }}"
+    db: "appdb"
+    priv: "ALL"
+    state: present
+
+# ============================================================================
+# PostgreSQL 流复制配置
+# ============================================================================
+postgresql_replication_enabled: false
+postgresql_replication_role: "primary"  # 可选: primary, standby
+postgresql_replication_master_host: ""
+postgresql_replication_master_port: 5432
+
+# 复制用户配置
+postgresql_replication_user: "repl_user"
+postgresql_replication_password: "{{ vault_postgresql_replication_password | default('ReplUser123!') }}"
+
+# WAL 配置（复制必需）
+postgresql_wal_level: "replica"  # 可选: minimal, replica, logical
+postgresql_max_wal_senders: 10
+postgresql_max_replication_slots: 10
+postgresql_wal_keep_size: "1GB"  # PostgreSQL 13+
+postgresql_hot_standby: "on"
+postgresql_hot_standby_feedback: "on"
+
+# 归档配置
+postgresql_archive_mode: "on"
+postgresql_archive_command: "test ! -f /archive/%f && cp %p /archive/%f"
+postgresql_archive_timeout: 300
+
+# ============================================================================
+# PostgreSQL 备份配置
+# ============================================================================
+postgresql_backup_enabled: true
+postgresql_backup_dir: "/backup/postgresql"
+postgresql_backup_retention_days: 7
+postgresql_backup_user: "{{ postgresql_admin_user }}"
+postgresql_backup_password: "{{ postgresql_admin_password }}"
+
+# 备份时间窗口（cron 格式）
+postgresql_backup_cron_hour: "3"
+postgresql_backup_cron_minute: "0"
+postgresql_backup_cron_weekday: "*"
+
+# 备份类型
+postgresql_backup_type: "logical"  # 可选: logical (pg_dump), basebackup (pg_basebackup)
+postgresql_backup_compress: true
+postgresql_backup_compress_method: "gzip"  # 可选: gzip, custom
+
+# 备份数据库列表（空列表表示所有数据库）
+postgresql_backup_databases: []
+postgresql_backup_format: "custom"  # 可选: plain, custom, directory, tar
+
+# WAL 归档备份
+postgresql_wal_archive_enabled: false
+postgresql_wal_archive_dir: "/backup/postgresql/wal_archive"
+
+# ============================================================================
+# SSL/TLS 配置
+# ============================================================================
+mysql_ssl_enabled: false
+mysql_ssl_ca: "/etc/mysql/ssl/ca-cert.pem"
+mysql_ssl_cert: "/etc/mysql/ssl/server-cert.pem"
+mysql_ssl_key: "/etc/mysql/ssl/server-key.pem"
+mysql_require_secure_transport: "OFF"
+
+postgresql_ssl_enabled: false
+postgresql_ssl_cert_file: "/etc/postgresql/ssl/server.crt"
+postgresql_ssl_key_file: "/etc/postgresql/ssl/server.key"
+postgresql_ssl_ca_file: "/etc/postgresql/ssl/ca.crt"
+
+# ============================================================================
+# 防火墙配置
+# ============================================================================
+database_firewall_enabled: true
+database_selinux_enabled: true
+
+# ============================================================================
+# 安全配置说明
+# ⚠️ 安全警告：
+# 1. 生产环境必须修改所有默认密码，建议使用 Ansible Vault 加密敏感变量
+# 2. 启用 SSL/TLS 加密保护数据传输安全
+# 3. 配置适当的防火墙规则，限制数据库访问来源
+# 4. 定期备份数据库并验证备份可恢复性
+# 5. 监控数据库性能和磁盘空间使用情况
+# 6. 复制环境需要确保网络连接稳定和低延迟
+# 7. 生产环境建议使用专用的备份账号，限制其权限
+# ============================================================================
+
+# Ansible Vault 加密变量占位符
+# 使用命令加密: ansible-vault encrypt_string 'your_password' --name 'vault_mysql_root_password'
+vault_mysql_root_password: ""
+vault_mysql_appuser_password: ""
+vault_mysql_replication_password: ""
+vault_mysql_backup_password: ""
+vault_postgresql_admin_password: ""
+vault_postgresql_appuser_password: ""
+vault_postgresql_replication_password: ""
+
+# 通用配置
+app_retry_count: 3
+app_retry_delay: 5

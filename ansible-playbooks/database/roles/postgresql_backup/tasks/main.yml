@@ -1,0 +1,75 @@
+---
+# PostgreSQL 备份角色 - 备份配置和管理任务
+
+- name: 验证备份配置
+  ansible.builtin.assert:
+    that:
+      - postgresql_backup_dir is defined
+      - postgresql_backup_retention_days is defined
+      - postgresql_backup_type in ['logical', 'basebackup']
+    fail_msg: "PostgreSQL 备份配置不完整或无效"
+  tags: [postgresql, backup, validation]
+
+- name: 确保备份目录存在
+  ansible.builtin.file:
+    path: "{{ postgresql_backup_dir }}"
+    state: directory
+    owner: "{{ postgresql_user }}"
+    group: "{{ postgresql_group }}"
+    mode: '0755'
+  tags: [postgresql, backup, directories]
+
+- name: 创建备份子目录
+  ansible.builtin.file:
+    path: "{{ postgresql_backup_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ postgresql_user }}"
+    group: "{{ postgresql_group }}"
+    mode: '0755'
+  loop:
+    - daily
+    - weekly
+    - monthly
+    - logs
+  tags: [postgresql, backup, directories]
+
+- name: 检查备份磁盘空间
+  ansible.builtin.shell: |
+    df -h {{ postgresql_backup_dir }} | tail -1 | awk '{print $5}' | sed 's/%//'
+  register: backup_disk_check
+  changed_when: false
+  failed_when: backup_disk_check.stdout | int > 95
+  tags: [postgresql, backup, validation]
+
+- name: 警告 - 备份磁盘空间告警
+  ansible.builtin.debug:
+    msg: "警告：备份磁盘使用率为 {{ backup_disk_check.stdout }}%，建议清理旧备份"
+  when: backup_disk_check.stdout | int > 80
+  tags: [postgresql, backup, validation]
+
+- name: 配置 PostgreSQL 备份用户权限
+  community.postgresql.postgresql_user:
+    name: "{{ postgresql_backup_user }}"
+    role_attr_flags: SUPERUSER
+    state: present
+  become_user: "{{ postgresql_user }}"
+  when: postgresql_backup_user != postgresql_admin_user
+  failed_when: false
+  environment:
+    PGDATA: "{{ postgresql_data_dir if ansible_os_family == 'RedHat' else postgresql_data_dir_debian }}"
+  tags: [postgresql, backup, users]
+
+- name: 验证 pg_dump 可用性
+  ansible.builtin.command:
+    cmd: "pg_dump --version"
+  register: pg_dump_version
+  changed_when: false
+  tags: [postgresql, backup, validation]
+
+- name: 验证 pg_basebackup 可用性（物理备份）
+  ansible.builtin.command:
+    cmd: "pg_basebackup --version"
+  register: pg_basebackup_version
+  changed_when: false
+  when: postgresql_backup_type == 'basebackup'
+  tags: [postgresql, backup, validation]

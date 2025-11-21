@@ -1,0 +1,4 @@
+---
+# MySQL 复制角色默认变量
+mysql_replication_timeout: 30
+mysql_replication_retry_count: 3

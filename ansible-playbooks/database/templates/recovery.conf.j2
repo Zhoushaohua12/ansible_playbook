@@ -1,0 +1,23 @@
+# PostgreSQL 恢复配置文件（PostgreSQL < 12）
+# 由 Ansible 自动生成 - 请勿手动编辑
+# 注意: PostgreSQL 12+ 使用 postgresql.conf 和 standby.signal
+
+# 备用服务器模式
+standby_mode = 'on'
+
+# 主服务器连接信息
+primary_conninfo = 'host={{ postgresql_replication_master_host }} port={{ postgresql_replication_master_port }} user={{ postgresql_replication_user }} password={{ postgresql_replication_password }} application_name={{ inventory_hostname }}'
+
+# 触发器文件（创建此文件将提升备用服务器为主服务器）
+trigger_file = '/tmp/postgresql.trigger'
+
+# 恢复目标（可选）
+# recovery_target_time = '2024-01-01 12:00:00'
+# recovery_target_name = 'restore_point_name'
+# recovery_target_xid = '12345'
+# recovery_target_inclusive = true
+
+# WAL 归档恢复（如果使用）
+{% if postgresql_wal_archive_enabled | default(false) %}
+restore_command = 'cp {{ postgresql_wal_archive_dir }}/%f %p'
+{% endif %}

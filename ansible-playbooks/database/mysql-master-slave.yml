@@ -1,0 +1,269 @@
+---
+# ⚠️ 教学声明：本 playbook 主要用于学习 MySQL 主从复制配置，请在测试环境验证后再应用于生产。
+# 功能说明：自动化配置 MySQL 主从复制，支持传统复制和 GTID 模式
+- name: MySQL 主从复制配置
+  hosts: mysql_replication_servers
+  gather_facts: true
+  become: yes
+  vars_files:
+    - vars/default.yml
+
+  handlers:
+    - name: 重启 MySQL 服务
+      ansible.builtin.service:
+        name: "{{ mysql_service_name if ansible_os_family == 'RedHat' else mysql_service_name_debian }}"
+        state: restarted
+      listen: "restart mysql"
+
+    - name: 重新加载 MySQL 配置
+      ansible.builtin.service:
+        name: "{{ mysql_service_name if ansible_os_family == 'RedHat' else mysql_service_name_debian }}"
+        state: reloaded
+      listen: "reload mysql"
+
+  tasks:
+    - name: 前置检查 - 验证必需变量
+      ansible.builtin.assert:
+        that:
+          - mysql_replication_enabled is defined
+          - mysql_replication_enabled | bool
+          - mysql_replication_role is defined
+          - mysql_replication_role in ['master', 'slave']
+          - mysql_server_id is defined
+        fail_msg: "必需的 MySQL 复制配置变量未正确设置"
+      tags: [mysql, replication, validation]
+
+    - name: 前置检查 - 验证从服务器配置
+      ansible.builtin.assert:
+        that:
+          - mysql_replication_master_host is defined
+          - mysql_replication_master_host | length > 0
+        fail_msg: "从服务器必须指定主服务器地址 mysql_replication_master_host"
+      when: mysql_replication_role == 'slave'
+      tags: [mysql, replication, validation]
+
+    - name: 执行 MySQL 复制配置
+      when: mysql_replication_enabled | bool
+      tags: [mysql, replication]
+      block:
+        - name: 包含 MySQL 复制角色
+          ansible.builtin.include_role:
+            name: mysql_replication
+
+        - name: 部署复制配置文件
+          ansible.builtin.template:
+            src: templates/replication.cnf.j2
+            dest: "{{ '/etc/my.cnf.d/replication.cnf' if ansible_os_family == 'RedHat' else '/etc/mysql/mysql.conf.d/replication.cnf' }}"
+            owner: root
+            group: root
+            mode: '0644'
+            backup: yes
+          notify: restart mysql
+          tags: [mysql, replication, config]
+
+        - name: 刷新 handlers 以应用配置更改
+          ansible.builtin.meta: flush_handlers
+
+        - name: 等待 MySQL 服务就绪
+          ansible.builtin.wait_for:
+            port: "{{ mysql_port }}"
+            delay: 5
+            timeout: 60
+            state: started
+          tags: [mysql, replication, verify]
+
+        # 主服务器配置
+        - name: 主服务器 - 创建复制用户
+          community.mysql.mysql_user:
+            name: "{{ mysql_replication_user }}"
+            password: "{{ mysql_replication_password }}"
+            host: "%"
+            priv: "*.*:REPLICATION SLAVE,REPLICATION CLIENT"
+            login_user: root
+            login_password: "{{ mysql_root_password }}"
+            state: present
+          when: mysql_replication_role == 'master'
+          no_log: true
+          tags: [mysql, replication, master]
+
+        - name: 主服务器 - 获取二进制日志状态
+          community.mysql.mysql_replication:
+            mode: getprimary
+            login_user: root
+            login_password: "{{ mysql_root_password }}"
+          register: mysql_master_status
+          when: mysql_replication_role == 'master'
+          tags: [mysql, replication, master]
+
+        - name: 主服务器 - 显示复制状态信息
+          ansible.builtin.debug:
+            msg:
+              - "主服务器复制状态："
+              - "文件: {{ mysql_master_status.File | default('未获取') }}"
+              - "位置: {{ mysql_master_status.Position | default('未获取') }}"
+              - "GTID 模式: {{ mysql_gtid_mode }}"
+              - "复制用户: {{ mysql_replication_user }}"
+          when: mysql_replication_role == 'master'
+          tags: [mysql, replication, master]
+
+        # 从服务器配置
+        - name: 从服务器 - 停止现有的复制
+          community.mysql.mysql_replication:
+            mode: stopreplica
+            login_user: root
+            login_password: "{{ mysql_root_password }}"
+          when: mysql_replication_role == 'slave'
+          failed_when: false
+          tags: [mysql, replication, slave]
+
+        - name: 从服务器 - 配置复制连接（GTID 模式）
+          community.mysql.mysql_replication:
+            mode: changeprimary
+            primary_host: "{{ mysql_replication_master_host }}"
+            primary_port: "{{ mysql_replication_master_port | default(3306) }}"
+            primary_user: "{{ mysql_replication_user }}"
+            primary_password: "{{ mysql_replication_password }}"
+            primary_auto_position: yes
+            login_user: root
+            login_password: "{{ mysql_root_password }}"
+          when:
+            - mysql_replication_role == 'slave'
+            - mysql_gtid_mode == 'ON'
+          no_log: true
+          tags: [mysql, replication, slave]
+
+        - name: 从服务器 - 配置复制连接（传统模式）
+          community.mysql.mysql_replication:
+            mode: changeprimary
+            primary_host: "{{ mysql_replication_master_host }}"
+            primary_port: "{{ mysql_replication_master_port | default(3306) }}"
+            primary_user: "{{ mysql_replication_user }}"
+            primary_password: "{{ mysql_replication_password }}"
+            primary_log_file: "{{ mysql_replication_master_log_file | default('') }}"
+            primary_log_pos: "{{ mysql_replication_master_log_pos | default(0) }}"
+            login_user: root
+            login_password: "{{ mysql_root_password }}"
+          when:
+            - mysql_replication_role == 'slave'
+            - mysql_gtid_mode != 'ON'
+          no_log: true
+          tags: [mysql, replication, slave]
+
+        - name: 从服务器 - 启动复制
+          community.mysql.mysql_replication:
+            mode: startreplica
+            login_user: root
+            login_password: "{{ mysql_root_password }}"
+          when: mysql_replication_role == 'slave'
+          tags: [mysql, replication, slave]
+
+        - name: 从服务器 - 等待复制启动
+          ansible.builtin.pause:
+            seconds: 5
+          when: mysql_replication_role == 'slave'
+          tags: [mysql, replication, slave]
+
+        - name: 从服务器 - 检查复制状态
+          community.mysql.mysql_replication:
+            mode: getreplica
+            login_user: root
+            login_password: "{{ mysql_root_password }}"
+          register: mysql_slave_status
+          when: mysql_replication_role == 'slave'
+          tags: [mysql, replication, slave, verify]
+
+        - name: 从服务器 - 验证复制状态
+          ansible.builtin.assert:
+            that:
+              - mysql_slave_status.Slave_IO_Running == 'Yes'
+              - mysql_slave_status.Slave_SQL_Running == 'Yes'
+            fail_msg: |
+              复制未正常运行！
+              IO 线程: {{ mysql_slave_status.Slave_IO_Running }}
+              SQL 线程: {{ mysql_slave_status.Slave_SQL_Running }}
+              最后错误: {{ mysql_slave_status.Last_Error | default('无') }}
+            success_msg: "复制正常运行"
+          when: mysql_replication_role == 'slave'
+          tags: [mysql, replication, slave, verify]
+
+        - name: 从服务器 - 显示复制状态信息
+          ansible.builtin.debug:
+            msg:
+              - "从服务器复制状态："
+              - "主服务器: {{ mysql_replication_master_host }}"
+              - "IO 线程: {{ mysql_slave_status.Slave_IO_Running }}"
+              - "SQL 线程: {{ mysql_slave_status.Slave_SQL_Running }}"
+              - "复制延迟: {{ mysql_slave_status.Seconds_Behind_Master }} 秒"
+              - "已读取的主日志: {{ mysql_slave_status.Master_Log_File }}"
+              - "已读取的主日志位置: {{ mysql_slave_status.Read_Master_Log_Pos }}"
+              - "已执行的中继日志: {{ mysql_slave_status.Relay_Log_File }}"
+              - "已执行的中继日志位置: {{ mysql_slave_status.Relay_Log_Pos }}"
+          when: mysql_replication_role == 'slave'
+          tags: [mysql, replication, slave, info]
+
+        - name: 配置防火墙规则（开放 MySQL 复制端口）
+          ansible.posix.firewalld:
+            port: "{{ mysql_port }}/tcp"
+            permanent: yes
+            immediate: yes
+            state: enabled
+          when:
+            - database_firewall_enabled | bool
+            - ansible_os_family == "RedHat"
+          tags: [mysql, replication, firewall]
+
+        - name: 配置防火墙规则（Ubuntu/Debian）
+          community.general.ufw:
+            rule: allow
+            port: "{{ mysql_port }}"
+            proto: tcp
+          when:
+            - database_firewall_enabled | bool
+            - ansible_os_family == "Debian"
+          tags: [mysql, replication, firewall]
+
+        - name: 输出 MySQL 复制配置总结
+          ansible.builtin.debug:
+            msg:
+              - "MySQL 复制配置完成！"
+              - "服务器角色: {{ mysql_replication_role }}"
+              - "服务器 ID: {{ mysql_server_id }}"
+              - "GTID 模式: {{ mysql_gtid_mode }}"
+              - "二进制日志格式: {{ mysql_binlog_format }}"
+              - "⚠️ 请确保主从服务器网络连接稳定"
+              - "⚠️ 建议定期检查复制状态和延迟"
+              - "⚠️ 生产环境建议配置半同步复制提高数据安全性"
+          tags: [mysql, replication, info]
+
+      rescue:
+        - name: 错误处理 - 记录失败信息
+          ansible.builtin.debug:
+            msg:
+              - "MySQL 复制配置失败"
+              - "服务器角色: {{ mysql_replication_role }}"
+              - "错误信息: {{ ansible_failed_result | default('未知错误') }}"
+
+        - name: 错误处理 - 收集复制状态信息（从服务器）
+          community.mysql.mysql_replication:
+            mode: getreplica
+            login_user: root
+            login_password: "{{ mysql_root_password }}"
+          register: mysql_slave_debug_status
+          when: mysql_replication_role == 'slave'
+          failed_when: false
+
+        - name: 错误处理 - 显示复制错误信息
+          ansible.builtin.debug:
+            msg:
+              - "复制错误详情："
+              - "最后 IO 错误: {{ mysql_slave_debug_status.Last_IO_Error | default('无') }}"
+              - "最后 SQL 错误: {{ mysql_slave_debug_status.Last_SQL_Error | default('无') }}"
+              - "IO 错误号: {{ mysql_slave_debug_status.Last_IO_Errno | default('0') }}"
+              - "SQL 错误号: {{ mysql_slave_debug_status.Last_SQL_Errno | default('0') }}"
+          when:
+            - mysql_replication_role == 'slave'
+            - mysql_slave_debug_status is defined
+
+        - name: 错误处理 - 终止 playbook 执行
+          ansible.builtin.fail:
+            msg: "MySQL 复制配置失败，请根据上述信息进行排查"

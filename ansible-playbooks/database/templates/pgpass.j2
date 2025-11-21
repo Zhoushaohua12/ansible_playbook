@@ -1,0 +1,6 @@
+# PostgreSQL 密码文件 (.pgpass)
+# 由 Ansible 自动生成 - 请勿手动编辑
+# 格式: hostname:port:database:username:password
+
+localhost:{{ postgresql_port }}:*:{{ postgresql_backup_user }}:{{ postgresql_backup_password }}
+127.0.0.1:{{ postgresql_port }}:*:{{ postgresql_backup_user }}:{{ postgresql_backup_password }}
