@@ -18,6 +18,30 @@
 
 - **[`AUDIT_REPORT.md`](AUDIT_REPORT.md)**：详细的项目审计报告，包含规范检查结果、问题清单（按优先级分类）和改进建议。涵盖 playbook 规范、安全处理、变量文件警示、handler 中文化等重要规范。
 
+### 运行自动化审计工具
+
+使用 `tools/audit_report.py` 扫描所有 playbook、README 和变量文件，检查代码风格、安全性和文档覆盖情况：
+
+```bash
+# 生成审计报告（默认输出到 reports/phase1_audit.md）
+venv/bin/python tools/audit_report.py
+
+# 指定自定义输出路径
+venv/bin/python tools/audit_report.py --output custom_report.md
+
+# 导出为 JSON 格式
+venv/bin/python tools/audit_report.py --output reports/phase1_audit.md --json reports/audit_data.json
+
+# 跳过测试运行（仅扫描文件）
+venv/bin/python tools/audit_report.py --skip-tests
+```
+
+审计工具会检查以下内容：
+- **代码风格**：`gather_facts`、`check_mode`、FQCN 模块调用
+- **安全性**：`no_log` 保护、`vault_` 前缀使用、敏感数据处理
+- **文档规范**：中文任务名称、变量文件警示头 (⚠️)、README 完整性
+- **测试覆盖**：运行 pytest 并收集覆盖率数据
+
 所有 Playbook 示例均遵循以下规范：
 - 统一使用中文任务名、handler 名称和注释
 - 变量文件 (`vars/example_vars.yml`) 文件头必须包含 `⚠️ 本文件仅为示例，占位符必须使用 Ansible Vault 或环境变量替换` 警示
