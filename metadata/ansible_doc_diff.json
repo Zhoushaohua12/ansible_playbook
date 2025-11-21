@@ -1,0 +1,57 @@
+[
+  {
+    "category": "files",
+    "id": "assemble",
+    "name": "Assemble 文件拼接",
+    "status": "missing",
+    "priority": "high",
+    "doc_url": "https://docs.ansible.com/ansible/latest/collections/ansible/builtin/assemble_module.html",
+    "notes": "将碎片化配置组装成完整文件，可接在 copy/template 之后演示差异化发布。",
+    "prerequisites": ["copy", "template"],
+    "suggested_next": ["archive"]
+  },
+  {
+    "category": "files",
+    "id": "xattr",
+    "name": "Xattr 扩展属性管理",
+    "status": "missing",
+    "priority": "medium",
+    "doc_url": "https://docs.ansible.com/ansible/latest/collections/ansible/builtin/xattr_module.html",
+    "notes": "补充 ACL/SELinux/自定义元数据场景，延伸 file 模块章节。",
+    "prerequisites": ["file"],
+    "suggested_next": ["selinux"]
+  },
+  {
+    "category": "network",
+    "id": "ethtool",
+    "name": "Ethtool 链路诊断",
+    "status": "missing",
+    "priority": "medium",
+    "doc_url": "https://docs.ansible.com/ansible/latest/collections/community/general/ethtool_module.html",
+    "notes": "结合 interface/nmcli 示例演示链路调优、速率与双工配置。",
+    "prerequisites": ["interface", "nmcli"],
+    "suggested_next": ["port"]
+  },
+  {
+    "category": "system",
+    "id": "mount",
+    "name": "Mount 文件系统挂载",
+    "status": "missing",
+    "priority": "low",
+    "doc_url": "https://docs.ansible.com/ansible/latest/collections/ansible/posix/mount_module.html",
+    "notes": "结合 storage/mount 的 loopback 练习，展示 system 章节如何自检挂载状态。",
+    "prerequisites": ["storage_mount"],
+    "suggested_next": ["storage_lvol"]
+  },
+  {
+    "category": "monitoring",
+    "id": "grafana_dashboard",
+    "name": "Grafana Dashboard 管理",
+    "status": "missing",
+    "priority": "high",
+    "doc_url": "https://docs.ansible.com/ansible/latest/collections/community/grafana/grafana_dashboard_module.html",
+    "notes": "完善监控章节，加入 dashboard 自动化与告警学习路径。",
+    "prerequisites": ["prometheus_monitoring", "datadog_monitoring"],
+    "suggested_next": ["monitoring"]
+  }
+]
