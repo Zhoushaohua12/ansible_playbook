@@ -1,0 +1,145 @@
+# Module Priority Configuration
+# Defines priority levels (P1/P2/P3) for Ansible modules based on their importance
+# in production environments and learning paths.
+#
+# Priority Levels:
+# - P1 (Critical/High): Essential modules for production, commonly used in most scenarios
+# - P2 (Medium): Important modules for specific use cases, should be covered eventually
+# - P3 (Low): Specialized or less common modules, nice to have
+
+# Default priority for modules not explicitly listed
+default_priority: P2
+
+# Module-specific priorities
+# Format: module_name: priority_level
+modules:
+  # Core file operations (P1)
+  ansible.builtin.copy: P1
+  ansible.builtin.template: P1
+  ansible.builtin.file: P1
+  ansible.builtin.lineinfile: P1
+  ansible.builtin.stat: P1
+  ansible.builtin.find: P1
+  ansible.builtin.assemble: P1
+  ansible.builtin.fetch: P1
+  
+  # Core system management (P1)
+  ansible.builtin.service: P1
+  ansible.builtin.systemd: P1
+  ansible.builtin.user: P1
+  ansible.builtin.group: P1
+  ansible.builtin.package: P1
+  ansible.builtin.apt: P1
+  ansible.builtin.yum: P1
+  ansible.builtin.dnf: P1
+  
+  # Core command execution (P1)
+  ansible.builtin.command: P1
+  ansible.builtin.shell: P1
+  ansible.builtin.script: P1
+  
+  # Network basics (P1)
+  ansible.builtin.wait_for: P1
+  ansible.posix.firewalld: P1
+  
+  # File operations - medium priority (P2)
+  ansible.builtin.blockinfile: P2
+  ansible.builtin.replace: P2
+  ansible.builtin.unarchive: P2
+  ansible.builtin.archive: P2
+  ansible.posix.synchronize: P2
+  ansible.builtin.xattr: P2
+  
+  # System management - medium priority (P2)
+  ansible.builtin.cron: P2
+  ansible.builtin.hostname: P2
+  ansible.builtin.timezone: P2
+  ansible.builtin.selinux: P2
+  ansible.posix.sysctl: P2
+  ansible.posix.mount: P2
+  
+  # Database operations (P2)
+  community.mysql.mysql_db: P2
+  community.mysql.mysql_user: P2
+  community.postgresql.postgresql_db: P2
+  community.postgresql.postgresql_user: P2
+  community.mongodb.mongodb_user: P2
+  
+  # Cloud platforms - AWS (P2)
+  amazon.aws.ec2_instance: P2
+  amazon.aws.ec2_vpc_net: P2
+  amazon.aws.s3_bucket: P2
+  amazon.aws.rds_instance: P2
+  
+  # Cloud platforms - Azure (P2)
+  azure.azcollection.azure_rm_virtualmachine: P2
+  azure.azcollection.azure_rm_resourcegroup: P2
+  azure.azcollection.azure_rm_storageaccount: P2
+  
+  # Cloud platforms - GCP (P2)
+  google.cloud.gcp_compute_instance: P2
+  google.cloud.gcp_compute_network: P2
+  google.cloud.gcp_storage_bucket: P2
+  
+  # Web servers (P2)
+  ansible.builtin.uri: P2
+  community.general.apache2_module: P2
+  
+  # Monitoring (P2)
+  community.general.datadog_monitor: P2
+  community.general.zabbix_host: P2
+  community.general.nagios: P2
+  
+  # Message queues (P2)
+  community.rabbitmq.rabbitmq_user: P2
+  community.general.rabbitmq_vhost: P2
+  
+  # Containers (P2)
+  community.docker.docker_container: P2
+  community.docker.docker_image: P2
+  kubernetes.core.k8s: P2
+  
+  # Network protocols (P2)
+  ansible.builtin.get_url: P2
+  ansible.builtin.ping: P2
+  community.general.dig: P2
+  
+  # Storage (P2)
+  community.general.lvol: P2
+  community.general.filesystem: P2
+  community.general.parted: P2
+  
+  # Virtualization (P2)
+  community.libvirt.virt: P2
+  community.libvirt.virt_net: P2
+  community.vmware.vmware_guest: P2
+  
+  # Specialized/Less common modules (P3)
+  ansible.builtin.raw: P3
+  ansible.builtin.expect: P3
+  ansible.builtin.pause: P3
+  ansible.builtin.meta: P3
+  ansible.builtin.add_host: P3
+  ansible.builtin.group_by: P3
+  community.general.locale_gen: P3
+  community.general.capabilities: P3
+  community.general.ethtool: P3
+  
+# Category-based priority rules
+# If a module belongs to a category, use this priority unless overridden above
+category_priorities:
+  files: P1
+  system: P1
+  applications: P1
+  commands: P1
+  network: P2
+  database: P2
+  cloud: P2
+  monitoring: P2
+  storage: P2
+  virtualization: P2
+  web: P2
+  message_queue: P2
+  network_protocols: P2
+  advanced: P1
+  version_control: P2

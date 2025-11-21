@@ -1,0 +1,1561 @@
+{
+  "generated_at": "2025-11-21T03:38:15.006401+00:00",
+  "total_ansible_modules": 36,
+  "total_covered": 65,
+  "total_missing": 4,
+  "total_undocumented": 40,
+  "overall_coverage": 180.55555555555557,
+  "categories": {
+    "web": {
+      "category": "web",
+      "total_ansible_doc": 0,
+      "total_covered": 0,
+      "total_missing": 0,
+      "total_undocumented": 4,
+      "coverage_percentage": 0.0,
+      "priority_breakdown": {
+        "P2": 4
+      }
+    },
+    "applications": {
+      "category": "applications",
+      "total_ansible_doc": 5,
+      "total_covered": 10,
+      "total_missing": 0,
+      "total_undocumented": 8,
+      "coverage_percentage": 200.0,
+      "priority_breakdown": {
+        "P1": 15,
+        "P2": 3
+      }
+    },
+    "files": {
+      "category": "files",
+      "total_ansible_doc": 6,
+      "total_covered": 6,
+      "total_missing": 0,
+      "total_undocumented": 0,
+      "coverage_percentage": 100.0,
+      "priority_breakdown": {
+        "P2": 5,
+        "P1": 1
+      }
+    },
+    "other": {
+      "category": "other",
+      "total_ansible_doc": 3,
+      "total_covered": 0,
+      "total_missing": 3,
+      "total_undocumented": 0,
+      "coverage_percentage": 0.0,
+      "priority_breakdown": {
+        "P1": 2,
+        "P2": 1
+      }
+    },
+    "database": {
+      "category": "database",
+      "total_ansible_doc": 0,
+      "total_covered": 8,
+      "total_missing": 0,
+      "total_undocumented": 1,
+      "coverage_percentage": 0.0,
+      "priority_breakdown": {
+        "P2": 9
+      }
+    },
+    "network": {
+      "category": "network",
+      "total_ansible_doc": 1,
+      "total_covered": 5,
+      "total_missing": 1,
+      "total_undocumented": 2,
+      "coverage_percentage": 500.0,
+      "priority_breakdown": {
+        "P2": 7,
+        "P1": 1
+      }
+    },
+    "system": {
+      "category": "system",
+      "total_ansible_doc": 3,
+      "total_covered": 6,
+      "total_missing": 0,
+      "total_undocumented": 4,
+      "coverage_percentage": 200.0,
+      "priority_breakdown": {
+        "P1": 7,
+        "P2": 3,
+        "P3": 1
+      }
+    },
+    "advanced": {
+      "category": "advanced",
+      "total_ansible_doc": 11,
+      "total_covered": 9,
+      "total_missing": 0,
+      "total_undocumented": 0,
+      "coverage_percentage": 81.81818181818183,
+      "priority_breakdown": {
+        "P1": 11
+      }
+    },
+    "storage": {
+      "category": "storage",
+      "total_ansible_doc": 1,
+      "total_covered": 5,
+      "total_missing": 0,
+      "total_undocumented": 1,
+      "coverage_percentage": 500.0,
+      "priority_breakdown": {
+        "P2": 6
+      }
+    },
+    "commands": {
+      "category": "commands",
+      "total_ansible_doc": 4,
+      "total_covered": 4,
+      "total_missing": 0,
+      "total_undocumented": 1,
+      "coverage_percentage": 100.0,
+      "priority_breakdown": {
+        "P1": 4,
+        "P3": 1
+      }
+    },
+    "monitoring": {
+      "category": "monitoring",
+      "total_ansible_doc": 0,
+      "total_covered": 4,
+      "total_missing": 0,
+      "total_undocumented": 15,
+      "coverage_percentage": 0.0,
+      "priority_breakdown": {
+        "P3": 1,
+        "P2": 18
+      }
+    },
+    "network_protocols": {
+      "category": "network_protocols",
+      "total_ansible_doc": 1,
+      "total_covered": 1,
+      "total_missing": 0,
+      "total_undocumented": 1,
+      "coverage_percentage": 100.0,
+      "priority_breakdown": {
+        "P2": 2
+      }
+    },
+    "message_queue": {
+      "category": "message_queue",
+      "total_ansible_doc": 1,
+      "total_covered": 4,
+      "total_missing": 0,
+      "total_undocumented": 3,
+      "coverage_percentage": 400.0,
+      "priority_breakdown": {
+        "P2": 7
+      }
+    },
+    "version_control": {
+      "category": "version_control",
+      "total_ansible_doc": 0,
+      "total_covered": 3,
+      "total_missing": 0,
+      "total_undocumented": 0,
+      "coverage_percentage": 0.0,
+      "priority_breakdown": {
+        "P2": 3
+      }
+    }
+  },
+  "coverage_details": [
+    {
+      "module": "ansible.builtin.apache2_module",
+      "status": "undocumented",
+      "category": "web",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.apt",
+      "status": "covered",
+      "category": "applications",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.apt_repository",
+      "status": "undocumented",
+      "category": "applications",
+      "priority": "P1",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.archive",
+      "status": "covered",
+      "category": "files",
+      "priority": "P2",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.assemble",
+      "status": "missing",
+      "category": "other",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": false,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.assert",
+      "status": "undocumented",
+      "category": "database",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.async_status",
+      "status": "undocumented",
+      "category": "network",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.authorized_key",
+      "status": "covered",
+      "category": "system",
+      "priority": "P1",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.blockinfile",
+      "status": "covered",
+      "category": "files",
+      "priority": "P2",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.command",
+      "status": "covered",
+      "category": "advanced",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.copy",
+      "status": "covered",
+      "category": "advanced",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.cron",
+      "status": "covered",
+      "category": "system",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.debug",
+      "status": "unknown",
+      "category": "advanced",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.dnf",
+      "status": "missing",
+      "category": "other",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": false,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.fetch",
+      "status": "covered",
+      "category": "files",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.file",
+      "status": "covered",
+      "category": "advanced",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.filesystem",
+      "status": "covered",
+      "category": "storage",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.find",
+      "status": "covered",
+      "category": "commands",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.get_url",
+      "status": "missing",
+      "category": "other",
+      "priority": "P2",
+      "in_ansible_doc": true,
+      "in_metadata": false,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.getent",
+      "status": "undocumented",
+      "category": "system",
+      "priority": "P1",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.git",
+      "status": "covered",
+      "category": "applications",
+      "priority": "P1",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.group",
+      "status": "covered",
+      "category": "system",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.import_tasks",
+      "status": "covered",
+      "category": "advanced",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.include_tasks",
+      "status": "covered",
+      "category": "advanced",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.lineinfile",
+      "status": "covered",
+      "category": "advanced",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.lvol",
+      "status": "covered",
+      "category": "storage",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.package",
+      "status": "covered",
+      "category": "applications",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.package_facts",
+      "status": "undocumented",
+      "category": "applications",
+      "priority": "P1",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.pause",
+      "status": "undocumented",
+      "category": "monitoring",
+      "priority": "P3",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.ping",
+      "status": "covered",
+      "category": "network_protocols",
+      "priority": "P2",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.pip",
+      "status": "covered",
+      "category": "applications",
+      "priority": "P1",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.raw",
+      "status": "covered",
+      "category": "commands",
+      "priority": "P3",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.replace",
+      "status": "covered",
+      "category": "files",
+      "priority": "P2",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.script",
+      "status": "covered",
+      "category": "commands",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.service",
+      "status": "covered",
+      "category": "advanced",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.set_fact",
+      "status": "unknown",
+      "category": "advanced",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.setup",
+      "status": "undocumented",
+      "category": "storage",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.shell",
+      "status": "covered",
+      "category": "advanced",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.slurp",
+      "status": "undocumented",
+      "category": "commands",
+      "priority": "P1",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.stat",
+      "status": "covered",
+      "category": "commands",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.sysctl",
+      "status": "undocumented",
+      "category": "network",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.systemd",
+      "status": "covered",
+      "category": "applications",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.template",
+      "status": "covered",
+      "category": "advanced",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.timezone",
+      "status": "covered",
+      "category": "system",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.unarchive",
+      "status": "covered",
+      "category": "files",
+      "priority": "P2",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.uri",
+      "status": "covered",
+      "category": "message_queue",
+      "priority": "P2",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.user",
+      "status": "covered",
+      "category": "system",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.wait_for",
+      "status": "covered",
+      "category": "applications",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.builtin.yum",
+      "status": "covered",
+      "category": "applications",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.posix.firewalld",
+      "status": "missing",
+      "category": "network",
+      "priority": "P1",
+      "in_ansible_doc": true,
+      "in_metadata": false,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.posix.mount",
+      "status": "covered",
+      "category": "storage",
+      "priority": "P2",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.posix.route",
+      "status": "covered",
+      "category": "network",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.posix.selinux",
+      "status": "covered",
+      "category": "system",
+      "priority": "P1",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.posix.synchronize",
+      "status": "covered",
+      "category": "files",
+      "priority": "P2",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "ansible.posix.sysctl",
+      "status": "unknown",
+      "category": "system",
+      "priority": "P2",
+      "in_ansible_doc": true,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "command",
+      "status": "covered",
+      "category": "monitoring",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.crypto.acme_certificate",
+      "status": "undocumented",
+      "category": "web",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.crypto.openssl_csr",
+      "status": "undocumented",
+      "category": "web",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.crypto.openssl_privatekey",
+      "status": "undocumented",
+      "category": "web",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.datadog.datadog_agent",
+      "status": "undocumented",
+      "category": "monitoring",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.datadog.datadog_agent_integration",
+      "status": "undocumented",
+      "category": "monitoring",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.datadog.datadog_dashboard",
+      "status": "undocumented",
+      "category": "monitoring",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.datadog.datadog_monitor",
+      "status": "undocumented",
+      "category": "monitoring",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.docker.docker_container",
+      "status": "covered",
+      "category": "applications",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.docker.docker_container_info",
+      "status": "undocumented",
+      "category": "applications",
+      "priority": "P1",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.docker.docker_image",
+      "status": "covered",
+      "category": "applications",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.docker.docker_image_info",
+      "status": "undocumented",
+      "category": "applications",
+      "priority": "P1",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.docker.docker_login",
+      "status": "undocumented",
+      "category": "applications",
+      "priority": "P1",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.docker.docker_network",
+      "status": "undocumented",
+      "category": "applications",
+      "priority": "P1",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.general.dig",
+      "status": "undocumented",
+      "category": "network_protocols",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.general.firewalld",
+      "status": "covered",
+      "category": "network",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.general.github_release",
+      "status": "covered",
+      "category": "version_control",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.general.gitlab_project",
+      "status": "covered",
+      "category": "version_control",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.general.hg",
+      "status": "covered",
+      "category": "version_control",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.general.iptables",
+      "status": "covered",
+      "category": "network",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.general.kafka_topic",
+      "status": "covered",
+      "category": "message_queue",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.general.locale_gen",
+      "status": "undocumented",
+      "category": "system",
+      "priority": "P3",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.general.lvg",
+      "status": "covered",
+      "category": "storage",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.general.nagios",
+      "status": "covered",
+      "category": "monitoring",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.general.nmcli",
+      "status": "covered",
+      "category": "network",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.general.npm",
+      "status": "covered",
+      "category": "applications",
+      "priority": "P1",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.general.pam_limits",
+      "status": "undocumented",
+      "category": "system",
+      "priority": "P1",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.general.pamd",
+      "status": "undocumented",
+      "category": "system",
+      "priority": "P1",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.general.parted",
+      "status": "covered",
+      "category": "storage",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.general.ufw",
+      "status": "covered",
+      "category": "network",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.mongodb.mongodb_db",
+      "status": "covered",
+      "category": "database",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.mongodb.mongodb_user",
+      "status": "covered",
+      "category": "database",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.mysql.mysql_db",
+      "status": "covered",
+      "category": "database",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.mysql.mysql_replication",
+      "status": "covered",
+      "category": "database",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.mysql.mysql_user",
+      "status": "covered",
+      "category": "database",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.postgresql.postgresql_db",
+      "status": "covered",
+      "category": "database",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.postgresql.postgresql_privs",
+      "status": "covered",
+      "category": "database",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.postgresql.postgresql_user",
+      "status": "covered",
+      "category": "database",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.rabbitmq.rabbitmq_binding",
+      "status": "undocumented",
+      "category": "message_queue",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.rabbitmq.rabbitmq_exchange",
+      "status": "undocumented",
+      "category": "message_queue",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.rabbitmq.rabbitmq_queue",
+      "status": "covered",
+      "category": "message_queue",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.rabbitmq.rabbitmq_user",
+      "status": "covered",
+      "category": "message_queue",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "community.rabbitmq.rabbitmq_vhost",
+      "status": "undocumented",
+      "category": "message_queue",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.zabbix.zabbix_action",
+      "status": "undocumented",
+      "category": "monitoring",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.zabbix.zabbix_discovery_rule",
+      "status": "undocumented",
+      "category": "monitoring",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.zabbix.zabbix_group",
+      "status": "undocumented",
+      "category": "monitoring",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.zabbix.zabbix_host",
+      "status": "undocumented",
+      "category": "monitoring",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.zabbix.zabbix_item",
+      "status": "undocumented",
+      "category": "monitoring",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.zabbix.zabbix_maintenance",
+      "status": "undocumented",
+      "category": "monitoring",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.zabbix.zabbix_proxy",
+      "status": "undocumented",
+      "category": "monitoring",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "community.zabbix.zabbix_template",
+      "status": "undocumented",
+      "category": "monitoring",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "debug",
+      "status": "undocumented",
+      "category": "monitoring",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "kubernetes.core.k8s",
+      "status": "undocumented",
+      "category": "applications",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "kubernetes.core.k8s_info",
+      "status": "undocumented",
+      "category": "applications",
+      "priority": "P1",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "set_fact",
+      "status": "undocumented",
+      "category": "monitoring",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": false,
+      "notes": ""
+    },
+    {
+      "module": "systemd",
+      "status": "covered",
+      "category": "monitoring",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    },
+    {
+      "module": "uri",
+      "status": "covered",
+      "category": "monitoring",
+      "priority": "P2",
+      "in_ansible_doc": false,
+      "in_metadata": true,
+      "in_filesystem": true,
+      "notes": ""
+    }
+  ],
+  "duplicates": [],
+  "inconsistencies": [
+    {
+      "module": "ansible.builtin.apache2_module",
+      "category": "web",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "ansible.builtin.apt_repository",
+      "category": "applications",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "ansible.builtin.assert",
+      "category": "database",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "ansible.builtin.async_status",
+      "category": "network",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "ansible.builtin.debug",
+      "category": "advanced",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "ansible.builtin.getent",
+      "category": "system",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "ansible.builtin.package_facts",
+      "category": "applications",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "ansible.builtin.pause",
+      "category": "monitoring",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "ansible.builtin.set_fact",
+      "category": "advanced",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "ansible.builtin.setup",
+      "category": "storage",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "ansible.builtin.slurp",
+      "category": "commands",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "ansible.builtin.sysctl",
+      "category": "network",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "ansible.posix.firewalld",
+      "category": "network",
+      "issue": "in_filesystem_but_not_metadata",
+      "description": "Module directory exists but not in metadata"
+    },
+    {
+      "module": "ansible.posix.sysctl",
+      "category": "system",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.crypto.acme_certificate",
+      "category": "web",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.crypto.openssl_csr",
+      "category": "web",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.crypto.openssl_privatekey",
+      "category": "web",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.datadog.datadog_agent",
+      "category": "monitoring",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.datadog.datadog_agent_integration",
+      "category": "monitoring",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.datadog.datadog_dashboard",
+      "category": "monitoring",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.datadog.datadog_monitor",
+      "category": "monitoring",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.docker.docker_container_info",
+      "category": "applications",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.docker.docker_image_info",
+      "category": "applications",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.docker.docker_login",
+      "category": "applications",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.docker.docker_network",
+      "category": "applications",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.general.dig",
+      "category": "network_protocols",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.general.locale_gen",
+      "category": "system",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.general.pam_limits",
+      "category": "system",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.general.pamd",
+      "category": "system",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.rabbitmq.rabbitmq_binding",
+      "category": "message_queue",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.rabbitmq.rabbitmq_exchange",
+      "category": "message_queue",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.rabbitmq.rabbitmq_vhost",
+      "category": "message_queue",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.zabbix.zabbix_action",
+      "category": "monitoring",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.zabbix.zabbix_discovery_rule",
+      "category": "monitoring",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.zabbix.zabbix_group",
+      "category": "monitoring",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.zabbix.zabbix_host",
+      "category": "monitoring",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.zabbix.zabbix_item",
+      "category": "monitoring",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.zabbix.zabbix_maintenance",
+      "category": "monitoring",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.zabbix.zabbix_proxy",
+      "category": "monitoring",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "community.zabbix.zabbix_template",
+      "category": "monitoring",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "debug",
+      "category": "monitoring",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "kubernetes.core.k8s",
+      "category": "applications",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "kubernetes.core.k8s_info",
+      "category": "applications",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    },
+    {
+      "module": "set_fact",
+      "category": "monitoring",
+      "issue": "in_metadata_but_not_filesystem",
+      "description": "Module is declared in metadata but directory not found"
+    }
+  ]
+}
