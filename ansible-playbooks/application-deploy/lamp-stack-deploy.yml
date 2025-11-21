@@ -1,0 +1,256 @@
+---
+# ⚠️ 教学声明：本 playbook 主要用于学习 LAMP 栈部署，请在测试环境验证后再应用于生产。
+- name: LAMP 栈（Apache/PHP/MySQL）部署
+  hosts: lamp_servers
+  gather_facts: true
+  become: yes
+  vars_files:
+    - vars/default.yml
+
+  handlers:
+    - name: 重启 Apache 服务
+      ansible.builtin.service:
+        name: apache2
+        state: restarted
+
+    - name: 重载 Apache 配置
+      ansible.builtin.service:
+        name: apache2
+        state: reloaded
+
+    - name: 重启 MySQL 服务
+      ansible.builtin.service:
+        name: mysql
+        state: restarted
+
+    - name: 验证 Apache 配置语法
+      ansible.builtin.command: apache2ctl configtest
+      register: apache_test
+      changed_when: false
+      failed_when: apache_test.rc != 0
+
+  tasks:
+    - name: 更新 APT 包缓存
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+      tags: [lamp, packages]
+
+    - name: 安装 Apache Web 服务器
+      ansible.builtin.package:
+        name: apache2
+        state: present
+      tags: [lamp, packages, apache]
+
+    - name: 安装 PHP 和扩展模块
+      ansible.builtin.package:
+        name:
+          - "php{{ lamp_php_version }}"
+          - "php{{ lamp_php_version }}-mysql"
+          - "php{{ lamp_php_version }}-xml"
+          - "php{{ lamp_php_version }}-mbstring"
+          - "php{{ lamp_php_version }}-curl"
+          - "php{{ lamp_php_version }}-zip"
+          - "php{{ lamp_php_version }}-gd"
+          - "php{{ lamp_php_version }}-intl"
+          - libapache2-mod-php
+        state: present
+      tags: [lamp, packages, php]
+
+    - name: 安装 MySQL 数据库服务器
+      ansible.builtin.package:
+        name:
+          - mysql-server
+          - python3-pymysql
+        state: present
+      tags: [lamp, packages, mysql]
+
+    - name: 启动 MySQL 服务并设置开机自启
+      ansible.builtin.service:
+        name: mysql
+        state: started
+        enabled: yes
+      tags: [lamp, mysql, service]
+
+    - name: 等待 MySQL 服务就绪
+      ansible.builtin.wait_for:
+        port: 3306
+        delay: 5
+        timeout: 60
+        state: started
+      tags: [lamp, mysql, verify]
+
+    - name: 设置 MySQL root 密码
+      community.mysql.mysql_user:
+        name: root
+        password: "{{ lamp_mysql_root_password }}"
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+        state: present
+      no_log: true
+      tags: [lamp, mysql, security]
+
+    - name: 删除匿名 MySQL 用户
+      community.mysql.mysql_user:
+        name: ""
+        host_all: yes
+        state: absent
+        login_user: root
+        login_password: "{{ lamp_mysql_root_password }}"
+      tags: [lamp, mysql, security]
+
+    - name: 删除 MySQL 测试数据库
+      community.mysql.mysql_db:
+        name: test
+        state: absent
+        login_user: root
+        login_password: "{{ lamp_mysql_root_password }}"
+      tags: [lamp, mysql, security]
+
+    - name: 创建应用数据库
+      community.mysql.mysql_db:
+        name: "{{ lamp_mysql_database }}"
+        state: present
+        login_user: root
+        login_password: "{{ lamp_mysql_root_password }}"
+      tags: [lamp, mysql, database]
+
+    - name: 创建应用数据库用户
+      community.mysql.mysql_user:
+        name: "{{ lamp_mysql_user }}"
+        password: "{{ lamp_mysql_password }}"
+        priv: "{{ lamp_mysql_database }}.*:ALL"
+        host: localhost
+        state: present
+        login_user: root
+        login_password: "{{ lamp_mysql_root_password }}"
+      no_log: true
+      tags: [lamp, mysql, database]
+
+    - name: 配置 PHP 设置
+      ansible.builtin.template:
+        src: templates/php.ini.j2
+        dest: "/etc/php/{{ lamp_php_version }}/apache2/php.ini"
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      notify: 重启 Apache 服务
+      tags: [lamp, php, config]
+
+    - name: 启用 Apache 必要模块
+      ansible.builtin.command: "a2enmod {{ item }}"
+      loop:
+        - rewrite
+        - ssl
+        - headers
+      notify: 重启 Apache 服务
+      tags: [lamp, apache, modules]
+
+    - name: 创建网站根目录
+      ansible.builtin.file:
+        path: "{{ lamp_web_root }}"
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+      tags: [lamp, apache, directories]
+
+    - name: 配置 Apache 虚拟主机
+      ansible.builtin.template:
+        src: templates/apache-vhost.conf.j2
+        dest: "/etc/apache2/sites-available/{{ lamp_server_name }}.conf"
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      notify:
+        - 验证 Apache 配置语法
+        - 重载 Apache 配置
+      tags: [lamp, apache, config]
+
+    - name: 禁用默认虚拟主机
+      ansible.builtin.command: a2dissite 000-default
+      notify: 重载 Apache 配置
+      tags: [lamp, apache, config]
+
+    - name: 启用新虚拟主机
+      ansible.builtin.command: "a2ensite {{ lamp_server_name }}"
+      notify: 重载 Apache 配置
+      tags: [lamp, apache, config]
+
+    - name: 部署 PHP 信息页面
+      ansible.builtin.copy:
+        dest: "{{ lamp_web_root }}/info.php"
+        content: |
+          <?php
+          phpinfo();
+          ?>
+        owner: www-data
+        group: www-data
+        mode: '0644'
+      tags: [lamp, php, test]
+
+    - name: 部署数据库连接测试页面
+      ansible.builtin.template:
+        src: templates/db-test.php.j2
+        dest: "{{ lamp_web_root }}/db-test.php"
+        owner: www-data
+        group: www-data
+        mode: '0644'
+      tags: [lamp, php, test]
+
+    - name: 启动 Apache 服务并设置开机自启
+      ansible.builtin.service:
+        name: apache2
+        state: started
+        enabled: yes
+      tags: [lamp, apache, service]
+
+    - name: 配置防火墙规则（开放 HTTP 和 HTTPS 端口）
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - '80'
+        - '443'
+      when: app_firewall_enabled and ansible_os_family == "Debian"
+      tags: [lamp, firewall]
+
+    - name: 验证 Apache HTTP 端点可访问
+      ansible.builtin.uri:
+        url: "http://localhost/info.php"
+        status_code: 200
+        return_content: yes
+      register: apache_check
+      changed_when: false
+      retries: "{{ app_retry_count }}"
+      delay: "{{ app_retry_delay }}"
+      tags: [lamp, verify]
+
+    - name: 验证数据库连接
+      ansible.builtin.uri:
+        url: "http://localhost/db-test.php"
+        status_code: 200
+        return_content: yes
+      register: db_check
+      changed_when: false
+      retries: "{{ app_retry_count }}"
+      delay: "{{ app_retry_delay }}"
+      tags: [lamp, verify]
+
+    - name: 输出 LAMP 栈部署结果
+      ansible.builtin.debug:
+        msg:
+          - "LAMP 栈部署完成！"
+          - "Web 服务器: Apache 2"
+          - "PHP 版本: {{ lamp_php_version }}"
+          - "数据库: MySQL"
+          - "网站根目录: {{ lamp_web_root }}"
+          - "访问地址: http://{{ lamp_server_name }}"
+          - "PHP 信息页面: http://{{ lamp_server_name }}/info.php"
+          - "数据库测试页面: http://{{ lamp_server_name }}/db-test.php"
+          - "数据库: {{ lamp_mysql_database }}"
+          - "数据库用户: {{ lamp_mysql_user }}"
+      tags: [lamp, info]

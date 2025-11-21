@@ -1,0 +1,107 @@
+# 备份日志轮转配置
+# ⚠️ 教学声明：此配置文件主要用于学习环境，生产环境请根据实际需求调整
+
+# 文件系统备份日志
+{{ backup_log_dir }}/filesystem/*.log {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 644 {{ backup_user }} {{ backup_group }}
+    postrotate
+        # 发送日志摘要（可选）
+        # {{ backup_base_dir }}/scripts/backup_notify.sh "logrotate" "filesystem" "$1"
+    endscript
+}
+
+# 数据库备份日志
+{{ backup_log_dir }}/database/*.log {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 644 {{ backup_user }} {{ backup_group }}
+    postrotate
+        # 发送日志摘要（可选）
+        # {{ backup_base_dir }}/scripts/backup_notify.sh "logrotate" "database" "$1"
+    endscript
+}
+
+# 云同步日志
+{{ backup_log_dir }}/cloud_sync/*.log {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 644 {{ backup_user }} {{ backup_group }}
+    postrotate
+        # 发送日志摘要（可选）
+        # {{ backup_base_dir }}/scripts/backup_notify.sh "logrotate" "cloud_sync" "$1"
+    endscript
+}
+
+# 备份验证日志
+{{ backup_log_dir }}/verification/*.log {
+    weekly
+    missingok
+    rotate 12
+    compress
+    delaycompress
+    notifempty
+    create 644 {{ backup_user }} {{ backup_group }}
+}
+
+# 备份监控日志
+{{ backup_log_dir }}/monitoring/*.log {
+    weekly
+    missingok
+    rotate 12
+    compress
+    delaycompress
+    notifempty
+    create 644 {{ backup_user }} {{ backup_group }}
+}
+
+# 备份清理日志
+{{ backup_log_dir }}/cleanup/*.log {
+    monthly
+    missingok
+    rotate 12
+    compress
+    delaycompress
+    notifempty
+    create 644 {{ backup_user }} {{ backup_group }}
+}
+
+# 通知日志
+{{ backup_log_dir }}/notification/*.log {
+    weekly
+    missingok
+    rotate 12
+    compress
+    delaycompress
+    notifempty
+    create 644 {{ backup_user }} {{ backup_group }}
+}
+
+# 通用备份日志（未分类的）
+{{ backup_log_dir }}/*.log {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 644 {{ backup_user }} {{ backup_group }}
+    sharedscripts
+    postrotate
+        # 清理旧的压缩日志
+        find {{ backup_log_dir }} -name "*.log.*.gz" -mtime +90 -delete
+    endscript
+}

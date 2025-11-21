@@ -1,0 +1,288 @@
+---
+# ⚠️ 教学声明：本 playbook 主要用于学习 LNMP 栈部署，请在测试环境验证后再应用于生产。
+- name: LNMP 栈（Nginx/PHP-FPM/MySQL）部署
+  hosts: lnmp_servers
+  gather_facts: true
+  become: yes
+  vars_files:
+    - vars/default.yml
+
+  handlers:
+    - name: 重启 Nginx 服务
+      ansible.builtin.service:
+        name: nginx
+        state: restarted
+
+    - name: 重载 Nginx 配置
+      ansible.builtin.service:
+        name: nginx
+        state: reloaded
+
+    - name: 重启 PHP-FPM 服务
+      ansible.builtin.service:
+        name: "php{{ lnmp_php_version }}-fpm"
+        state: restarted
+
+    - name: 重启 MySQL 服务
+      ansible.builtin.service:
+        name: mysql
+        state: restarted
+
+    - name: 验证 Nginx 配置语法
+      ansible.builtin.command: nginx -t
+      register: nginx_test
+      changed_when: false
+      failed_when: nginx_test.rc != 0
+
+  tasks:
+    - name: 更新 APT 包缓存
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+      tags: [lnmp, packages]
+
+    - name: 安装 Nginx Web 服务器
+      ansible.builtin.package:
+        name: nginx
+        state: present
+      tags: [lnmp, packages, nginx]
+
+    - name: 安装 PHP-FPM 和扩展模块
+      ansible.builtin.package:
+        name:
+          - "php{{ lnmp_php_version }}-fpm"
+          - "php{{ lnmp_php_version }}-mysql"
+          - "php{{ lnmp_php_version }}-xml"
+          - "php{{ lnmp_php_version }}-mbstring"
+          - "php{{ lnmp_php_version }}-curl"
+          - "php{{ lnmp_php_version }}-zip"
+          - "php{{ lnmp_php_version }}-gd"
+          - "php{{ lnmp_php_version }}-intl"
+        state: present
+      tags: [lnmp, packages, php]
+
+    - name: 安装 MySQL 数据库服务器
+      ansible.builtin.package:
+        name:
+          - mysql-server
+          - python3-pymysql
+        state: present
+      tags: [lnmp, packages, mysql]
+
+    - name: 启动 MySQL 服务并设置开机自启
+      ansible.builtin.service:
+        name: mysql
+        state: started
+        enabled: yes
+      tags: [lnmp, mysql, service]
+
+    - name: 等待 MySQL 服务就绪
+      ansible.builtin.wait_for:
+        port: 3306
+        delay: 5
+        timeout: 60
+        state: started
+      tags: [lnmp, mysql, verify]
+
+    - name: 设置 MySQL root 密码
+      community.mysql.mysql_user:
+        name: root
+        password: "{{ lnmp_mysql_root_password }}"
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+        state: present
+      no_log: true
+      tags: [lnmp, mysql, security]
+
+    - name: 删除匿名 MySQL 用户
+      community.mysql.mysql_user:
+        name: ""
+        host_all: yes
+        state: absent
+        login_user: root
+        login_password: "{{ lnmp_mysql_root_password }}"
+      tags: [lnmp, mysql, security]
+
+    - name: 删除 MySQL 测试数据库
+      community.mysql.mysql_db:
+        name: test
+        state: absent
+        login_user: root
+        login_password: "{{ lnmp_mysql_root_password }}"
+      tags: [lnmp, mysql, security]
+
+    - name: 创建应用数据库
+      community.mysql.mysql_db:
+        name: "{{ lnmp_mysql_database }}"
+        state: present
+        login_user: root
+        login_password: "{{ lnmp_mysql_root_password }}"
+      tags: [lnmp, mysql, database]
+
+    - name: 创建应用数据库用户
+      community.mysql.mysql_user:
+        name: "{{ lnmp_mysql_user }}"
+        password: "{{ lnmp_mysql_password }}"
+        priv: "{{ lnmp_mysql_database }}.*:ALL"
+        host: localhost
+        state: present
+        login_user: root
+        login_password: "{{ lnmp_mysql_root_password }}"
+      no_log: true
+      tags: [lnmp, mysql, database]
+
+    - name: 配置 PHP-FPM 设置
+      ansible.builtin.template:
+        src: templates/php-fpm.ini.j2
+        dest: "/etc/php/{{ lnmp_php_version }}/fpm/php.ini"
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      notify: 重启 PHP-FPM 服务
+      tags: [lnmp, php, config]
+
+    - name: 配置 PHP-FPM 池设置
+      ansible.builtin.template:
+        src: templates/php-fpm-pool.conf.j2
+        dest: "/etc/php/{{ lnmp_php_version }}/fpm/pool.d/www.conf"
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      notify: 重启 PHP-FPM 服务
+      tags: [lnmp, php, config]
+
+    - name: 创建网站根目录
+      ansible.builtin.file:
+        path: "{{ lnmp_web_root }}"
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+      tags: [lnmp, nginx, directories]
+
+    - name: 配置 Nginx 主配置文件
+      ansible.builtin.template:
+        src: templates/nginx-lnmp.conf.j2
+        dest: /etc/nginx/nginx.conf
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      notify:
+        - 验证 Nginx 配置语法
+        - 重载 Nginx 配置
+      tags: [lnmp, nginx, config]
+
+    - name: 配置 Nginx 虚拟主机
+      ansible.builtin.template:
+        src: templates/nginx-lnmp-vhost.conf.j2
+        dest: "/etc/nginx/sites-available/{{ lnmp_server_name }}.conf"
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      notify:
+        - 验证 Nginx 配置语法
+        - 重载 Nginx 配置
+      tags: [lnmp, nginx, config]
+
+    - name: 禁用默认 Nginx 虚拟主机
+      ansible.builtin.file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      notify: 重载 Nginx 配置
+      tags: [lnmp, nginx, config]
+
+    - name: 启用新虚拟主机（创建软链接）
+      ansible.builtin.file:
+        src: "/etc/nginx/sites-available/{{ lnmp_server_name }}.conf"
+        dest: "/etc/nginx/sites-enabled/{{ lnmp_server_name }}.conf"
+        state: link
+      notify: 重载 Nginx 配置
+      tags: [lnmp, nginx, config]
+
+    - name: 部署 PHP 信息页面
+      ansible.builtin.copy:
+        dest: "{{ lnmp_web_root }}/info.php"
+        content: |
+          <?php
+          phpinfo();
+          ?>
+        owner: www-data
+        group: www-data
+        mode: '0644'
+      tags: [lnmp, php, test]
+
+    - name: 部署数据库连接测试页面
+      ansible.builtin.template:
+        src: templates/lnmp-db-test.php.j2
+        dest: "{{ lnmp_web_root }}/db-test.php"
+        owner: www-data
+        group: www-data
+        mode: '0644'
+      tags: [lnmp, php, test]
+
+    - name: 启动 PHP-FPM 服务并设置开机自启
+      ansible.builtin.service:
+        name: "php{{ lnmp_php_version }}-fpm"
+        state: started
+        enabled: yes
+      tags: [lnmp, php, service]
+
+    - name: 启动 Nginx 服务并设置开机自启
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: yes
+      tags: [lnmp, nginx, service]
+
+    - name: 配置防火墙规则（开放 HTTP 和 HTTPS 端口）
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - '80'
+        - '443'
+      when: app_firewall_enabled and ansible_os_family == "Debian"
+      tags: [lnmp, firewall]
+
+    - name: 验证 Nginx HTTP 端点可访问
+      ansible.builtin.uri:
+        url: "http://localhost/info.php"
+        status_code: 200
+        return_content: yes
+      register: nginx_check
+      changed_when: false
+      retries: "{{ app_retry_count }}"
+      delay: "{{ app_retry_delay }}"
+      tags: [lnmp, verify]
+
+    - name: 验证数据库连接
+      ansible.builtin.uri:
+        url: "http://localhost/db-test.php"
+        status_code: 200
+        return_content: yes
+      register: db_check
+      changed_when: false
+      retries: "{{ app_retry_count }}"
+      delay: "{{ app_retry_delay }}"
+      tags: [lnmp, verify]
+
+    - name: 输出 LNMP 栈部署结果
+      ansible.builtin.debug:
+        msg:
+          - "LNMP 栈部署完成！"
+          - "Web 服务器: Nginx"
+          - "PHP 版本: {{ lnmp_php_version }}"
+          - "PHP-FPM 进程管理: 动态"
+          - "数据库: MySQL"
+          - "网站根目录: {{ lnmp_web_root }}"
+          - "访问地址: http://{{ lnmp_server_name }}"
+          - "PHP 信息页面: http://{{ lnmp_server_name }}/info.php"
+          - "数据库测试页面: http://{{ lnmp_server_name }}/db-test.php"
+          - "数据库: {{ lnmp_mysql_database }}"
+          - "数据库用户: {{ lnmp_mysql_user }}"
+      tags: [lnmp, info]

@@ -1,0 +1,85 @@
+# Logstash JVM 选项配置
+# ⚠️ 教学声明：此配置文件主要用于学习环境，生产环境请根据实际需求调整
+
+# 堆内存配置（建议设置为系统内存的50%，最大不超过31GB）
+-Xms{{ elasticsearch_heap_size | default('1g') }}
+-Xmx{{ elasticsearch_heap_size | default('1g') }}
+
+# GC 配置
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=200
+-XX:G1HeapRegionSize=16m
+-XX:G1NewSizePercent=30
+-XX:G1MaxNewSizePercent=40
+-XX:G1MixedGCCountTarget=8
+-XX:InitiatingHeapOccupancyPercent=45
+-XX:+G1UseAdaptiveIHOP
+-XX:G1MixedGCLiveThresholdPercent=85
+-XX:G1HeapWastePercent=5
+
+# JVM 调优
+-XX:+UseStringDeduplication
+-XX:+ParallelRefProcEnabled
+-XX:+DisableExplicitGC
+-XX:+AlwaysPreTouch
+-XX:G1HeapRegionSize=16m
+-XX:G1NewSizePercent=30
+-XX:G1MaxNewSizePercent=40
+-XX:G1MixedGCCountTarget=8
+-XX:InitiatingHeapOccupancyPercent=45
+
+# 日志配置
+-XX:+UnlockDiagnosticVMOptions
+-XX:+LogVMOutput
+-XX:LogFile={{ elasticsearch_log_dir }}/jvm.log
+-XX:+PrintGCDetails
+-XX:+PrintGCTimeStamps
+-XX:+PrintGCDateStamps
+-XX:+PrintGCApplicationStoppedTime
+-XX:+PrintGCApplicationConcurrentTime
+-Xloggc:{{ elasticsearch_log_dir }}/gc.log
+-XX:+UseGCLogFileRotation
+-XX:NumberOfGCLogFiles=10
+-XX:GCLogFileSize=10M
+
+# 错误文件
+-XX:ErrorFile={{ elasticsearch_log_dir }}/hs_err_pid%p.log
+
+# 栈大小
+-Xss1m
+
+# 元空间配置
+-XX:MetaspaceSize=256m
+-XX:MaxMetaspaceSize=512m
+
+# 直接内存配置
+-XX:MaxDirectMemorySize=1g
+
+# 性能优化
+-XX:+UseCompressedOops
+-XX:+UseCompressedClassPointers
+
+# 临时目录配置
+-Djava.io.tmpdir={{ elasticsearch_data_dir }}/tmp
+
+# 网络配置
+-Djava.net.preferIPv4Stack=true
+-Djava.security.egd=file:/dev/./urandom
+
+# 文件描述符配置
+-XX:+UnlockDiagnosticVMOptions
+-XX:+LogVMOutput
+-XX:+PrintGCDetails
+-XX:+PrintGCTimeStamps
+-XX:+PrintGCDateStamps
+-XX:+PrintGCApplicationStoppedTime
+-XX:+PrintGCApplicationConcurrentTime
+
+# JMX 配置（可选）
+# -Dcom.sun.management.jmxremote
+# -Dcom.sun.management.jmxremote.port=9999
+# -Dcom.sun.management.jmxremote.authenticate=false
+# -Dcom.sun.management.jmxremote.ssl=false
+
+# 监控配置
+-Djava.awt.headless=true

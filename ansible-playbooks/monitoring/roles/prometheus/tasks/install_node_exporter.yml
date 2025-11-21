@@ -1,0 +1,78 @@
+---
+# Node Exporter 安装任务
+# ⚠️ 教学声明：此任务主要用于学习 Node Exporter 部署
+
+- name: 创建 Node Exporter 用户
+  ansible.builtin.user:
+    name: "node_exporter"
+    shell: /bin/false
+    system: yes
+    create_home: no
+    state: present
+  tags: [node_exporter, user]
+
+- name: 下载 Node Exporter 二进制文件
+  ansible.builtin.get_url:
+    url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+    dest: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+    mode: '0644'
+  tags: [node_exporter, download]
+
+- name: 解压 Node Exporter 二进制文件
+  ansible.builtin.unarchive:
+    src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+    dest: "/tmp"
+    remote_src: yes
+    creates: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
+  tags: [node_exporter, install]
+
+- name: 复制 Node Exporter 二进制文件
+  ansible.builtin.copy:
+    src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
+    dest: "/usr/local/bin/node_exporter"
+    remote_src: yes
+    owner: root
+    group: root
+    mode: '0755'
+  tags: [node_exporter, install]
+
+- name: 创建 Node Exporter systemd 服务文件
+  ansible.builtin.template:
+    src: node_exporter.service.j2
+    dest: /etc/systemd/system/node_exporter.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: 重新加载 systemd 守护进程
+  tags: [node_exporter, service]
+
+- name: 启动并启用 Node Exporter 服务
+  ansible.builtin.service:
+    name: node_exporter
+    state: started
+    enabled: yes
+  tags: [node_exporter, service]
+
+- name: 等待 Node Exporter 服务就绪
+  ansible.builtin.wait_for:
+    port: "{{ node_exporter_port }}"
+    delay: 3
+    timeout: 30
+    state: started
+  tags: [node_exporter, verify]
+
+- name: 验证 Node Exporter 指标
+  ansible.builtin.uri:
+    url: "http://localhost:{{ node_exporter_port }}/metrics"
+    method: GET
+    status_code: 200
+  register: node_exporter_metrics
+  retries: 3
+  delay: 3
+  tags: [node_exporter, verify]
+
+- name: 清理 Node Exporter 临时文件
+  ansible.builtin.file:
+    path: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+    state: absent
+  tags: [node_exporter, cleanup]

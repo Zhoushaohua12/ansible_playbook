@@ -1,0 +1,167 @@
+# Kibana 配置文件
+# ⚠️ 教学声明：此配置文件主要用于学习环境，生产环境请根据实际需求调整
+
+# 服务器配置
+server.host: {{ kibana_host }}
+server.port: {{ kibana_port }}
+server.name: {{ ansible_hostname }}
+
+# Elasticsearch 配置
+elasticsearch.hosts: {{ kibana_elasticsearch_hosts }}
+elasticsearch.preserveHost: true
+elasticsearch.pingTimeout: 1500
+elasticsearch.requestTimeout: 30000
+elasticsearch.shardTimeout: 30000
+elasticsearch.startupTimeout: 5000
+
+# 日志配置
+logging.dest: {{ kibana_log_dir }}/kibana.log
+logging.silent: false
+logging.quiet: false
+logging.verbose: false
+
+# 进程配置
+pid.file: /run/kibana/kibana.pid
+
+# 安全配置
+xpack.security.enabled: false
+xpack.encryptedSavedObjects.encryptionKey: "something_at_least_32_characters_long"
+
+# 监控配置
+xpack.monitoring.enabled: true
+xpack.monitoring.ui.container.elasticsearch.enabled: true
+
+# 国际化配置
+i18n.locale: "zh-CN"
+
+# 控制台配置
+console.enabled: true
+
+# 地图配置
+map.includeElasticMapsService: true
+
+# 新闻源配置
+newsfeed.enabled: false
+
+# 搜索配置
+search.maxBucketsLimit: 10000
+
+# 报告配置
+xpack.reporting.enabled: true
+xpack.reporting.encryptionKey: "something_at_least_32_characters_long"
+
+# 机器学习配置
+xpack.ml.enabled: false
+
+# 图配置
+xpack.graph.enabled: false
+
+# 监控代理配置
+monitoring.kibana.collection.enabled: true
+
+# 服务器 SSL 配置（可选）
+# server.ssl.enabled: true
+# server.ssl.certificate: /path/to/cert
+# server.ssl.key: /path/to/key
+
+# Elasticsearch SSL 配置（可选）
+# elasticsearch.ssl.verificationMode: certificate
+# elasticsearch.ssl.certificate: /path/to/cert
+# elasticsearch.ssl.key: /path/to/key
+# elasticsearch.ssl.certificateAuthorities: [ "/path/to/ca" ]
+
+# 代理配置（可选）
+# elasticsearch.username: "user"
+# elasticsearch.password: "pass"
+
+# 高级配置
+server.maxPayloadBytes: 1048576
+server.rewriteBasePath: false
+
+# 状态配置
+status.allowAnonymous: false
+
+# 仪表板配置
+dashboard.defaultDarkTheme: false
+
+# 时间戳配置
+dateFormat: YYYY-MM-DD HH:mm:ss
+
+# 区域设置
+regionmap:
+  include: ["US"]
+  terms:
+    US: "United States"
+
+# 瓦片地图配置
+tilemap:
+  options:
+    attribution: "© [OpenStreetMap](http://www.openstreetmap.org/copyright) contributors"
+    maxZoom: 18
+    minZoom: 1
+    subdomains: ["a", "b", "c"]
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+  wms:
+    enabled: false
+
+# CSV 分隔符配置
+csv:
+  quoteValues: true
+
+# 运维配置
+ops:
+  interval: 5000
+
+# 性能配置
+cpu:
+  cgroup:
+    path.override: /path/to/cgroup
+
+# 永久性配置
+path.data: /var/lib/kibana
+
+# 缓存配置
+cache:
+  maxAge: 120000
+
+# 外部 URL 配置
+server.basePath: ""
+server.rewriteBasePath: false
+
+# CORS 配置
+server.cors.enabled: false
+server.cors.allowOrigin: ["*"]
+server.cors.maxAge: 1728000
+
+# 内容安全配置
+contentSecurityPolicy: false
+
+# 自定义品牌配置
+server.customResponseHeaders: {}
+server.xsrf: true
+
+# 访问日志配置
+server.accessLog:
+  appenders:
+    file:
+      kind: file
+      layout:
+        kind: json
+      path: {{ kibana_log_dir }}/kibana-access.log
+      policy:
+        kind: size-limit
+        size: 1gb
+        type: total
+  strategy: always
+
+# 压缩配置
+server.compression:
+  enabled: true
+  referrer: "no-referrer"
+  threshold: 1024
+
+# 响应头配置
+server.responseHeaders:
+  X-Content-Type-Options: nosniff
+  Strict-Transport-Security: max-age=31536000
+  X-Frame-Options: DENY

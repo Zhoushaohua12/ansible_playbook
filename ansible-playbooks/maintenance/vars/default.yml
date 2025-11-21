@@ -1,0 +1,263 @@
+---
+# 维护策略变量配置
+# ⚠️ 重要提示：这些变量为示例配置，请在生产环境使用前根据实际情况调整
+
+# 通用备份配置
+backup_enabled: true
+backup_base_dir: "/opt/backups"
+backup_log_dir: "/var/log/backups"
+backup_user: "backup"
+backup_group: "backup"
+backup_retention_days: 30
+backup_compression: true
+backup_encryption: false
+backup_encryption_key: "secure_backup_key_change_me"
+
+# 文件系统备份配置
+filesystem_backup_enabled: true
+filesystem_backup_sources:
+  - path: "/etc"
+    description: "系统配置文件"
+    exclude_patterns:
+      - "*.tmp"
+      - "*.log"
+      - "cache/*"
+    retention_days: 90
+  - path: "/home"
+    description: "用户目录"
+    exclude_patterns:
+      - ".cache/*"
+      - ".local/share/Trash/*"
+      - "Downloads/*"
+    retention_days: 30
+  - path: "/var/www"
+    description: "Web 应用目录"
+    exclude_patterns:
+      - "*.log"
+      - "cache/*"
+      - "tmp/*"
+    retention_days: 60
+  - path: "/opt"
+    description: "应用程序目录"
+    exclude_patterns:
+      - "*.pid"
+      - "*.sock"
+      - "log/*"
+    retention_days: 45
+
+filesystem_backup_method: "rsync"  # rsync, tar, dd
+filesystem_backup_schedule: "0 2 * * *"  # 每天凌晨2点
+filesystem_backup_full_days: "sunday"  # 每周日全量备份
+filesystem_backup_incremental: true
+filesystem_backup_compression_level: 6
+filesystem_backup_bandwidth_limit: "10M"
+
+# 数据库备份配置
+database_backup_enabled: true
+database_backup_engines:
+  - engine: "mysql"
+    enabled: true
+    databases: ["--all-databases"]
+    username: "root"
+    password: "{{ vault_mysql_root_password | default('') }}"
+    host: "localhost"
+    port: "3306"
+    options: "--single-transaction --routines --triggers --events"
+    retention_days: 30
+    compression: true
+    encryption: false
+  - engine: "postgresql"
+    enabled: false
+    databases: ["all"]
+    username: "postgres"
+    password: "{{ vault_postgres_password | default('') }}"
+    host: "localhost"
+    port: "5432"
+    options: "--clean --no-owner --no-privileges"
+    retention_days: 30
+    compression: true
+  - engine: "mongodb"
+    enabled: false
+    databases: ["--all"]
+    username: "admin"
+    password: "{{ vault_mongo_password | default('') }}"
+    host: "localhost"
+    port: "27017"
+    options: "--gzip --archive"
+    retention_days: 30
+
+database_backup_schedule: "0 3 * * *"  # 每天凌晨3点
+database_backup_full_days: "sunday"  # 每周日全量备份
+database_backup_compression_level: 6
+database_backup_parallel_jobs: 2
+
+# 云同步配置
+cloud_sync_enabled: true
+cloud_sync_providers:
+  - provider: "aws_s3"
+    enabled: false
+    bucket_name: "my-backup-bucket"
+    region: "us-east-1"
+    access_key: "{{ vault_aws_access_key | default('') }}"
+    secret_key: "{{ vault_aws_secret_key | default('') }}"
+    endpoint_url: ""
+    storage_class: "STANDARD_IA"
+    encryption: "AES256"
+    multipart_threshold: "64MB"
+    concurrency: 10
+    retention_days: 90
+    sync_paths:
+      - local: "{{ backup_base_dir }}/filesystem"
+        remote: "backups/filesystem"
+      - local: "{{ backup_base_dir }}/database"
+        remote: "backups/database"
+  - provider: "aliyun_oss"
+    enabled: false
+    bucket_name: "my-backup-bucket"
+    region: "oss-cn-hangzhou"
+    access_key: "{{ vault_aliyun_access_key | default('') }}"
+    secret_key: "{{ vault_aliyun_secret_key | default('') }}"
+    endpoint_url: ""
+    storage_class: "IA"
+    encryption: "AES256"
+    multipart_threshold: "64MB"
+    concurrency: 8
+    retention_days: 60
+    sync_paths:
+      - local: "{{ backup_base_dir }}/filesystem"
+        remote: "backups/filesystem"
+      - local: "{{ backup_base_dir }}/database"
+        remote: "backups/database"
+  - provider: "azure_blob"
+    enabled: false
+    account_name: "mystorageaccount"
+    container_name: "backups"
+    access_key: "{{ vault_azure_access_key | default('') }}"
+    sas_token: "{{ vault_azure_sas_token | default('') }}"
+    tier: "Cool"
+    encryption: true
+    multipart_threshold: "64MB"
+    concurrency: 6
+    retention_days: 45
+    sync_paths:
+      - local: "{{ backup_base_dir }}/filesystem"
+        remote: "filesystem"
+      - local: "{{ backup_base_dir }}/database"
+        remote: "database"
+
+cloud_sync_schedule: "0 4 * * *"  # 每天凌晨4点
+cloud_sync_bandwidth_limit: "5M"
+cloud_sync_retry_count: 3
+cloud_sync_retry_delay: 60
+
+# 备份验证配置
+backup_verification_enabled: true
+backup_verification_methods:
+  - method: "checksum"
+    enabled: true
+    algorithm: "sha256"
+  - method: "restore_test"
+    enabled: false
+    test_files: 5
+  - method: "size_check"
+    enabled: true
+    min_size_percent: 10
+
+# 通知配置
+backup_notification_enabled: true
+backup_notification_methods:
+  - method: "email"
+    enabled: true
+    smtp_server: "smtp.example.com"
+    smtp_port: 587
+    smtp_username: "backup@example.com"
+    smtp_password: "{{ vault_smtp_password | default('') }}"
+    from_address: "backup@example.com"
+    to_addresses: ["admin@example.com", "ops@example.com"]
+    subject_prefix: "[备份通知]"
+  - method: "webhook"
+    enabled: false
+    url: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+    method: "POST"
+    headers:
+      Content-Type: "application/json"
+  - method: "dingtalk"
+    enabled: false
+    webhook_url: "https://oapi.dingtalk.com/robot/send?access_token=YOUR_TOKEN"
+    secret: "{{ vault_dingtalk_secret | default('') }}"
+
+# 备份监控配置
+backup_monitoring_enabled: true
+backup_monitoring_metrics:
+  - metric: "backup_success_rate"
+    threshold: 95
+    unit: "percent"
+  - metric: "backup_duration"
+    threshold: 3600
+    unit: "seconds"
+  - metric: "backup_size"
+    threshold: 100
+    unit: "GB"
+  - metric: "backup_retention_compliance"
+    threshold: 90
+    unit: "percent"
+
+# 清理配置
+backup_cleanup_enabled: true
+backup_cleanup_schedule: "0 5 * * 0"  # 每周日凌晨5点
+backup_cleanup_dry_run: false
+backup_cleanup_force: false
+
+# 性能优化配置
+backup_performance:
+  io_nice_level: 7
+  cpu_nice_level: 10
+  parallel_processes: 2
+  memory_limit: "2G"
+  disk_space_threshold: 10  # 最小剩余磁盘空间百分比
+
+# 安全配置
+backup_security:
+  encrypt_backups: false
+  encryption_algorithm: "AES256"
+  secure_delete: true
+  permission_mode: "0600"
+  directory_mode: "0700"
+  checksum_verification: true
+
+# 日志配置
+backup_logging:
+  level: "INFO"
+  format: "json"
+  rotation: "daily"
+  retention: 30
+  compress: true
+
+# 环境变量
+backup_environment:
+  TZ: "Asia/Shanghai"
+  LANG: "en_US.UTF-8"
+  LC_ALL: "en_US.UTF-8"
+
+# ⚠️ 安全提示：
+# 1. 请务必修改所有默认密码和密钥
+# 2. 使用 Ansible Vault 加密敏感变量
+# 3. 定期测试备份恢复流程
+# 4. 配置适当的访问控制和权限
+# 5. 监控备份任务的执行状态
+# 6. 定期审查和更新备份策略
+# 7. 确保备份存储的安全性
+# 8. 制定灾难恢复计划
+
+# Vault 加密变量（示例）
+vault_mysql_root_password: ""
+vault_postgres_password: ""
+vault_mongo_password: ""
+vault_aws_access_key: ""
+vault_aws_secret_key: ""
+vault_aliyun_access_key: ""
+vault_aliyun_secret_key: ""
+vault_azure_access_key: ""
+vault_azure_sas_token: ""
+vault_smtp_password: ""
+vault_dingtalk_secret: ""

@@ -1,0 +1,167 @@
+# MongoDB 备份配置文件
+# ⚠️ 教学声明：此配置文件主要用于学习环境，生产环境请根据实际需求调整
+
+{
+  "mongodb": {
+    "backup": {
+      "connection": {
+        "host": "{{ database_backup_engines | selectattr('engine', 'equalto', 'mongodb') | selectattr('enabled', 'equalto', true) | map(attribute='host') | first | default('localhost') }}",
+        "port": {{ database_backup_engines | selectattr('engine', 'equalto', 'mongodb') | selectattr('enabled', 'equalto', true) | map(attribute='port') | first | default('27017') }},
+        "username": "{{ database_backup_engines | selectattr('engine', 'equalto', 'mongodb') | selectattr('enabled', 'equalto', true) | map(attribute='username') | first | default('admin') }}",
+        "password": "{{ database_backup_engines | selectattr('engine', 'equalto', 'mongodb') | selectattr('enabled', 'equalto', true) | map(attribute='password') | first | default('') }}",
+        "authenticationDatabase": "admin",
+        "ssl": false,
+        "sslCAFile": "",
+        "sslPEMKeyFile": "",
+        "sslPEMKeyPassword": "",
+        "sslCRLFile": "",
+        "allowInvalidCertificates": false,
+        "allowInvalidHostnames": false,
+        "connectTimeoutMS": 60000,
+        "socketTimeoutMS": 300000,
+        "maxPoolSize": 10,
+        "minPoolSize": 1,
+        "maxIdleTimeMS": 300000,
+        "waitQueueTimeoutMS": 60000,
+        "serverSelectionTimeoutMS": 30000,
+        "heartbeatFrequencyMS": 10000,
+        "retryWrites": true,
+        "retryReads": true,
+        "readPreference": "primary",
+        "writeConcern": {
+          "w": "majority",
+          "j": true,
+          "wtimeout": 30000
+        },
+        "readConcern": {
+          "level": "majority"
+        }
+      },
+      "options": {
+        "uri": "",
+        "db": "",
+        "collection": "",
+        "out": "",
+        "archive": "",
+        "gzip": true,
+        "repair": false,
+        "oplog": false,
+        "oplogLimit": "",
+        "query": "",
+        "quick": false,
+        "forceTableScan": false,
+        "dumpDbUsersAndRoles": false,
+        "excludeCollection": [],
+        "excludeCollectionsWithPrefix": [],
+        "numParallelCollections": {{ database_backup_parallel_jobs | default(2) }},
+        "viewsAsCollections": [],
+        "readPreference": "primary",
+        "force": false,
+        "dryRun": false
+      },
+      "restore_options": {
+        "uri": "",
+        "archive": "",
+        "dir": "",
+        "drop": false,
+        "gzip": true,
+        "oplogReplay": false,
+        "oplogLimit": "",
+        "nsFrom": "",
+        "nsTo": "",
+        "nsInclude": "",
+        "nsExclude": "",
+        "numParallelCollections": {{ database_backup_parallel_jobs | default(2) }},
+        "objcheck": false,
+        "filter": "",
+        "noIndexRestore": false,
+        "noOptionsRestore": false,
+        "keepIndexVersion": false,
+        "maintainInsertionOrder": false,
+        "writeConcern": {
+          "w": "majority",
+          "j": true,
+          "wtimeout": 30000
+        },
+        "bypassDocumentValidation": false,
+        "batchSize": 1000,
+        "stopOnError": false,
+        "dirExistsInsert": false,
+        "forceTableScan": false,
+        "legacy": false,
+        "restoreDbUsersAndRoles": false,
+        "prepareForSharding": false,
+        "readPreference": "primary",
+        "dryRun": false
+      },
+      "compression": {
+        "enabled": true,
+        "level": {{ database_backup_compression_level | default(6) }},
+        "algorithm": "gzip"
+      },
+      "encryption": {
+        "enabled": {{ backup_encryption | default(false) }},
+        "algorithm": "AES256",
+        "key": "{{ backup_encryption_key | default('') }}"
+      },
+      "retention": {
+        "days": {{ database_backup_engines | selectattr('engine', 'equalto', 'mongodb') | selectattr('enabled', 'equalto', true) | map(attribute='retention_days') | first | default(backup_retention_days) }},
+        "size": "",
+        "count": ""
+      },
+      "scheduling": {
+        "enabled": true,
+        "frequency": "{{ database_backup_schedule | default('0 3 * * *') }}",
+        "fullBackupFrequency": "{{ database_backup_full_days | default('sunday') }}",
+        "incrementalBackupFrequency": "0 */6 * * *"
+      },
+      "monitoring": {
+        "enabled": true,
+        "metrics": {
+          "backupDuration": true,
+          "backupSize": true,
+          "backupSuccessRate": true,
+          "storageUsage": true,
+          "networkLatency": true
+        },
+        "alerts": {
+          "backupFailure": true,
+          "storageThreshold": 80,
+          "durationThreshold": 3600,
+          "successRateThreshold": 95
+        }
+      },
+      "notification": {
+        "enabled": {{ backup_notification_enabled | default(false) }},
+        "methods": {
+          "email": {
+            "enabled": true,
+            "smtp": {
+              "host": "{{ backup_notification_methods | selectattr('method', 'equalto', 'email') | selectattr('enabled', 'equalto', true) | map(attribute='smtp_server') | first | default('') }}",
+              "port": {{ backup_notification_methods | selectattr('method', 'equalto', 'email') | selectattr('enabled', 'equalto', true) | map(attribute='smtp_port') | first | default(587) }},
+              "username": "{{ backup_notification_methods | selectattr('method', 'equalto', 'email') | selectattr('enabled', 'equalto', true) | map(attribute='smtp_username') | first | default('') }}",
+              "password": "{{ backup_notification_methods | selectattr('method', 'equalto', 'email') | selectattr('enabled', 'equalto', true) | map(attribute='smtp_password') | first | default('') }}",
+              "useTLS": true
+            },
+            "from": "{{ backup_notification_methods | selectattr('method', 'equalto', 'email') | selectattr('enabled', 'equalto', true) | map(attribute='from_address') | first | default('') }}",
+            "to": {{ backup_notification_methods | selectattr('method', 'equalto', 'email') | selectattr('enabled', 'equalto', true) | map(attribute='to_addresses') | first | default([]) | to_nice_json }}
+          },
+          "webhook": {
+            "enabled": false,
+            "url": "",
+            "method": "POST",
+            "headers": {},
+            "timeout": 30
+          }
+        }
+      },
+      "logging": {
+        "level": "{{ backup_logging.level | default('INFO') }}",
+        "format": "{{ backup_logging.format | default('json') }}",
+        "rotation": "{{ backup_logging.rotation | default('daily') }}",
+        "retention": {{ backup_logging.retention | default(30) }},
+        "compress": {{ backup_logging.compress | default(true) }}
+      }
+    }
+  }
+}

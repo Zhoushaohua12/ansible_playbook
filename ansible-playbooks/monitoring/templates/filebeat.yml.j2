@@ -1,0 +1,219 @@
+# Filebeat 配置文件
+# ⚠️ 教学声明：此配置文件主要用于学习环境，生产环境请根据实际需求调整
+
+# Filebeat 配置
+filebeat.inputs:
+{% for input in filebeat_inputs %}
+  - type: {{ input.type }}
+    enabled: {{ input.enabled }}
+    paths: {{ input.paths | to_nice_yaml | indent(6) }}
+{% if input.fields is defined %}
+    fields: {{ input.fields | to_nice_yaml | indent(6) }}
+    fields_under_root: {{ input.fields_under_root }}
+{% endif %}
+{% if input.multiline is defined %}
+    multiline: {{ input.multiline | to_nice_yaml | indent(6) }}
+{% endif %}
+{% if input.exclude_lines is defined %}
+    exclude_lines: {{ input.exclude_lines | to_nice_yaml | indent(6) }}
+{% endif %}
+{% if input.include_lines is defined %}
+    include_lines: {{ input.include_lines | to_nice_yaml | indent(6) }}
+{% endif %}
+{% if input.harvester_buffer_size is defined %}
+    harvester_buffer_size: {{ input.harvester_buffer_size }}
+{% endif %}
+{% if input.max_bytes is defined %}
+    max_bytes: {{ input.max_bytes }}
+{% endif %}
+{% if input.scan_frequency is defined %}
+    scan_frequency: {{ input.scan_frequency }}
+{% endif %}
+
+{% endfor %}
+
+# 输出配置
+output.logstash:
+  hosts: {{ filebeat_output_logstash_hosts }}
+  worker: 2
+  bulk_max_size: 50
+  compression_level: 3
+  escape_html: false
+
+# 输出到 Elasticsearch（可选）
+# output.elasticsearch:
+#   hosts: {{ filebeat_output_elasticsearch_hosts }}
+#   protocol: "http"
+#   username: "elastic"
+#   password: "changeme"
+#   template.name: "filebeat"
+#   template.pattern: "filebeat-*"
+#   template.settings:
+#     index.number_of_shards: 1
+#     index.codec: best_compression
+
+# 处理器配置
+processors:
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+  - add_docker_metadata: ~
+  - add_kubernetes_metadata: ~
+
+  # 添加云元数据
+  - add_cloud_metadata: ~
+
+  # 添加操作系统元数据
+  - add_host_metadata:
+      netinfo.enabled: false
+      cache.ttl: 5m
+      geo.name: {{ ansible_hostname }}
+
+  # 处理多行日志
+  - dissect:
+      tokenizer: "%{timestamp} [%{log_level}] %{message}"
+      field: "message"
+      target_prefix: "dissect"
+      ignore_missing: true
+      failure_mode: "silent"
+
+  # 解析时间戳
+  - timestamp:
+      field: dissect.timestamp
+      layouts:
+        - '2006-01-02T15:04:05.000Z'
+        - '2006-01-02 15:04:05'
+        - 'Jan 02 15:04:05'
+      test:
+        - '2023-01-01T12:00:00.000Z'
+        - '2023-01-01 12:00:00'
+        - 'Jan 01 12:00:00'
+
+  # 重命名字段
+  - rename:
+      fields:
+        - from: "dissect.log_level"
+          to: "log.level"
+      ignore_missing: true
+      fail_on_error: false
+
+  # 删除字段
+  - drop_fields:
+      fields: ["dissect.timestamp"]
+      ignore_missing: true
+
+# 日志配置
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: {{ filebeat_log_dir }}
+  name: filebeat
+  keepfiles: 7
+  permissions: 0644
+  rotateeverybytes: 10485760
+
+# 监控配置
+monitoring.enabled: true
+monitoring.elasticsearch:
+  hosts: ["http://localhost:{{ elasticsearch_http_port }}"]
+
+# 队列配置
+queue.mem:
+  events: 4096
+  flush.min_events: 512
+  flush.timeout: 1s
+
+# HTTP 端点配置
+http.enabled: true
+http.port: 5066
+
+# 运行时字段配置
+runtime.fields: true
+
+# 模板配置
+setup.template.enabled: true
+setup.template.pattern: "filebeat-*"
+setup.template.name: "filebeat"
+setup.template.settings:
+  index:
+    number_of_shards: 1
+    number_of_replicas: 0
+    codec: best_compression
+
+# Kibana 配置
+setup.kibana:
+  host: "http://localhost:{{ kibana_port }}"
+
+# 仪表盘配置
+setup.dashboards.enabled: true
+
+# 索引生命周期管理配置
+setup.ilm.enabled: true
+setup.ilm.rollover_alias: "filebeat"
+setup.ilm.pattern: "{now/d}-000001"
+setup.ilm.policy: "filebeat-policy"
+
+# 索引模板配置
+setup.template.enabled: true
+setup.template.name: "filebeat"
+setup.template.pattern: "filebeat-*"
+
+# 机器学习配置
+setup.machine_learning.enabled: false
+
+# 云元数据配置
+cloud.id: ""
+cloud.auth: ""
+
+# 处理器高级配置
+processors:
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+      netinfo.enabled: false
+      cache.ttl: 5m
+      geo.name: {{ ansible_hostname }}
+
+  - add_docker_metadata: ~
+
+  - add_kubernetes_metadata: ~
+
+  - add_cloud_metadata: ~
+
+  - decode_json_fields:
+      fields: ["message"]
+      target: ""
+      overwrite_keys: true
+      add_error_key: true
+
+# 输出高级配置
+output.logstash:
+  hosts: {{ filebeat_output_logstash_hosts }}
+  worker: 2
+  bulk_max_size: 50
+  compression_level: 3
+  escape_html: false
+  proxy_url: ""
+
+# 日志轮转配置
+logging.to_files: true
+logging.files:
+  path: {{ filebeat_log_dir }}
+  name: filebeat
+  keepfiles: 7
+  permissions: 0644
+  rotateeverybytes: 10485760
+
+# 监控配置
+monitoring.enabled: true
+monitoring.elasticsearch:
+  hosts: ["http://localhost:{{ elasticsearch_http_port }}"]
+
+# 性能优化配置
+queue.mem:
+  events: 4096
+  flush.min_events: 512
+  flush.timeout: 1s
+
+# 安全配置
+# output.elasticsearch.ssl.certificate_authorities: ["/etc/pki/root/ca.pem"]
+# output.elasticsearch.ssl.certificate: "/etc/pki/client/cert.pem"
+# output.elasticsearch.ssl.key: "/etc/pki/client/key.pem"

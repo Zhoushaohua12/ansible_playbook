@@ -1,0 +1,112 @@
+# Logstash 主配置文件
+# ⚠️ 教学声明：此配置文件主要用于学习环境，生产环境请根据实际需求调整
+
+# 节点配置
+node.name: {{ ansible_hostname }}
+
+# 路径配置
+path.data: {{ logstash_data_dir }}
+path.logs: {{ logstash_log_dir }}
+path.config: {{ logstash_config_dir }}/conf.d
+
+# 管道配置
+pipeline.id: main
+pipeline.workers: {{ logstash_pipeline_workers }}
+pipeline.batch.size: {{ logstash_pipeline_batch_size }}
+pipeline.batch.delay: {{ logstash_pipeline_batch_delay }}
+pipeline.unsafe_shutdown: false
+
+# 队列配置
+queue.type: persisted
+queue.max_events: 0
+queue.max_bytes: 1024mb
+queue.checkpoint.writes: 1024
+
+# 日志配置
+log.level: info
+log.format: plain
+
+# HTTP 端点配置
+http.host: "127.0.0.1"
+http.port: 9600
+
+# 监控配置
+xpack.monitoring.enabled: true
+xpack.monitoring.elasticsearch.hosts: ["http://localhost:{{ elasticsearch_http_port }}"]
+xpack.monitoring.collection.interval: 30s
+
+# 管道执行设置
+pipeline.plugin_classloaders: false
+pipeline.reloadable: true
+pipeline.reload.automatic: false
+pipeline.reload.interval: 10s
+
+# 死信队列配置
+dead_letter_queue.enable: false
+dead_letter_queue.max_bytes: 1024mb
+
+# 性能配置
+pipeline.output.flush: 5
+pipeline.batch.delay: 50
+
+# Java 执行路径
+path.java: /usr/bin/java
+
+# 管道工作线程数
+pipeline.workers: {{ logstash_pipeline_workers }}
+
+# 批处理大小
+pipeline.batch.size: {{ logstash_pipeline_batch_size }}
+
+# 批处理延迟
+pipeline.batch.delay: {{ logstash_pipeline_batch_delay }}
+
+# 管道插件类加载器
+pipeline.plugin_classloaders: false
+
+# 管道可重载
+pipeline.reloadable: true
+
+# 自动重载
+pipeline.reload.automatic: false
+
+# 重载间隔
+pipeline.reload.interval: 10s
+
+# 队列类型
+queue.type: persisted
+
+# 队列最大事件数
+queue.max_events: 0
+
+# 队列最大字节数
+queue.max_bytes: 1024mb
+
+# 检查点写入
+queue.checkpoint.writes: 1024
+
+# 监控设置
+xpack.monitoring.enabled: true
+xpack.monitoring.elasticsearch.hosts: ["http://localhost:{{ elasticsearch_http_port }}"]
+xpack.monitoring.collection.interval: 30s
+
+# 错误处理
+pipeline.unsafe_shutdown: false
+
+# 日志级别和格式
+log.level: info
+log.format: plain
+
+# HTTP API 配置
+http.host: "127.0.0.1"
+http.port: 9600
+
+# 死信队列
+dead_letter_queue.enable: false
+dead_letter_queue.max_bytes: 1024mb
+
+# 管道输出刷新
+pipeline.output.flush: 5
+
+# 环境变量
+LS_JAVA_OPTS: "-Xmx1g -Xms1g"

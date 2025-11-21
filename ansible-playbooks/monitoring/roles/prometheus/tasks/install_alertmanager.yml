@@ -1,0 +1,106 @@
+---
+# AlertManager 安装任务
+# ⚠️ 教学声明：此任务主要用于学习 AlertManager 部署
+
+- name: 创建 AlertManager 用户
+  ansible.builtin.user:
+    name: "alertmanager"
+    shell: /bin/false
+    system: yes
+    create_home: no
+    state: present
+  tags: [alertmanager, user]
+
+- name: 创建 AlertManager 目录
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: alertmanager
+    group: alertmanager
+    mode: '0755'
+  loop:
+    - "/opt/alertmanager"
+    - "/etc/alertmanager"
+    - "/var/lib/alertmanager"
+  tags: [alertmanager, directories]
+
+- name: 下载 AlertManager 二进制文件
+  ansible.builtin.get_url:
+    url: "https://github.com/prometheus/alertmanager/releases/download/v{{ prometheus_version }}/alertmanager-{{ prometheus_version }}.linux-amd64.tar.gz"
+    dest: "/tmp/alertmanager-{{ prometheus_version }}.linux-amd64.tar.gz"
+    mode: '0644'
+  tags: [alertmanager, download]
+
+- name: 解压 AlertManager 二进制文件
+  ansible.builtin.unarchive:
+    src: "/tmp/alertmanager-{{ prometheus_version }}.linux-amd64.tar.gz"
+    dest: "/tmp"
+    remote_src: yes
+    creates: "/tmp/alertmanager-{{ prometheus_version }}.linux-amd64/alertmanager"
+  tags: [alertmanager, install]
+
+- name: 复制 AlertManager 二进制文件
+  ansible.builtin.copy:
+    src: "/tmp/alertmanager-{{ prometheus_version }}.linux-amd64/{{ item }}"
+    dest: "/opt/alertmanager/{{ item }}"
+    remote_src: yes
+    owner: alertmanager
+    group: alertmanager
+    mode: '0755'
+  loop:
+    - alertmanager
+    - amtool
+  tags: [alertmanager, install]
+
+- name: 部署 AlertManager 配置文件
+  ansible.builtin.template:
+    src: alertmanager.yml.j2
+    dest: "/etc/alertmanager/alertmanager.yml"
+    owner: alertmanager
+    group: alertmanager
+    mode: '0644'
+    backup: yes
+    validate: "/opt/alertmanager/amtool config check %s"
+  notify: 重启 AlertManager 服务
+  tags: [alertmanager, config]
+
+- name: 创建 AlertManager systemd 服务文件
+  ansible.builtin.template:
+    src: alertmanager.service.j2
+    dest: /etc/systemd/system/alertmanager.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: 重新加载 systemd 守护进程
+  tags: [alertmanager, service]
+
+- name: 启动并启用 AlertManager 服务
+  ansible.builtin.service:
+    name: alertmanager
+    state: started
+    enabled: yes
+  tags: [alertmanager, service]
+
+- name: 等待 AlertManager 服务就绪
+  ansible.builtin.wait_for:
+    port: "{{ alertmanager_web_port }}"
+    delay: 3
+    timeout: 30
+    state: started
+  tags: [alertmanager, verify]
+
+- name: 验证 AlertManager 健康状态
+  ansible.builtin.uri:
+    url: "http://localhost:{{ alertmanager_web_port }}/-/healthy"
+    method: GET
+    status_code: 200
+  register: alertmanager_health
+  retries: 3
+  delay: 3
+  tags: [alertmanager, verify]
+
+- name: 清理 AlertManager 临时文件
+  ansible.builtin.file:
+    path: "/tmp/alertmanager-{{ prometheus_version }}.linux-amd64.tar.gz"
+    state: absent
+  tags: [alertmanager, cleanup]

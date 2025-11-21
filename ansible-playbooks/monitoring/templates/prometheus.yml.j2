@@ -1,0 +1,152 @@
+# Prometheus 配置文件
+# ⚠️ 教学声明：此配置文件主要用于学习环境，生产环境请根据实际需求调整
+
+global:
+  scrape_interval: {{ prometheus_scrape_interval | default('15s') }}
+  evaluation_interval: {{ prometheus_evaluation_interval | default('15s') }}
+  external_labels:
+    cluster: '{{ prometheus_cluster_name | default("prometheus-cluster") }}'
+    replica: '{{ prometheus_replica_name | default("replica-1") }}'
+
+# 告警规则文件
+rule_files:
+  - "{{ prometheus_config_dir }}/rules/*.yml"
+
+# 告警管理器配置
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - 'localhost:{{ alertmanager_web_port }}'
+{% if prometheus_enable_auth %}
+      basic_auth:
+        username: '{{ monitoring_admin_user }}'
+        password: '{{ monitoring_admin_password }}'
+{% endif %}
+{% if prometheus_enable_tls %}
+      scheme: https
+      tls_config:
+        ca_file: '{{ monitoring_ssl_cert_path }}'
+        cert_file: '{{ monitoring_ssl_cert_path }}'
+        key_file: '{{ monitoring_ssl_key_path }}'
+        insecure_skip_verify: false
+{% endif %}
+
+# 远程写入配置（可选）
+{% if prometheus_enable_remote_write %}
+remote_write:
+  - url: "http://remote-storage:9201/api/v1/write"
+    queue_config:
+      max_samples_per_send: 1000
+      max_shards: 200
+      capacity: 2500
+{% endif %}
+
+# 远程读取配置（可选）
+{% if prometheus_enable_remote_read %}
+remote_read:
+  - url: "http://remote-storage:9201/api/v1/read"
+    read_recent: true
+{% endif %}
+
+# 监控目标配置
+scrape_configs:
+  # Prometheus 自身监控
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:{{ prometheus_port }}']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    scheme: http
+
+  # Node Exporter 系统指标
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['localhost:{{ node_exporter_port }}']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    scheme: http
+
+  # AlertManager 监控
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['localhost:{{ alertmanager_web_port }}']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    scheme: http
+
+  # Blackbox Exporter 探测
+  - job_name: 'blackbox-http'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - http://localhost
+        - https://www.google.com
+        - https://www.github.com
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: localhost:{{ blackbox_exporter_port }}
+
+  # Blackbox ICMP 探测
+  - job_name: 'blackbox-icmp'
+    metrics_path: /probe
+    params:
+      module: [icmp]
+    static_configs:
+      - targets:
+        - 8.8.8.8
+        - 1.1.1.1
+        - localhost
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: localhost:{{ blackbox_exporter_port }}
+
+  # Blackbox TCP 端口探测
+  - job_name: 'blackbox-tcp'
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    static_configs:
+      - targets:
+        - localhost:22
+        - localhost:80
+        - localhost:443
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: localhost:{{ blackbox_exporter_port }}
+
+# 用户自定义监控目标
+{% for target in prometheus_targets %}
+  - job_name: '{{ target.job_name }}'
+    scrape_interval: {{ target.scrape_interval | default('15s') }}
+    metrics_path: {{ target.metrics_path | default('/metrics') }}
+    scheme: {{ target.scheme | default('http') }}
+    static_configs:
+      {{ target.static_configs | to_nice_yaml | indent(6) }}
+{% if target.relabel_configs is defined %}
+    relabel_configs:
+      {{ target.relabel_configs | to_nice_yaml | indent(6) }}
+{% endif %}
+{% endfor %}
+
+# 存储配置
+storage:
+  tsdb:
+    path: {{ prometheus_data_dir }}
+    retention.time: {{ prometheus_storage_tsdb_retention_time | default('30d') }}
+    retention.size: {{ prometheus_storage_tsdb_retention_size | default('10GB') }}
+    wal-compression: true

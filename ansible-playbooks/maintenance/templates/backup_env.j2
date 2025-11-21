@@ -1,0 +1,102 @@
+# 备份环境变量配置
+# ⚠️ 教学声明：此配置文件主要用于学习环境，生产环境请根据实际需求调整
+
+# 通用备份环境变量
+export BACKUP_ENABLED="{{ backup_enabled }}"
+export BACKUP_BASE_DIR="{{ backup_base_dir }}"
+export BACKUP_LOG_DIR="{{ backup_log_dir }}"
+export BACKUP_USER="{{ backup_user }}"
+export BACKUP_GROUP="{{ backup_group }}"
+export BACKUP_RETENTION_DAYS="{{ backup_retention_days }}"
+export BACKUP_COMPRESSION="{{ backup_compression }}"
+export BACKUP_ENCRYPTION="{{ backup_encryption }}"
+export BACKUP_ENCRYPTION_KEY="{{ backup_encryption_key }}"
+
+# 文件系统备份环境变量
+export FILESYSTEM_BACKUP_ENABLED="{{ filesystem_backup_enabled }}"
+export FILESYSTEM_BACKUP_METHOD="{{ filesystem_backup_method }}"
+export FILESYSTEM_BACKUP_SCHEDULE="{{ filesystem_backup_schedule }}"
+export FILESYSTEM_BACKUP_FULL_DAYS="{{ filesystem_backup_full_days }}"
+export FILESYSTEM_BACKUP_INCREMENTAL="{{ filesystem_backup_incremental }}"
+export FILESYSTEM_BACKUP_COMPRESSION_LEVEL="{{ filesystem_backup_compression_level }}"
+export FILESYSTEM_BACKUP_BANDWIDTH_LIMIT="{{ filesystem_backup_bandwidth_limit }}"
+
+# 数据库备份环境变量
+export DATABASE_BACKUP_ENABLED="{{ database_backup_enabled }}"
+export DATABASE_BACKUP_SCHEDULE="{{ database_backup_schedule }}"
+export DATABASE_BACKUP_FULL_DAYS="{{ database_backup_full_days }}"
+export DATABASE_BACKUP_COMPRESSION_LEVEL="{{ database_backup_compression_level }}"
+export DATABASE_BACKUP_PARALLEL_JOBS="{{ database_backup_parallel_jobs }}"
+
+# 云同步环境变量
+export CLOUD_SYNC_ENABLED="{{ cloud_sync_enabled }}"
+export CLOUD_SYNC_SCHEDULE="{{ cloud_sync_schedule }}"
+export CLOUD_SYNC_BANDWIDTH_LIMIT="{{ cloud_sync_bandwidth_limit }}"
+export CLOUD_SYNC_RETRY_COUNT="{{ cloud_sync_retry_count }}"
+export CLOUD_SYNC_RETRY_DELAY="{{ cloud_sync_retry_delay }}"
+
+# 备份验证环境变量
+export BACKUP_VERIFICATION_ENABLED="{{ backup_verification_enabled }}"
+export BACKUP_VERIFICATION_METHODS="{{ backup_verification_methods | to_nice_json | replace('\n', '') | replace('"', '\"') }}"
+
+# 备份通知环境变量
+export BACKUP_NOTIFICATION_ENABLED="{{ backup_notification_enabled }}"
+export BACKUP_NOTIFICATION_METHODS="{{ backup_notification_methods | to_nice_json | replace('\n', '') | replace('"', '\"') }}"
+
+# 备份监控环境变量
+export BACKUP_MONITORING_ENABLED="{{ backup_monitoring_enabled }}"
+export BACKUP_MONITORING_METRICS="{{ backup_monitoring_metrics | to_nice_json | replace('\n', '') | replace('"', '\"') }}"
+
+# 性能优化环境变量
+export BACKUP_IO_NICE_LEVEL="{{ backup_performance.io_nice_level }}"
+export BACKUP_CPU_NICE_LEVEL="{{ backup_performance.cpu_nice_level }}"
+export BACKUP_PARALLEL_PROCESSES="{{ backup_performance.parallel_processes }}"
+export BACKUP_MEMORY_LIMIT="{{ backup_performance.memory_limit }}"
+export BACKUP_DISK_SPACE_THRESHOLD="{{ backup_performance.disk_space_threshold }}"
+
+# 安全配置环境变量
+export BACKUP_SECURITY_ENCRYPT_BACKUPS="{{ backup_security.encrypt_backups }}"
+export BACKUP_SECURITY_ENCRYPTION_ALGORITHM="{{ backup_security.encryption_algorithm }}"
+export BACKUP_SECURITY_SECURE_DELETE="{{ backup_security.secure_delete }}"
+export BACKUP_SECURITY_PERMISSION_MODE="{{ backup_security.permission_mode }}"
+export BACKUP_SECURITY_DIRECTORY_MODE="{{ backup_security.directory_mode }}"
+export BACKUP_SECURITY_CHECKSUM_VERIFICATION="{{ backup_security.checksum_verification }}"
+
+# 日志配置环境变量
+export BACKUP_LOGGING_LEVEL="{{ backup_logging.level }}"
+export BACKUP_LOGGING_FORMAT="{{ backup_logging.format }}"
+export BACKUP_LOGGING_ROTATION="{{ backup_logging.rotation }}"
+export BACKUP_LOGGING_RETENTION="{{ backup_logging.retention }}"
+export BACKUP_LOGGING_COMPRESS="{{ backup_logging.compress }}"
+
+# 环境变量
+{% for key, value in backup_environment.items() %}
+export {{ key }}="{{ value }}"
+{% endfor %}
+
+# 时区设置
+export TZ="{{ backup_environment.TZ | default('Asia/Shanghai') }}"
+export LANG="{{ backup_environment.LANG | default('en_US.UTF-8') }}"
+export LC_ALL="{{ backup_environment.LC_ALL | default('en_US.UTF-8') }}"
+
+# 路径设置
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin"
+export LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
+
+# 备份脚本路径
+export BACKUP_SCRIPTS_DIR="{{ backup_base_dir }}/scripts"
+export BACKUP_CONFIG_DIR="{{ backup_base_dir }}/config"
+
+# 云服务配置
+{% if cloud_sync_providers | selectattr('provider', 'equalto', 'aws_s3') | selectattr('enabled', 'equalto', true) | list | length > 0 %}
+export AWS_DEFAULT_REGION="{{ cloud_sync_providers | selectattr('provider', 'equalto', 'aws_s3') | selectattr('enabled', 'equalto', true) | map(attribute='region') | first | default('us-east-1') }}"
+{% endif %}
+
+# 数据库配置
+{% for engine in database_backup_engines %}
+{% if engine.enabled %}
+export DB_{{ engine.engine | upper }}_HOST="{{ engine.host }}"
+export DB_{{ engine.engine | upper }}_PORT="{{ engine.port }}"
+export DB_{{ engine.engine | upper }}_USERNAME="{{ engine.username }}"
+{% endif %}
+{% endfor %}

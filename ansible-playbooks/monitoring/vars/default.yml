@@ -1,0 +1,241 @@
+---
+# 监控系统变量配置
+# ⚠️ 重要提示：这些变量为示例配置，请在生产环境使用前根据实际情况调整
+
+# Prometheus 配置
+prometheus_enabled: true
+prometheus_version: "2.45.0"
+prometheus_user: "prometheus"
+prometheus_group: "prometheus"
+prometheus_home: "/opt/prometheus"
+prometheus_config_dir: "/etc/prometheus"
+prometheus_data_dir: "/var/lib/prometheus"
+prometheus_log_dir: "/var/log/prometheus"
+prometheus_port: "9090"
+prometheus_retention: "30d"
+prometheus_storage_tsdb_retention_time: "30d"
+prometheus_storage_tsdb_retention_size: "10GB"
+
+# Prometheus 功能开关
+prometheus_enable_tls: false
+prometheus_enable_auth: false
+prometheus_enable_remote_write: false
+prometheus_enable_remote_read: false
+
+# AlertManager 配置
+alertmanager_enabled: true
+alertmanager_port: "9093"
+alertmanager_web_port: "9093"
+alertmanager_cluster_port: "9094"
+alertmanager_config_file: "{{ prometheus_config_dir }}/alertmanager.yml"
+
+# Node Exporter 配置
+node_exporter_enabled: true
+node_exporter_port: "9100"
+node_exporter_version: "1.6.0"
+
+# Blackbox Exporter 配置
+blackbox_exporter_enabled: true
+blackbox_exporter_port: "9115"
+blackbox_exporter_version: "0.24.0"
+
+# 监控目标配置
+prometheus_scrape_interval: "15s"
+prometheus_evaluation_interval: "15s"
+
+# 静态监控目标
+prometheus_targets:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 30s
+    metrics_path: /metrics
+  
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['localhost:9100']
+    scrape_interval: 15s
+    metrics_path: /metrics
+  
+  - job_name: 'blackbox-exporter'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - http://localhost
+        - https://www.google.com
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: localhost:9115
+
+# 告警规则
+prometheus_alert_rules:
+  - name: node_alerts.yml
+    rules:
+      - alert: InstanceDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Instance {{ $labels.instance }} is down"
+          description: "Instance {{ $labels.instance }} has been down for more than 5 minutes"
+      
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is above 80% for more than 10 minutes"
+      
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is above 85% for more than 10 minutes"
+      
+      - alert: DiskSpaceLow
+        expr: (1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Disk usage is above 90% on filesystem {{ $labels.mountpoint }}"
+
+# ELK 栈配置
+elk_enabled: true
+elasticsearch_version: "8.8.0"
+logstash_version: "8.8.0"
+kibana_version: "8.8.0"
+filebeat_version: "8.8.0"
+
+# Elasticsearch 配置
+elasticsearch_enabled: true
+elasticsearch_user: "elasticsearch"
+elasticsearch_group: "elasticsearch"
+elasticsearch_home: "/usr/share/elasticsearch"
+elasticsearch_config_dir: "/etc/elasticsearch"
+elasticsearch_data_dir: "/var/lib/elasticsearch"
+elasticsearch_log_dir: "/var/log/elasticsearch"
+elasticsearch_port: "9200"
+elasticsearch_cluster_name: "elk-cluster"
+elasticsearch_node_name: "node-1"
+elasticsearch_network_host: "0.0.0.0"
+elasticsearch_http_port: 9200
+elasticsearch_discovery_type: "single-node"
+
+# Elasticsearch 内存配置
+elasticsearch_heap_size: "1g"
+elasticsearch_bootstrap_memory_lock: true
+
+# Logstash 配置
+logstash_enabled: true
+logstash_user: "logstash"
+logstash_group: "logstash"
+logstash_home: "/usr/share/logstash"
+logstash_config_dir: "/etc/logstash"
+logstash_data_dir: "/var/lib/logstash"
+logstash_log_dir: "/var/log/logstash"
+logstash_port: "5044"
+logstash_pipeline_workers: 2
+logstash_pipeline_batch_size: 125
+logstash_pipeline_batch_delay: 50
+
+# Kibana 配置
+kibana_enabled: true
+kibana_user: "kibana"
+kibana_group: "kibana"
+kibana_home: "/usr/share/kibana"
+kibana_config_dir: "/etc/kibana"
+kibana_log_dir: "/var/log/kibana"
+kibana_port: "5601"
+kibana_host: "0.0.0.0"
+kibana_elasticsearch_hosts: ["http://localhost:9200"]
+
+# Filebeat 配置
+filebeat_enabled: true
+filebeat_user: "root"
+filebeat_config_dir: "/etc/filebeat"
+filebeat_data_dir: "/var/lib/filebeat"
+filebeat_log_dir: "/var/log/filebeat"
+filebeat_output_elasticsearch_hosts: ["localhost:9200"]
+filebeat_output_logstash_hosts: ["localhost:5044"]
+
+# 日志收集配置
+filebeat_inputs:
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/*.log
+      - /var/log/syslog
+      - /var/log/auth.log
+    fields:
+      logtype: syslog
+    fields_under_root: true
+    multiline.pattern: '^\['
+    multiline.negate: true
+    multiline.match: after
+  
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/nginx/*.log
+    fields:
+      logtype: nginx
+    fields_under_root: true
+  
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/mysql/*.log
+    fields:
+      logtype: mysql
+    fields_under_root: true
+
+# 通用监控配置
+monitoring_firewall_enabled: true
+monitoring_backup_enabled: false
+monitoring_ssl_enabled: false
+monitoring_ssl_cert_path: "/etc/ssl/certs/monitoring.crt"
+monitoring_ssl_key_path: "/etc/ssl/private/monitoring.key"
+
+# 性能调优配置
+monitoring_ulimit_nofile: 65536
+monitoring_max_map_count: 262144
+
+# 安全配置
+monitoring_enable_auth: false
+monitoring_admin_user: "admin"
+monitoring_admin_password: "change_me_secure_password"
+monitoring_enable_tls: false
+
+# ⚠️ 安全提示：
+# 1. 生产环境请修改所有默认密码
+# 2. 启用 TLS 加密保护通信安全
+# 3. 配置适当的访问控制和认证
+# 4. 定期备份监控数据和配置
+# 5. 监控系统本身的资源使用情况
+# 6. 配置告警通知渠道（邮件、Slack、钉钉等）
+vault_monitoring_passwords: {}
+
+# Docker 部署选项
+monitoring_docker_deploy: false
+prometheus_docker_image: "prom/prometheus:v{{ prometheus_version }}"
+alertmanager_docker_image: "prom/alertmanager:v{{ prometheus_version }}"
+node_exporter_docker_image: "prom/node-exporter:v{{ node_exporter_version }}"
+blackbox_exporter_docker_image: "prom/blackbox-exporter:v{{ blackbox_exporter_version }}"
+elasticsearch_docker_image: "elasticsearch:{{ elasticsearch_version }}"
+logstash_docker_image: "logstash:{{ logstash_version }}"
+kibana_docker_image: "kibana:{{ kibana_version }}"
+filebeat_docker_image: "elastic/filebeat:{{ filebeat_version }}"

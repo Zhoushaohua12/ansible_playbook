@@ -1,0 +1,235 @@
+---
+# ⚠️ 教学声明：本 playbook 主要用于学习 Prometheus 监控系统部署，请在测试环境验证后再应用于生产。
+- name: Prometheus 监控系统安装配置
+  hosts: prometheus_servers
+  gather_facts: true
+  become: yes
+  vars_files:
+    - vars/default.yml
+
+  handlers:
+    - name: 重启 Prometheus 服务
+      ansible.builtin.service:
+        name: prometheus
+        state: restarted
+
+    - name: 重新加载 Prometheus 配置
+      ansible.builtin.uri:
+        url: "http://localhost:{{ prometheus_port }}/-/reload"
+        method: POST
+        status_code: 200
+      when: prometheus_enabled
+
+    - name: 重启 AlertManager 服务
+      ansible.builtin.service:
+        name: alertmanager
+        state: restarted
+
+    - name: 重新加载 systemd 守护进程
+      ansible.builtin.systemd:
+        daemon_reload: yes
+
+  tasks:
+    - name: 更新 APT 包缓存
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+      tags: [prometheus, packages]
+
+    - name: 安装 Prometheus 依赖包
+      ansible.builtin.package:
+        name:
+          - wget
+          - curl
+          - tar
+          - gzip
+          - unzip
+          - python3
+          - python3-pip
+        state: present
+      tags: [prometheus, packages]
+
+    - name: 创建 Prometheus 系统用户
+      ansible.builtin.user:
+        name: "{{ prometheus_user }}"
+        group: "{{ prometheus_group }}"
+        shell: /bin/false
+        system: yes
+        create_home: no
+        state: present
+      tags: [prometheus, user]
+
+    - name: 创建 Prometheus 目录结构
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ prometheus_user }}"
+        group: "{{ prometheus_group }}"
+        mode: '0755'
+      loop:
+        - "{{ prometheus_home }}"
+        - "{{ prometheus_config_dir }}"
+        - "{{ prometheus_data_dir }}"
+        - "{{ prometheus_log_dir }}"
+      tags: [prometheus, directories]
+
+    - name: 下载 Prometheus 二进制文件
+      ansible.builtin.get_url:
+        url: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+        dest: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+        mode: '0644'
+      register: prometheus_download
+      tags: [prometheus, download]
+
+    - name: 解压 Prometheus 二进制文件
+      ansible.builtin.unarchive:
+        src: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+        dest: "/tmp"
+        remote_src: yes
+        creates: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64/prometheus"
+      tags: [prometheus, install]
+
+    - name: 复制 Prometheus 二进制文件
+      ansible.builtin.copy:
+        src: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }}"
+        dest: "{{ prometheus_home }}/{{ item }}"
+        remote_src: yes
+        owner: "{{ prometheus_user }}"
+        group: "{{ prometheus_group }}"
+        mode: '0755'
+      loop:
+        - prometheus
+        - promtool
+      tags: [prometheus, install]
+
+    - name: 复制 Prometheus 配置模板
+      ansible.builtin.copy:
+        src: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }}"
+        dest: "{{ prometheus_config_dir }}/{{ item }}"
+        remote_src: yes
+        owner: "{{ prometheus_user }}"
+        group: "{{ prometheus_group }}"
+        mode: '0644'
+      loop:
+        - consoles
+        - console_libraries
+      tags: [prometheus, config]
+
+    - name: 部署 Prometheus 主配置文件
+      ansible.builtin.template:
+        src: templates/prometheus.yml.j2
+        dest: "{{ prometheus_config_dir }}/prometheus.yml"
+        owner: "{{ prometheus_user }}"
+        group: "{{ prometheus_group }}"
+        mode: '0644'
+        backup: yes
+        validate: "{{ prometheus_home }}/promtool check config %s"
+      notify: 重新加载 Prometheus 配置
+      tags: [prometheus, config]
+
+    - name: 创建告警规则目录
+      ansible.builtin.file:
+        path: "{{ prometheus_config_dir }}/rules"
+        state: directory
+        owner: "{{ prometheus_user }}"
+        group: "{{ prometheus_group }}"
+        mode: '0755'
+      tags: [prometheus, config]
+
+    - name: 部署告警规则文件
+      ansible.builtin.template:
+        src: templates/alert_rules.yml.j2
+        dest: "{{ prometheus_config_dir }}/rules/{{ item.name }}"
+        owner: "{{ prometheus_user }}"
+        group: "{{ prometheus_group }}"
+        mode: '0644'
+        validate: "{{ prometheus_home }}/promtool check rules %s"
+      loop: "{{ prometheus_alert_rules }}"
+      notify: 重新加载 Prometheus 配置
+      tags: [prometheus, config]
+
+    - name: 创建 Prometheus systemd 服务文件
+      ansible.builtin.template:
+        src: templates/prometheus.service.j2
+        dest: /etc/systemd/system/prometheus.service
+        owner: root
+        group: root
+        mode: '0644'
+      notify: 重新加载 systemd 守护进程
+      tags: [prometheus, service]
+
+    - name: 启动并启用 Prometheus 服务
+      ansible.builtin.service:
+        name: prometheus
+        state: started
+        enabled: yes
+      tags: [prometheus, service]
+
+    - name: 等待 Prometheus 服务就绪
+      ansible.builtin.wait_for:
+        port: "{{ prometheus_port }}"
+        delay: 5
+        timeout: 60
+        state: started
+      tags: [prometheus, verify]
+
+    - name: 安装 Node Exporter
+      include_tasks: roles/prometheus/tasks/install_node_exporter.yml
+      when: node_exporter_enabled
+      tags: [prometheus, node_exporter]
+
+    - name: 安装 Blackbox Exporter
+      include_tasks: roles/prometheus/tasks/install_blackbox_exporter.yml
+      when: blackbox_exporter_enabled
+      tags: [prometheus, blackbox_exporter]
+
+    - name: 安装 AlertManager
+      include_tasks: roles/prometheus/tasks/install_alertmanager.yml
+      when: alertmanager_enabled
+      tags: [prometheus, alertmanager]
+
+    - name: 验证 Prometheus 目标状态
+      ansible.builtin.uri:
+        url: "http://localhost:{{ prometheus_port }}/api/v1/targets"
+        method: GET
+        return_content: yes
+      register: prometheus_targets
+      retries: "{{ app_retry_count | default(3) }}"
+      delay: "{{ app_retry_delay | default(5) }}"
+      tags: [prometheus, verify]
+
+    - name: 验证 Prometheus 健康状态
+      ansible.builtin.uri:
+        url: "http://localhost:{{ prometheus_port }}/-/healthy"
+        method: GET
+        status_code: 200
+      register: prometheus_health
+      retries: "{{ app_retry_count | default(3) }}"
+      delay: "{{ app_retry_delay | default(5) }}"
+      tags: [prometheus, verify]
+
+    - name: 配置防火墙规则（开放 Prometheus 端口）
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - "{{ prometheus_port }}"
+        - "{{ alertmanager_port }}"
+      when: monitoring_firewall_enabled and ansible_os_family == "Debian"
+      tags: [prometheus, firewall]
+
+    - name: 输出 Prometheus 安装信息
+      ansible.builtin.debug:
+        msg:
+          - "Prometheus 监控系统安装完成！"
+          - "版本: {{ prometheus_version }}"
+          - "Web 界面: http://localhost:{{ prometheus_port }}"
+          - "配置文件: {{ prometheus_config_dir }}/prometheus.yml"
+          - "数据目录: {{ prometheus_data_dir }}"
+          - "日志目录: {{ prometheus_log_dir }}"
+          - "告警管理: http://localhost:{{ alertmanager_port }}"
+          - "Node Exporter: http://localhost:{{ node_exporter_port }}/metrics"
+          - "Blackbox Exporter: http://localhost:{{ blackbox_exporter_port }}"
+      tags: [prometheus, info]

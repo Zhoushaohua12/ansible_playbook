@@ -1,0 +1,54 @@
+[Unit]
+Description=Blackbox Exporter
+Documentation=https://github.com/prometheus/blackbox_exporter
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+# ⚠️ 教学声明：此服务文件主要用于学习环境，生产环境请根据实际需求调整
+
+# 用户和组
+User=blackbox_exporter
+Group=blackbox_exporter
+
+# 工作目录
+WorkingDirectory=/opt/blackbox_exporter
+
+# 启动命令
+ExecStart=/opt/blackbox_exporter/blackbox_exporter \
+  --config.file=/opt/blackbox_exporter/blackbox.yml \
+  --web.listen-address=0.0.0.0:{{ blackbox_exporter_port }}
+
+# 重启策略
+Restart=always
+RestartSec=5
+
+# 超时设置
+TimeoutStartSec=30
+TimeoutStopSec=15
+
+# 进程管理
+KillMode=control-group
+KillSignal=SIGTERM
+SendSIGKILL=no
+
+# 安全设置
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+# 资源限制
+LimitNOFILE=65536
+LimitNPROC=32768
+
+# 环境变量
+Environment=HOME=/opt/blackbox_exporter
+
+# 日志设置
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=blackbox_exporter
+
+[Install]
+WantedBy=multi-user.target

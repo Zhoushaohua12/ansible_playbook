@@ -1,0 +1,71 @@
+---
+# Prometheus 角色主任务文件
+# ⚠️ 教学声明：此角色主要用于学习 Prometheus 部署，请在测试环境验证后再应用于生产。
+
+- name: 创建 Prometheus 用户
+  ansible.builtin.user:
+    name: "{{ prometheus_user }}"
+    group: "{{ prometheus_group }}"
+    shell: /bin/false
+    system: yes
+    create_home: no
+    state: present
+  tags: [prometheus, user]
+
+- name: 创建 Prometheus 目录结构
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_group }}"
+    mode: '0755'
+  loop:
+    - "{{ prometheus_home }}"
+    - "{{ prometheus_config_dir }}"
+    - "{{ prometheus_data_dir }}"
+    - "{{ prometheus_log_dir }}"
+  tags: [prometheus, directories]
+
+- name: 下载 Prometheus 二进制文件
+  ansible.builtin.get_url:
+    url: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+    dest: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+    mode: '0644'
+  register: prometheus_download
+  tags: [prometheus, download]
+
+- name: 解压 Prometheus 二进制文件
+  ansible.builtin.unarchive:
+    src: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+    dest: "/tmp"
+    remote_src: yes
+    creates: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64/prometheus"
+  tags: [prometheus, install]
+
+- name: 复制 Prometheus 二进制文件
+  ansible.builtin.copy:
+    src: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }}"
+    dest: "{{ prometheus_home }}/{{ item }}"
+    remote_src: yes
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_group }}"
+    mode: '0755'
+  loop:
+    - prometheus
+    - promtool
+  tags: [prometheus, install]
+
+- name: 设置文件权限
+  ansible.builtin.file:
+    path: "{{ prometheus_home }}/{{ item }}"
+    mode: '0755'
+  loop:
+    - prometheus
+    - promtool
+  tags: [prometheus, permissions]
+
+- name: 清理临时文件
+  ansible.builtin.file:
+    path: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+    state: absent
+  tags: [prometheus, cleanup]
