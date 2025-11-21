@@ -1,0 +1,18 @@
+# 教学说明：此 systemd 服务文件用于源码安装的 Nginx，自主控制启动参数
+[Unit]
+Description=Nginx HTTP and reverse proxy server (Source Build)
+After=network.target remote-fs.target nss-lookup.target
+
+[Service]
+Type=forking
+PIDFile={{ nginx_pid_file }}
+ExecStartPre=/usr/local/nginx/sbin/nginx -t -q -g "daemon on; master_process on;"
+ExecStart=/usr/local/nginx/sbin/nginx -g "daemon on; master_process on;"
+ExecReload=/usr/local/nginx/sbin/nginx -s reload
+ExecStop=/usr/local/nginx/sbin/nginx -s quit
+User={{ nginx_user }}
+Group={{ nginx_group }}
+LimitNOFILE={{ nginx_worker_rlimit_nofile }}
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,71 @@
+# 反向代理配置：{{ item.name }}
+# ⚠️ 教学说明：此配置演示反向代理场景，含头部安全加固
+
+server {
+    listen {{ item.listen_port | default(80) }};
+    {% if item.listen_ipv6 | default(true) %}listen [::]:{{ item.listen_port | default(80) }};{% endif %}
+    server_name {{ item.server_name }};
+
+    access_log {{ item.access_log }};
+    error_log {{ item.error_log }};
+
+    {% if nginx_security_enabled | default(true) %}
+    # 安全头部（中文注释：防止点击劫持和内容嗅探）
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    {% endif %}
+
+    {% if nginx_rate_limit_enabled %}
+    # 限流保护（中文注释：防止恶意请求）
+    limit_req zone={{ nginx_rate_limit_zone_name }} burst={{ nginx_rate_limit_burst }} {% if nginx_rate_limit_nodelay %}nodelay{% endif %};
+    {% endif %}
+
+    location / {
+        proxy_pass {{ item.proxy_pass }};
+        
+        # 代理头部（中文注释：转发真实客户端信息）
+        {% if item.proxy_set_headers is defined %}
+        {% for header_name, header_value in item.proxy_set_headers.items() %}
+        proxy_set_header {{ header_name }} "{{ header_value }}";
+        {% endfor %}
+        {% else %}
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        {% endif %}
+
+        # 代理超时设置（中文注释：避免长时间挂起）
+        proxy_connect_timeout {{ item.proxy_connect_timeout | default(60) }}s;
+        proxy_send_timeout {{ item.proxy_send_timeout | default(60) }}s;
+        proxy_read_timeout {{ item.proxy_read_timeout | default(60) }}s;
+
+        # 代理缓冲（中文注释：优化大响应传输）
+        {% if item.proxy_buffering | default('on') == 'on' %}
+        proxy_buffering on;
+        proxy_buffer_size {{ item.proxy_buffer_size | default(nginx_proxy_buffer_size) }};
+        proxy_buffers {{ item.proxy_buffers | default('4 32k') }};
+        proxy_busy_buffers_size {{ nginx_proxy_busy_buffers_size }};
+        {% else %}
+        proxy_buffering off;
+        {% endif %}
+
+        {% if item.websocket_enabled | default(false) %}
+        # WebSocket 支持（中文注释：升级连接协议）
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        {% endif %}
+
+        {% if nginx_cache_enabled %}
+        # 反向代理缓存（中文注释：减少后端压力）
+        proxy_cache {{ nginx_cache_keys_zone_name }};
+        proxy_cache_valid 200 {{ nginx_cache_valid_200 }};
+        proxy_cache_valid 301 302 {{ nginx_cache_valid_301_302 }};
+        proxy_cache_valid 404 {{ nginx_cache_valid_404 }};
+        proxy_cache_bypass $http_cache_control;
+        add_header X-Cache-Status $upstream_cache_status;
+        {% endif %}
+    }
+}

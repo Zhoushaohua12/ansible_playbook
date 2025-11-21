@@ -1,0 +1,33 @@
+---
+# Nginx SSL 角色 - SSL 配置任务
+# 配置 SSL 参数和安全头部
+
+- name: 部署 SSL 配置片段
+  ansible.builtin.template:
+    src: templates/ssl.conf.j2
+    dest: "{{ nginx_conf_d_dir }}/ssl-params.conf"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: reload nginx
+  when: nginx_ssl_enabled | bool
+
+- name: 验证证书有效性
+  community.crypto.openssl_certificate_info:
+    path: "{{ nginx_ssl_certificate_dir }}/{{ item.name | default(item.server_name | regex_replace(' ', '_')) }}.crt"
+    valid_at:
+      point_1: "+1w"
+      point_2: "+30d"
+  loop: "{{ nginx_https_vhosts | default([]) }}"
+  register: cert_info
+  when:
+    - nginx_ssl_self_signed_enabled | bool
+    - item.ssl_certificate is not defined
+
+- name: 显示证书过期信息
+  ansible.builtin.debug:
+    msg: "证书 {{ item.item.server_name }} 将于 {{ item.not_after }} 过期"
+  loop: "{{ cert_info.results }}"
+  when:
+    - cert_info is defined
+    - not item.skipped | default(false)

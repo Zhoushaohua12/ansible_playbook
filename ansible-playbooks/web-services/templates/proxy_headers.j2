@@ -1,0 +1,11 @@
+# 代理头部安全加固配置（中文注释：保护后端服务免受常见攻击）
+proxy_set_header Host $host;
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto $scheme;
+proxy_set_header X-Forwarded-Host $host;
+proxy_set_header X-Forwarded-Port $server_port;
+
+# 移除可能泄露信息的头部（中文注释）
+proxy_hide_header X-Powered-By;
+proxy_hide_header Server;

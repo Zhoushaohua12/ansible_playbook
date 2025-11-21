@@ -1,0 +1,63 @@
+---
+# Nginx SSL 角色 - 证书生成任务
+# 使用 community.crypto collection 生成自签名证书（仅供测试环境）
+
+- name: 确保 SSL 目录存在
+  ansible.builtin.file:
+    path: "{{ nginx_ssl_certificate_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: 生成 Diffie-Hellman 参数文件
+  community.crypto.openssl_dhparam:
+    path: "{{ nginx_ssl_dhparam_file }}"
+    size: "{{ nginx_ssl_dhparam_size }}"
+  when: nginx_ssl_enabled | bool
+  notify: verify ssl certificates
+
+- name: 生成私钥
+  community.crypto.openssl_privatekey:
+    path: "{{ nginx_ssl_certificate_dir }}/{{ item.name | default(item.server_name | regex_replace(' ', '_')) }}.key"
+    size: 4096
+    type: RSA
+  loop: "{{ nginx_https_vhosts | default([]) }}"
+  when:
+    - nginx_ssl_self_signed_enabled | bool
+    - item.ssl_certificate_key is not defined
+
+- name: 生成证书签名请求 CSR
+  community.crypto.openssl_csr:
+    path: "{{ nginx_ssl_certificate_dir }}/{{ item.name | default('site') }}.csr"
+    privatekey_path: "{{ nginx_ssl_certificate_dir }}/{{ item.name | default(item.server_name | regex_replace(' ', '_')) }}.key"
+    common_name: "{{ item.server_name.split(' ') | first }}"
+    country_name: "{{ nginx_ssl_self_signed_country }}"
+    organization_name: "{{ nginx_ssl_self_signed_organization }}"
+    organizational_unit_name: "{{ nginx_ssl_self_signed_organizational_unit }}"
+    email_address: "{{ nginx_ssl_self_signed_email }}"
+  loop: "{{ nginx_https_vhosts | default([]) }}"
+  when:
+    - nginx_ssl_self_signed_enabled | bool
+    - item.ssl_certificate is not defined
+
+- name: 生成自签名证书
+  community.crypto.openssl_certificate:
+    path: "{{ nginx_ssl_certificate_dir }}/{{ item.name | default(item.server_name | regex_replace(' ', '_')) }}.crt"
+    privatekey_path: "{{ nginx_ssl_certificate_dir }}/{{ item.name | default(item.server_name | regex_replace(' ', '_')) }}.key"
+    csr_path: "{{ nginx_ssl_certificate_dir }}/{{ item.name | default('site') }}.csr"
+    provider: selfsigned
+    days: "{{ nginx_ssl_self_signed_days }}"
+  loop: "{{ nginx_https_vhosts | default([]) }}"
+  when:
+    - nginx_ssl_self_signed_enabled | bool
+    - item.ssl_certificate is not defined
+
+- name: 设置证书文件权限
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: root
+    group: root
+    mode: '0640'
+  loop: "{{ lookup('ansible.builtin.fileglob', nginx_ssl_certificate_dir + '/*') | split(',') if nginx_ssl_certificate_dir is defined else [] }}"
+  when: nginx_ssl_enabled | bool

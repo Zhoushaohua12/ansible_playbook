@@ -1,0 +1,59 @@
+# 负载均衡配置：{{ item.name }}
+# 中文注释：此模板展示如何通过变量控制负载均衡策略
+
+upstream {{ item.name }} {
+    {% if item.method == 'least_conn' %}least_conn;{% elif item.method == 'ip_hash' %}ip_hash;{% elif item.method == 'hash' %}hash $request_uri consistent;{% endif %}
+    {% for server in item.servers %}
+    server {{ server.address }} weight={{ server.weight | default(1) }} max_fails={{ server.max_fails | default(3) }} fail_timeout={{ server.fail_timeout | default(30) }}{% if server.backup | default(false) %} backup{% endif %};
+    {% endfor %}
+}
+
+server {
+    {% if item.ssl_enabled | default(false) %}
+    listen {{ item.listen_port | default(443) }} ssl http2;
+    {% else %}
+    listen {{ item.listen_port | default(80) }};
+    {% endif %}
+    server_name {{ item.server_name }};
+
+    access_log {{ item.access_log | default(nginx_log_dir + '/' + item.name + '_access.log') }};
+    error_log {{ item.error_log | default(nginx_log_dir + '/' + item.name + '_error.log') }};
+
+    {% if item.ssl_enabled | default(false) %}
+    ssl_certificate {{ item.ssl_certificate }};
+    ssl_certificate_key {{ item.ssl_certificate_key }};
+    include {{ nginx_conf_d_dir }}/ssl-params.conf;
+    {% endif %}
+
+    {% if item.hsts_enabled | default(false) %}
+    add_header Strict-Transport-Security "max-age={{ item.hsts_max_age | default(31536000) }}{% if item.hsts_include_subdomains | default(false) %}; includeSubDomains{% endif %}{% if item.hsts_preload | default(false) %}; preload{% endif %}" always;
+    {% endif %}
+
+    {% if nginx_rate_limit_enabled %}
+    limit_req zone={{ nginx_rate_limit_zone_name }} burst={{ nginx_rate_limit_burst }} {% if nginx_rate_limit_nodelay %}nodelay{% endif %};
+    {% endif %}
+
+    location / {
+        proxy_pass http://{{ item.name }};
+        include {{ nginx_conf_d_dir }}/proxy_headers.conf;
+        proxy_connect_timeout {{ item.health_check.timeout | default(60) }}s;
+        proxy_read_timeout {{ item.health_check.timeout | default(60) }}s;
+        proxy_send_timeout {{ item.health_check.timeout | default(60) }}s;
+        {% if nginx_cache_enabled %}
+        proxy_cache {{ nginx_cache_keys_zone_name }};
+        proxy_cache_valid 200 {{ nginx_cache_valid_200 }};
+        proxy_cache_valid 301 302 {{ nginx_cache_valid_301_302 }};
+        proxy_cache_valid 404 {{ nginx_cache_valid_404 }};
+        add_header X-Cache-Status $upstream_cache_status;
+        {% endif %}
+    }
+
+    {% if item.health_check.enabled | default(false) %}
+    location = /health-check {
+        proxy_pass http://{{ item.name }}{{ item.health_check.uri | default('/health') }};
+        access_log off;
+        allow {{ nginx_status_allowed_ips | join('; ') }};
+        deny all;
+    }
+    {% endif %}
+}

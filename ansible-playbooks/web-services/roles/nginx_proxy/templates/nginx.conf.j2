@@ -1,0 +1,71 @@
+# ⚠️ 教学警告：此 Nginx 主配置文件仅用于教学与演示，请按需调优参数
+user {{ nginx_user if ansible_os_family == 'RedHat' else nginx_user_debian }} {{ nginx_group if ansible_os_family == 'RedHat' else nginx_group_debian }};
+worker_processes {{ nginx_worker_processes }};
+worker_rlimit_nofile {{ nginx_worker_rlimit_nofile }};
+
+error_log {{ nginx_log_dir }}/error.log {{ nginx_error_log_level }};
+pid {{ nginx_pid_file }};
+
+events {
+    {% if nginx_use_epoll %}use epoll;   # 中文注释：高并发场景推荐使用 epoll 模型{% endif %}
+    worker_connections {{ nginx_worker_connections }};
+    multi_accept {{ nginx_multi_accept }};
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    access_log {{ nginx_log_dir }}/access.log {{ nginx_access_log_format }};
+    log_format {{ nginx_access_log_format }} '{{ nginx_access_log_format_definition }}';
+
+    sendfile        on;
+    tcp_nopush      on;
+    tcp_nodelay     on;
+    keepalive_timeout {{ nginx_keepalive_timeout }};
+    keepalive_requests {{ nginx_keepalive_requests }};
+    client_max_body_size {{ nginx_client_max_body_size }};
+    client_body_buffer_size {{ nginx_client_body_buffer_size }};
+    client_header_buffer_size {{ nginx_client_header_buffer_size }};
+    large_client_header_buffers {{ nginx_large_client_header_buffers }};
+    client_body_timeout {{ nginx_client_body_timeout }};
+    client_header_timeout {{ nginx_client_header_timeout }};
+    send_timeout {{ nginx_send_timeout }};
+    server_tokens {{ nginx_server_tokens }};  # 中文注释：隐藏版本信息降低攻击面
+
+    {% if nginx_rate_limit_enabled %}
+    limit_req_zone $binary_remote_addr zone={{ nginx_rate_limit_zone_name }}:{{ nginx_rate_limit_zone_size }} rate={{ nginx_rate_limit_rate }};
+    {% endif %}
+
+    {% if nginx_conn_limit_enabled %}
+    limit_conn_zone $binary_remote_addr zone={{ nginx_conn_limit_zone_name }}:{{ nginx_conn_limit_zone_size }};
+    {% endif %}
+
+    {% if nginx_cache_enabled %}
+    proxy_cache_path {{ nginx_cache_path }} levels=1:2 keys_zone={{ nginx_cache_keys_zone_name }}:{{ nginx_cache_keys_zone_size }} inactive={{ nginx_cache_inactive }} max_size={{ nginx_cache_max_size }};
+    proxy_cache_use_stale {{ nginx_cache_use_stale }};
+    proxy_cache_lock {{ nginx_cache_lock }};
+    proxy_cache_lock_timeout {{ nginx_cache_lock_timeout }};
+    {% endif %}
+
+    {% if nginx_gzip_enabled %}
+    gzip on;
+    gzip_comp_level {{ nginx_gzip_comp_level }};
+    gzip_min_length {{ nginx_gzip_min_length }};
+    gzip_proxied {{ nginx_gzip_proxied }};
+    gzip_vary {{ nginx_gzip_vary }};
+    gzip_types {{ nginx_gzip_types | join(' ') }};
+    {% else %}
+    gzip off;
+    {% endif %}
+
+    {% if nginx_rate_limit_enabled %}
+    map $http_cookie $limit_bypass {
+        default 0;
+        "{{ nginx_cache_bypass_cookie }}" 1;
+    }
+    {% endif %}
+
+    include {{ nginx_conf_d_dir }}/*.conf;
+    include {{ nginx_vhost_enabled_dir }}/*.conf;
+}

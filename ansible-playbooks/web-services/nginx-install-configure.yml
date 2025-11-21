@@ -1,0 +1,152 @@
+---
+# ⚠️ 教学声明：本 playbook 主要用于学习 Nginx 安装配置，请在测试环境验证后再应用于生产。
+# 功能说明：支持包管理器与源码安装两种方式，配置基础参数、性能调优、日志轮转与防火墙规则
+- name: Nginx 安装与配置
+  hosts: web_servers
+  gather_facts: true
+  become: yes
+  vars_files:
+    - vars/default.yml
+
+  handlers:
+    - name: 重启 Nginx 服务
+      ansible.builtin.service:
+        name: "{{ nginx_service_name }}"
+        state: restarted
+      listen: "restart nginx"
+
+    - name: 重新加载 Nginx 配置
+      ansible.builtin.service:
+        name: "{{ nginx_service_name }}"
+        state: reloaded
+      listen: "reload nginx"
+
+    - name: 验证 Nginx 配置
+      ansible.builtin.command:
+        cmd: nginx -t
+      changed_when: false
+      register: nginx_test
+      failed_when: nginx_test.rc != 0
+      listen: "verify nginx config"
+
+  tasks:
+    - name: 前置检查 - 验证必需变量
+      ansible.builtin.assert:
+        that:
+          - nginx_enabled is defined
+          - nginx_install_method is defined
+          - nginx_install_method in ['package', 'source']
+        fail_msg: "必需的 Nginx 配置变量未正确设置"
+      tags: [nginx, validation]
+
+    - name: 前置检查 - 检测操作系统支持
+      ansible.builtin.assert:
+        that:
+          - ansible_os_family in ['RedHat', 'Debian']
+        fail_msg: "不支持的操作系统家族: {{ ansible_os_family }}"
+      tags: [nginx, validation]
+
+    - name: 执行 Nginx 安装和配置
+      when: nginx_enabled | bool
+      tags: [nginx]
+      block:
+        - name: 包含 Nginx 通用角色
+          ansible.builtin.include_role:
+            name: nginx_common
+          tags: [install, config, service]
+
+        - name: 部署基础虚拟主机配置
+          ansible.builtin.template:
+            src: templates/virtual_host.conf.j2
+            dest: "{{ nginx_vhost_dir }}/{{ item.name }}.conf"
+            owner: root
+            group: root
+            mode: '0644'
+            validate: "nginx -t -c {{ nginx_conf_file }}"
+          loop: "{{ nginx_vhosts }}"
+          when:
+            - nginx_vhosts is defined
+            - nginx_vhosts | length > 0
+          notify: reload nginx
+          tags: [config, vhosts]
+
+        - name: 启用虚拟主机（创建符号链接）
+          ansible.builtin.file:
+            src: "{{ nginx_vhost_dir }}/{{ item.name }}.conf"
+            dest: "{{ nginx_vhost_enabled_dir }}/{{ item.name }}.conf"
+            state: link
+          loop: "{{ nginx_vhosts }}"
+          when:
+            - nginx_vhosts is defined
+            - item.enabled | default(true)
+          notify: reload nginx
+          tags: [config, vhosts]
+
+        - name: 配置状态监控端点
+          ansible.builtin.template:
+            src: templates/status.conf.j2
+            dest: "{{ nginx_conf_d_dir }}/status.conf"
+            owner: root
+            group: root
+            mode: '0644'
+          when: nginx_status_enabled | bool
+          notify: reload nginx
+          tags: [config, monitor]
+
+        - name: 验证 Nginx 配置
+          ansible.builtin.command:
+            cmd: nginx -t
+          changed_when: false
+          register: nginx_config_test
+          retries: "{{ web_retry_count | default(3) }}"
+          delay: "{{ web_retry_delay | default(5) }}"
+          tags: [nginx, verify]
+
+        - name: 等待 Nginx 服务就绪
+          ansible.builtin.wait_for:
+            port: 80
+            delay: 2
+            timeout: 30
+            state: started
+          tags: [nginx, verify]
+
+        - name: 输出 Nginx 安装信息
+          ansible.builtin.debug:
+            msg:
+              - "Nginx 安装完成！"
+              - "安装方式: {{ nginx_install_method }}"
+              - "版本: {{ nginx_version }}"
+              - "配置文件: {{ nginx_conf_file }}"
+              - "虚拟主机目录: {{ nginx_vhost_dir }}"
+              - "日志目录: {{ nginx_log_dir }}"
+              - "已配置虚拟主机: {{ nginx_vhosts | map(attribute='name') | list if nginx_vhosts is defined else [] }}"
+              - "⚠️ 请确保防火墙已开放 80/443 端口，并根据需要配置 SSL 证书"
+          tags: [nginx, info]
+
+      rescue:
+        - name: 错误处理 - 记录失败信息
+          ansible.builtin.debug:
+            msg:
+              - "Nginx 安装配置失败"
+              - "错误信息: {{ ansible_failed_result | default('未知错误') }}"
+              - "请检查日志文件: {{ nginx_log_dir }}/error.log"
+
+        - name: 错误处理 - 收集故障排查信息
+          ansible.builtin.shell: |
+            echo "=== Nginx 服务状态 ===" 
+            systemctl status {{ nginx_service_name }} || true
+            echo "=== Nginx 错误日志（最后 20 行）===" 
+            tail -n 20 {{ nginx_log_dir }}/error.log 2>/dev/null || echo "日志文件不存在"
+            echo "=== Nginx 配置测试 ===" 
+            nginx -t 2>&1 || true
+          register: nginx_debug_info
+          changed_when: false
+          failed_when: false
+
+        - name: 错误处理 - 显示故障排查信息
+          ansible.builtin.debug:
+            var: nginx_debug_info.stdout_lines
+
+        - name: 错误处理 - 终止 playbook 执行
+          ansible.builtin.fail:
+            msg: "Nginx 安装配置失败，请根据上述信息进行排查"

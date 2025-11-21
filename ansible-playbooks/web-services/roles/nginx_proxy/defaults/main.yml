@@ -1,0 +1,3 @@
+---
+# nginx_proxy 角色默认变量
+nginx_proxy_default_timeout: 60

@@ -1,0 +1,11 @@
+---
+# Nginx SSL 角色 - 主任务文件
+# 负责 SSL/TLS 证书管理和配置
+
+- name: 导入证书生成任务
+  ansible.builtin.import_tasks: generate_certificates.yml
+  tags: [nginx, ssl, security]
+
+- name: 导入 SSL 配置任务
+  ansible.builtin.import_tasks: configure_ssl.yml
+  tags: [nginx, ssl, config]

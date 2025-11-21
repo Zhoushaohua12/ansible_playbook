@@ -1,0 +1,162 @@
+---
+# ⚠️ 教学声明：本 playbook 演示 HTTPS 虚拟主机配置，含自签名证书生成、HSTS、安全头部等
+# 功能说明：使用 community.crypto 生成自签名证书，或引用已有证书；配置 HTTP 到 HTTPS 跳转与安全加固
+- name: Nginx HTTPS 虚拟主机配置
+  hosts: web_servers
+  gather_facts: true
+  become: yes
+  vars_files:
+    - vars/default.yml
+
+  handlers:
+    - name: 重新加载 Nginx 配置
+      ansible.builtin.service:
+        name: "{{ nginx_service_name }}"
+        state: reloaded
+      listen: "reload nginx"
+
+    - name: 验证 Nginx 配置
+      ansible.builtin.command:
+        cmd: nginx -t
+      changed_when: false
+      listen: "verify nginx config"
+
+  tasks:
+    - name: 前置检查 - 验证 SSL 配置
+      ansible.builtin.assert:
+        that:
+          - nginx_ssl_enabled is defined
+          - nginx_ssl_enabled | bool
+          - nginx_https_vhosts is defined
+        fail_msg: "SSL 配置变量未正确设置或未定义 HTTPS 虚拟主机"
+      tags: [nginx, ssl, validation]
+
+    - name: 执行 HTTPS 虚拟主机配置
+      when: nginx_ssl_enabled | bool
+      tags: [nginx, ssl]
+      block:
+        - name: 包含 nginx_common 角色（确保基础环境）
+          ansible.builtin.include_role:
+            name: nginx_common
+          tags: [install, config]
+
+        - name: 包含 nginx_ssl 角色（证书生成）
+          ansible.builtin.include_role:
+            name: nginx_ssl
+          tags: [ssl, security]
+
+        - name: 部署 HTTPS 虚拟主机配置
+          ansible.builtin.template:
+            src: templates/https_vhost.conf.j2
+            dest: "{{ nginx_vhost_dir }}/{{ item.name }}.conf"
+            owner: root
+            group: root
+            mode: '0644'
+            validate: "nginx -t -c {{ nginx_conf_file }}"
+          loop: "{{ nginx_https_vhosts }}"
+          when: nginx_https_vhosts | length > 0
+          notify: reload nginx
+          tags: [config, vhosts]
+
+        - name: 启用 HTTPS 虚拟主机
+          ansible.builtin.file:
+            src: "{{ nginx_vhost_dir }}/{{ item.name }}.conf"
+            dest: "{{ nginx_vhost_enabled_dir }}/{{ item.name }}.conf"
+            state: link
+          loop: "{{ nginx_https_vhosts }}"
+          when: item.enabled | default(true)
+          notify: reload nginx
+          tags: [config, vhosts]
+
+        - name: 配置 HTTP 到 HTTPS 跳转（可选）
+          ansible.builtin.template:
+            src: templates/http_redirect.conf.j2
+            dest: "{{ nginx_vhost_dir }}/{{ item.name }}-redirect.conf"
+            owner: root
+            group: root
+            mode: '0644'
+          loop: "{{ nginx_https_vhosts }}"
+          when:
+            - item.http_redirect | default(false)
+            - item.enabled | default(true)
+          notify: reload nginx
+          tags: [config, security]
+
+        - name: 启用 HTTP 跳转虚拟主机
+          ansible.builtin.file:
+            src: "{{ nginx_vhost_dir }}/{{ item.name }}-redirect.conf"
+            dest: "{{ nginx_vhost_enabled_dir }}/{{ item.name }}-redirect.conf"
+            state: link
+          loop: "{{ nginx_https_vhosts }}"
+          when:
+            - item.http_redirect | default(false)
+            - item.enabled | default(true)
+          notify: reload nginx
+          tags: [config, security]
+
+        - name: 验证 SSL 证书
+          community.crypto.openssl_certificate_info:
+            path: "{{ nginx_ssl_certificate_dir }}/{{ item.name | default(item.server_name | regex_replace(' ', '_')) }}.crt"
+          loop: "{{ nginx_https_vhosts }}"
+          register: ssl_cert_info
+          when:
+            - nginx_ssl_self_signed_enabled | bool
+            - item.ssl_certificate is not defined
+          tags: [verify, ssl]
+
+        - name: 验证 Nginx 配置语法
+          ansible.builtin.command:
+            cmd: nginx -t
+          changed_when: false
+          register: nginx_config_test
+          tags: [verify]
+
+        - name: 测试 HTTPS 端点
+          ansible.builtin.uri:
+            url: "https://localhost"
+            validate_certs: no
+            method: GET
+            status_code: 200,301,302,403,404
+            timeout: 10
+          register: https_check
+          failed_when: false
+          changed_when: false
+          tags: [verify]
+
+        - name: 输出 HTTPS 虚拟主机信息
+          ansible.builtin.debug:
+            msg:
+              - "HTTPS 虚拟主机配置完成！"
+              - "SSL 协议: {{ nginx_ssl_protocols }}"
+              - "已配置站点: {{ nginx_https_vhosts | map(attribute='server_name') | list }}"
+              - "自签名证书目录: {{ nginx_ssl_certificate_dir }}"
+              - "HTTPS 测试响应: {{ https_check.status | default('未测试') }}"
+              - "⚠️ 自签名证书仅供测试，生产环境请使用受信任 CA 签发的证书"
+          tags: [info]
+
+      rescue:
+        - name: 错误处理 - 记录失败信息
+          ansible.builtin.debug:
+            msg:
+              - "HTTPS 虚拟主机配置失败"
+              - "错误信息: {{ ansible_failed_result | default('未知错误') }}"
+
+        - name: 错误处理 - 收集调试信息
+          ansible.builtin.shell: |
+            echo "=== SSL 证书检查 ===" 
+            ls -lh {{ nginx_ssl_certificate_dir }}/ || echo "证书目录不存在"
+            echo "=== Nginx 配置测试 ===" 
+            nginx -t 2>&1 || true
+            echo "=== Nginx 服务状态 ===" 
+            systemctl status {{ nginx_service_name }} || true
+          register: https_debug_info
+          changed_when: false
+          failed_when: false
+
+        - name: 错误处理 - 显示调试信息
+          ansible.builtin.debug:
+            var: https_debug_info.stdout_lines
+
+        - name: 错误处理 - 终止执行
+          ansible.builtin.fail:
+            msg: "HTTPS 虚拟主机配置失败，请查看上述调试信息"

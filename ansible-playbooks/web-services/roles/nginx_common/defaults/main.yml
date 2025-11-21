@@ -1,0 +1,3 @@
+---
+# nginx_common 角色默认变量
+nginx_common_default_template: true

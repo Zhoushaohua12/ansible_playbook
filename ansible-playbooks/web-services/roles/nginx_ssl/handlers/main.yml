@@ -1,0 +1,3 @@
+---
+# nginx_ssl 角色处理程序
+# 角色内部无独立 handler，复用全局 handlers/main.yml

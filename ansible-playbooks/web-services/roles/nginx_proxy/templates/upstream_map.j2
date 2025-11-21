@@ -1,0 +1,11 @@
+# Upstream 映射配置
+# 中文注释：根据 URL 或其他条件动态选择后端
+
+{% for backend in nginx_backend_servers %}
+# 后端服务器组：{{ backend.name }}
+upstream {{ backend.name }} {
+    {% for server in backend.servers %}
+    server {{ server.address }} weight={{ server.weight | default(1) }} max_fails={{ server.max_fails | default(3) }} fail_timeout={{ server.fail_timeout | default(30) }}s;
+    {% endfor %}
+}
+{% endfor %}

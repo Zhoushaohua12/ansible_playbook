@@ -1,0 +1,126 @@
+---
+# ⚠️ 教学声明：本 playbook 演示 Nginx HTTP 负载均衡、健康检查、缓存与限流功能
+# 功能说明：动态渲染 upstream、虚拟主机、健康检查、可选 SSL，支持 least_conn、ip_hash 等算法
+- name: Nginx 负载均衡配置
+  hosts: web_servers
+  gather_facts: true
+  become: yes
+  vars_files:
+    - vars/default.yml
+
+  handlers:
+    - name: 重新加载 Nginx 配置
+      ansible.builtin.service:
+        name: "{{ nginx_service_name }}"
+        state: reloaded
+      listen: "reload nginx"
+
+    - name: 验证 Nginx 配置
+      ansible.builtin.command:
+        cmd: nginx -t
+      changed_when: false
+      listen: "verify nginx config"
+
+  tasks:
+    - name: 前置检查 - 验证负载均衡变量
+      ansible.builtin.assert:
+        that:
+          - nginx_load_balancer_enabled | bool
+          - nginx_load_balancers is defined
+          - nginx_load_balancers | length > 0
+        fail_msg: "未定义任何负载均衡器或已禁用此场景"
+      tags: [nginx, loadbalancer, validation]
+
+    - name: 执行负载均衡配置
+      tags: [nginx, loadbalancer]
+      block:
+        - name: 包含 nginx_common 角色（基础安装）
+          ansible.builtin.include_role:
+            name: nginx_common
+          tags: [install, config]
+
+        - name: 根据需要包含 nginx_ssl 角色
+          ansible.builtin.include_role:
+            name: nginx_ssl
+          when: nginx_ssl_enabled | bool
+          tags: [ssl, security]
+
+        - name: 包含 nginx_proxy 角色（upstream & 虚拟主机）
+          ansible.builtin.include_role:
+            name: nginx_proxy
+          tags: [proxy, upstream, config]
+
+        - name: 渲染负载均衡节点配置
+          ansible.builtin.template:
+            src: templates/load_balancer.conf.j2
+            dest: "{{ nginx_vhost_dir }}/lb-{{ item.name }}.conf"
+            owner: root
+            group: root
+            mode: '0644'
+            validate: "nginx -t -c {{ nginx_conf_file }}"
+          loop: "{{ nginx_load_balancers }}"
+          notify: reload nginx
+          tags: [config]
+
+        - name: 启用负载均衡虚拟主机
+          ansible.builtin.file:
+            src: "{{ nginx_vhost_dir }}/lb-{{ item.name }}.conf"
+            dest: "{{ nginx_vhost_enabled_dir }}/lb-{{ item.name }}.conf"
+            state: link
+          loop: "{{ nginx_load_balancers }}"
+          when: item.enabled | default(true)
+          notify: reload nginx
+          tags: [config]
+
+        - name: 验证 upstream 健康检查端点
+          ansible.builtin.uri:
+            url: "http://{{ item.servers[0].address }}{{ item.health_check.uri | default('/health') }}"
+            method: GET
+            status_code: 200,301,302,403,404,503
+            timeout: "{{ item.health_check.timeout | default(5) }}"
+          register: health_checks
+          failed_when: false
+          loop: "{{ nginx_load_balancers }}"
+          loop_control:
+            label: "lb {{ item.name }}"
+          tags: [verify]
+
+        - name: 验证 Nginx 配置
+          ansible.builtin.command:
+            cmd: nginx -t
+          changed_when: false
+          register: lb_nginx_test
+          tags: [verify]
+
+        - name: 输出负载均衡结果
+          ansible.builtin.debug:
+            msg:
+              - "负载均衡配置已完成"
+              - "算法：{{ nginx_load_balancer_method }}"
+              - "健康检查状态：{{ health_checks.results | map(attribute='status') | list }}"
+              - "⚠️ 请确认后端主机的健康检查端点返回 200 以启用粘性会话或高可用"
+          tags: [info]
+
+      rescue:
+        - name: 错误处理 - 输出失败详情
+          ansible.builtin.debug:
+            msg:
+              - "负载均衡配置失败"
+              - "错误信息: {{ ansible_failed_result | default('未知错误') }}"
+
+        - name: 错误处理 - 收集日志
+          ansible.builtin.shell: |
+            nginx -t 2>&1 || true
+            systemctl status {{ nginx_service_name }} || true
+            tail -n 50 {{ nginx_log_dir }}/error.log 2>/dev/null || echo "无错误日志"
+          register: lb_debug
+          changed_when: false
+          failed_when: false
+
+        - name: 错误处理 - 显示日志
+          ansible.builtin.debug:
+            var: lb_debug.stdout_lines
+
+        - name: 错误处理 - 终止执行
+          ansible.builtin.fail:
+            msg: "负载均衡任务失败，详情见日志"

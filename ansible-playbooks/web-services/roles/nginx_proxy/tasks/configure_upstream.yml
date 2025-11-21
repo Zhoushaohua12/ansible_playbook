@@ -1,0 +1,22 @@
+---
+# Nginx Proxy 角色 - 上游服务器配置
+
+- name: 生成 upstream map 配置
+  ansible.builtin.template:
+    src: templates/upstream_map.j2
+    dest: "{{ nginx_conf_d_dir }}/upstream_map.conf"
+    owner: root
+    group: root
+    mode: '0644'
+  when: (nginx_backend_servers | default([])) | length > 0
+  tags: [upstream]
+
+- name: 写入 upstream 定义
+  ansible.builtin.template:
+    src: templates/upstreams.conf.j2
+    dest: "{{ nginx_conf_d_dir }}/upstreams.conf"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: reload nginx
+  tags: [upstream]

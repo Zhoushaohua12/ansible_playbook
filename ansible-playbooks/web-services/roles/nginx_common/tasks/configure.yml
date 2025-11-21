@@ -1,0 +1,111 @@
+---
+# Nginx 通用角色 - 配置任务
+# 配置 Nginx 主配置文件、目录结构和基本设置
+
+- name: 创建 Nginx 配置目录
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - "{{ nginx_conf_dir }}"
+    - "{{ nginx_vhost_dir }}"
+    - "{{ nginx_vhost_enabled_dir }}"
+    - "{{ nginx_conf_d_dir }}"
+    - "{{ nginx_log_dir }}"
+    - "{{ nginx_cache_dir }}"
+  tags: [config]
+
+- name: 创建 Nginx 运行用户（源码安装）
+  ansible.builtin.user:
+    name: "{{ nginx_user }}"
+    system: yes
+    shell: /sbin/nologin
+    createhome: no
+  when:
+    - nginx_install_method == 'source'
+    - ansible_os_family == 'RedHat'
+  tags: [config]
+
+- name: 设置缓存目录权限
+  ansible.builtin.file:
+    path: "{{ nginx_cache_dir }}"
+    state: directory
+    owner: "{{ nginx_user if ansible_os_family == 'RedHat' else nginx_user_debian }}"
+    group: "{{ nginx_group if ansible_os_family == 'RedHat' else nginx_group_debian }}"
+    mode: '0755'
+  when: nginx_cache_enabled | bool
+  tags: [config]
+
+- name: 设置日志目录权限
+  ansible.builtin.file:
+    path: "{{ nginx_log_dir }}"
+    state: directory
+    owner: "{{ nginx_user if ansible_os_family == 'RedHat' else nginx_user_debian }}"
+    group: "{{ nginx_group if ansible_os_family == 'RedHat' else nginx_group_debian }}"
+    mode: '0755'
+  tags: [config]
+
+- name: 备份原始配置文件
+  ansible.builtin.copy:
+    src: "{{ nginx_conf_file }}"
+    dest: "{{ nginx_conf_file }}.backup-{{ ansible_date_time.iso8601_basic_short }}"
+    remote_src: yes
+    force: no
+  tags: [config, backup]
+
+- name: 部署 Nginx 主配置文件
+  ansible.builtin.template:
+    src: templates/nginx.conf.j2
+    dest: "{{ nginx_conf_file }}"
+    owner: root
+    group: root
+    mode: '0644'
+    validate: "nginx -t -c %s"
+    backup: yes
+  notify: reload nginx
+  tags: [config]
+
+- name: 创建站点目录
+  ansible.builtin.file:
+    path: "{{ item.root }}"
+    state: directory
+    owner: "{{ nginx_user if ansible_os_family == 'RedHat' else nginx_user_debian }}"
+    group: "{{ nginx_group if ansible_os_family == 'RedHat' else nginx_group_debian }}"
+    mode: '0755'
+  loop: "{{ nginx_vhosts }}"
+  when:
+    - nginx_vhosts is defined
+    - item.root is defined
+  tags: [config, vhosts]
+
+- name: 部署 FastCGI 参数文件
+  ansible.builtin.template:
+    src: templates/fastcgi_params.j2
+    dest: "{{ nginx_conf_dir }}/fastcgi_params"
+    owner: root
+    group: root
+    mode: '0644'
+  tags: [config]
+
+- name: 配置日志轮转
+  ansible.builtin.template:
+    src: templates/logrotate.nginx.j2
+    dest: /etc/logrotate.d/nginx
+    owner: root
+    group: root
+    mode: '0644'
+  when: nginx_log_rotation_enabled | bool
+  tags: [config]
+
+- name: 创建备份目录
+  ansible.builtin.file:
+    path: "{{ nginx_backup_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when: nginx_backup_enabled | bool
+  tags: [config, backup]

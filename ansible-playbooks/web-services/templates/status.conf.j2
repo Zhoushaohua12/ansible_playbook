@@ -1,0 +1,12 @@
+# Nginx 状态页配置（中文注释：限制内网访问）
+server {
+    listen {{ nginx_status_port }};
+    server_name 127.0.0.1;
+
+    location {{ nginx_status_path }} {
+        stub_status on;
+        access_log off;
+        allow {{ nginx_status_allowed_ips | join('; ') }};
+        deny all;
+    }
+}
