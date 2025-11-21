@@ -1,0 +1,235 @@
+---
+# ⚠️ 教学声明：本 playbook 主要用于学习 PostgreSQL 数据库安装配置，请在测试环境验证后再应用于生产。
+# 功能说明：自动化部署 PostgreSQL 服务器，包括安装、配置、用户管理和数据库创建，支持流复制配置
+- name: PostgreSQL 数据库安装配置
+  hosts: postgresql_servers
+  gather_facts: true
+  become: yes
+  vars_files:
+    - vars/default.yml
+
+  handlers:
+    - name: 重启 PostgreSQL 服务
+      ansible.builtin.service:
+        name: "{{ postgresql_service_name if ansible_os_family == 'RedHat' else postgresql_service_name_debian }}"
+        state: restarted
+      listen: "restart postgresql"
+
+    - name: 重新加载 PostgreSQL 配置
+      ansible.builtin.service:
+        name: "{{ postgresql_service_name if ansible_os_family == 'RedHat' else postgresql_service_name_debian }}"
+        state: reloaded
+      listen: "reload postgresql"
+
+  tasks:
+    - name: 前置检查 - 验证必需变量
+      ansible.builtin.assert:
+        that:
+          - postgresql_enabled is defined
+          - postgresql_version is defined
+          - postgresql_admin_password is defined
+        fail_msg: "必需的 PostgreSQL 配置变量未正确设置"
+      tags: [postgresql, validation]
+
+    - name: 前置检查 - 检测操作系统支持
+      ansible.builtin.assert:
+        that:
+          - ansible_os_family in ['RedHat', 'Debian']
+        fail_msg: "不支持的操作系统家族: {{ ansible_os_family }}"
+      tags: [postgresql, validation]
+
+    - name: 执行 PostgreSQL 安装和配置
+      when: postgresql_enabled | bool
+      tags: [postgresql]
+      block:
+        - name: 包含 PostgreSQL 通用角色
+          ansible.builtin.include_role:
+            name: postgresql_common
+
+        - name: 部署 PostgreSQL 主配置文件
+          ansible.builtin.template:
+            src: templates/postgresql.conf.j2
+            dest: "{{ postgresql_config_dir if ansible_os_family == 'RedHat' else postgresql_config_dir_debian }}/postgresql.conf"
+            owner: "{{ postgresql_user }}"
+            group: "{{ postgresql_group }}"
+            mode: '0600'
+            backup: yes
+          notify: restart postgresql
+          tags: [postgresql, config]
+
+        - name: 部署 PostgreSQL 认证配置文件
+          ansible.builtin.template:
+            src: templates/pg_hba.conf.j2
+            dest: "{{ postgresql_config_dir if ansible_os_family == 'RedHat' else postgresql_config_dir_debian }}/pg_hba.conf"
+            owner: "{{ postgresql_user }}"
+            group: "{{ postgresql_group }}"
+            mode: '0600'
+            backup: yes
+          notify: restart postgresql
+          tags: [postgresql, config]
+
+        - name: 确保 PostgreSQL 服务运行并开机自启
+          ansible.builtin.service:
+            name: "{{ postgresql_service_name if ansible_os_family == 'RedHat' else postgresql_service_name_debian }}"
+            state: started
+            enabled: yes
+          tags: [postgresql, service]
+
+        - name: 等待 PostgreSQL 服务就绪
+          ansible.builtin.wait_for:
+            port: "{{ postgresql_port }}"
+            delay: 5
+            timeout: 60
+            state: started
+          tags: [postgresql, verify]
+
+        - name: 设置 PostgreSQL 管理员密码
+          community.postgresql.postgresql_user:
+            name: "{{ postgresql_admin_user }}"
+            password: "{{ postgresql_admin_password }}"
+            encrypted: yes
+            state: present
+          become_user: "{{ postgresql_user }}"
+          no_log: true
+          environment:
+            PGDATA: "{{ postgresql_data_dir if ansible_os_family == 'RedHat' else postgresql_data_dir_debian }}"
+          tags: [postgresql, security]
+
+        - name: 创建应用数据库
+          community.postgresql.postgresql_db:
+            name: "{{ item.name }}"
+            encoding: "{{ item.encoding | default(postgresql_encoding) }}"
+            lc_collate: "{{ item.lc_collate | default(postgresql_lc_collate) }}"
+            lc_ctype: "{{ item.lc_ctype | default(postgresql_lc_ctype) }}"
+            state: "{{ item.state | default('present') }}"
+          become_user: "{{ postgresql_user }}"
+          loop: "{{ postgresql_databases }}"
+          when: postgresql_databases is defined and postgresql_databases | length > 0
+          environment:
+            PGDATA: "{{ postgresql_data_dir if ansible_os_family == 'RedHat' else postgresql_data_dir_debian }}"
+          tags: [postgresql, databases]
+
+        - name: 创建应用用户
+          community.postgresql.postgresql_user:
+            name: "{{ item.name }}"
+            password: "{{ item.password }}"
+            db: "{{ item.db | default(omit) }}"
+            encrypted: yes
+            state: "{{ item.state | default('present') }}"
+          become_user: "{{ postgresql_user }}"
+          loop: "{{ postgresql_users }}"
+          when: postgresql_users is defined and postgresql_users | length > 0
+          no_log: true
+          environment:
+            PGDATA: "{{ postgresql_data_dir if ansible_os_family == 'RedHat' else postgresql_data_dir_debian }}"
+          tags: [postgresql, users]
+
+        - name: 授予应用用户数据库权限
+          community.postgresql.postgresql_privs:
+            database: "{{ item.db }}"
+            role: "{{ item.name }}"
+            type: database
+            privs: "{{ item.priv | default('ALL') }}"
+            state: present
+          become_user: "{{ postgresql_user }}"
+          loop: "{{ postgresql_users }}"
+          when:
+            - postgresql_users is defined
+            - postgresql_users | length > 0
+            - item.db is defined
+          environment:
+            PGDATA: "{{ postgresql_data_dir if ansible_os_family == 'RedHat' else postgresql_data_dir_debian }}"
+          tags: [postgresql, users]
+
+        - name: 配置流复制用户（如果启用）
+          community.postgresql.postgresql_user:
+            name: "{{ postgresql_replication_user }}"
+            password: "{{ postgresql_replication_password }}"
+            role_attr_flags: REPLICATION
+            encrypted: yes
+            state: present
+          become_user: "{{ postgresql_user }}"
+          when:
+            - postgresql_replication_enabled | bool
+            - postgresql_replication_role == 'primary'
+          no_log: true
+          environment:
+            PGDATA: "{{ postgresql_data_dir if ansible_os_family == 'RedHat' else postgresql_data_dir_debian }}"
+          tags: [postgresql, replication]
+
+        - name: 配置防火墙规则（开放 PostgreSQL 端口）
+          ansible.posix.firewalld:
+            port: "{{ postgresql_port }}/tcp"
+            permanent: yes
+            immediate: yes
+            state: enabled
+          when:
+            - database_firewall_enabled | bool
+            - ansible_os_family == "RedHat"
+          tags: [postgresql, firewall]
+
+        - name: 配置防火墙规则（Ubuntu/Debian）
+          community.general.ufw:
+            rule: allow
+            port: "{{ postgresql_port }}"
+            proto: tcp
+          when:
+            - database_firewall_enabled | bool
+            - ansible_os_family == "Debian"
+          tags: [postgresql, firewall]
+
+        - name: 验证 PostgreSQL 版本
+          community.postgresql.postgresql_query:
+            query: "SELECT version();"
+          become_user: "{{ postgresql_user }}"
+          register: postgresql_version_info
+          environment:
+            PGDATA: "{{ postgresql_data_dir if ansible_os_family == 'RedHat' else postgresql_data_dir_debian }}"
+          tags: [postgresql, verify]
+
+        - name: 验证 PostgreSQL 数据库列表
+          community.postgresql.postgresql_query:
+            query: "SELECT datname FROM pg_database WHERE datistemplate = false;"
+          become_user: "{{ postgresql_user }}"
+          register: postgresql_databases_info
+          environment:
+            PGDATA: "{{ postgresql_data_dir if ansible_os_family == 'RedHat' else postgresql_data_dir_debian }}"
+          tags: [postgresql, verify]
+
+        - name: 输出 PostgreSQL 安装信息
+          ansible.builtin.debug:
+            msg:
+              - "PostgreSQL 数据库安装完成！"
+              - "版本: {{ postgresql_version_info.query_result[0].version if postgresql_version_info.query_result is defined else 'unknown' }}"
+              - "端口: {{ postgresql_port }}"
+              - "数据目录: {{ postgresql_data_dir if ansible_os_family == 'RedHat' else postgresql_data_dir_debian }}"
+              - "配置目录: {{ postgresql_config_dir if ansible_os_family == 'RedHat' else postgresql_config_dir_debian }}"
+              - "已创建数据库: {{ postgresql_databases | map(attribute='name') | list if postgresql_databases is defined else [] }}"
+              - "⚠️ 请妥善保管数据库密码，建议使用 Ansible Vault 加密敏感信息"
+          tags: [postgresql, info]
+
+      rescue:
+        - name: 错误处理 - 记录失败信息
+          ansible.builtin.debug:
+            msg:
+              - "PostgreSQL 安装配置失败"
+              - "错误信息: {{ ansible_failed_result | default('未知错误') }}"
+              - "请检查 PostgreSQL 日志"
+
+        - name: 错误处理 - 收集故障排查信息
+          ansible.builtin.shell: |
+            echo "=== PostgreSQL 服务状态 ===" 
+            systemctl status {{ postgresql_service_name if ansible_os_family == 'RedHat' else postgresql_service_name_debian }} || true
+            echo "=== PostgreSQL 日志（最后 20 行）===" 
+            tail -n 20 {{ postgresql_data_dir if ansible_os_family == 'RedHat' else postgresql_data_dir_debian }}/log/postgresql-*.log 2>/dev/null || echo "日志文件不存在"
+          register: postgresql_debug_info
+          changed_when: false
+          failed_when: false
+
+        - name: 错误处理 - 显示故障排查信息
+          ansible.builtin.debug:
+            var: postgresql_debug_info.stdout_lines
+
+        - name: 错误处理 - 终止 playbook 执行
+          ansible.builtin.fail:
+            msg: "PostgreSQL 安装配置失败，请根据上述信息进行排查"

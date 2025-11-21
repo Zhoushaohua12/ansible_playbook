@@ -1,0 +1,28 @@
+---
+# PostgreSQL 备份角色元数据
+galaxy_info:
+  author: "Ansible Automation"
+  description: "PostgreSQL 备份配置和管理角色"
+  company: ""
+  license: "MIT"
+  min_ansible_version: "2.9"
+  platforms:
+    - name: EL
+      versions:
+        - 7
+        - 8
+        - 9
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+    - name: Debian
+      versions:
+        - buster
+        - bullseye
+  galaxy_tags:
+    - database
+    - postgresql
+    - backup
+dependencies:
+  - role: postgresql_common

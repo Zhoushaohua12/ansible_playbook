@@ -1,0 +1,70 @@
+# PostgreSQL 客户端认证配置文件 (pg_hba.conf)
+# 由 Ansible 自动生成 - 请勿手动编辑
+# 生成时间: {{ ansible_date_time.iso8601 }}
+
+# 格式说明:
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+# TYPE: 连接类型 (local, host, hostssl, hostnossl, hostgssenc, hostnogssenc)
+# DATABASE: 数据库名称 (all, sameuser, samerole, replication, 或具体数据库名)
+# USER: 用户名 (all, 或具体用户名)
+# ADDRESS: 客户端地址 (CIDR 格式，如 192.168.1.0/24)
+# METHOD: 认证方法 (trust, reject, scram-sha-256, md5, password, gss, sspi, ident, peer, ldap, radius, cert, pam)
+
+# ============================================================================
+# 本地连接（Unix socket）
+# ============================================================================
+# 允许本地 postgres 用户使用 peer 认证连接
+local   all             postgres                                peer
+
+# 允许本地所有用户使用 peer 认证连接
+local   all             all                                     peer
+
+# ============================================================================
+# IPv4 本地连接
+# ============================================================================
+# 允许本地 IPv4 连接使用 {{ postgresql_auth_method }} 认证
+host    all             all             127.0.0.1/32            {{ postgresql_auth_method }}
+
+# ============================================================================
+# IPv6 本地连接
+# ============================================================================
+# 允许本地 IPv6 连接使用 {{ postgresql_auth_method }} 认证
+host    all             all             ::1/128                 {{ postgresql_auth_method }}
+
+# ============================================================================
+# 远程连接
+# ============================================================================
+# 允许所有远程连接（生产环境应限制具体 IP 段）
+host    all             all             0.0.0.0/0               {{ postgresql_auth_method }}
+host    all             all             ::/0                    {{ postgresql_auth_method }}
+
+{% if postgresql_replication_enabled | default(false) %}
+# ============================================================================
+# 复制连接
+# ============================================================================
+# 允许复制用户从任何地址连接（生产环境应限制具体 IP）
+local   replication     {{ postgresql_replication_user }}                                peer
+host    replication     {{ postgresql_replication_user }}       127.0.0.1/32            {{ postgresql_auth_method }}
+host    replication     {{ postgresql_replication_user }}       ::1/128                 {{ postgresql_auth_method }}
+host    replication     {{ postgresql_replication_user }}       0.0.0.0/0               {{ postgresql_auth_method }}
+host    replication     {{ postgresql_replication_user }}       ::/0                    {{ postgresql_auth_method }}
+{% endif %}
+
+# ============================================================================
+# SSL 连接配置（如果启用）
+# ============================================================================
+{% if postgresql_ssl_enabled | default(false) %}
+# 要求 SSL 连接
+hostssl all             all             0.0.0.0/0               {{ postgresql_auth_method }}
+hostssl all             all             ::/0                    {{ postgresql_auth_method }}
+{% endif %}
+
+# ============================================================================
+# 安全说明
+# ⚠️ 生产环境安全建议：
+# 1. 将 0.0.0.0/0 替换为具体的 IP 地址或 CIDR 范围
+# 2. 对敏感数据库使用更强的认证方法（scram-sha-256）
+# 3. 启用 SSL 连接（hostssl）保护数据传输
+# 4. 定期审查和更新此文件
+# 5. 为不同的应用使用不同的数据库用户
+# ============================================================================

@@ -1,0 +1,250 @@
+---
+# ⚠️ 教学声明：本 playbook 主要用于学习 MySQL 8.0 数据库安装配置，请在测试环境验证后再应用于生产。
+# 功能说明：自动化部署 MySQL 8.0 服务器，包括安装、配置、用户管理和数据库创建
+- name: MySQL 8.0 数据库安装配置
+  hosts: mysql_servers
+  gather_facts: true
+  become: yes
+  vars_files:
+    - vars/default.yml
+
+  handlers:
+    - name: 重启 MySQL 服务
+      ansible.builtin.service:
+        name: "{{ mysql_service_name if ansible_os_family == 'RedHat' else mysql_service_name_debian }}"
+        state: restarted
+      listen: "restart mysql"
+
+    - name: 重新加载 MySQL 配置
+      ansible.builtin.service:
+        name: "{{ mysql_service_name if ansible_os_family == 'RedHat' else mysql_service_name_debian }}"
+        state: reloaded
+      listen: "reload mysql"
+
+  tasks:
+    - name: 前置检查 - 验证必需变量
+      ansible.builtin.assert:
+        that:
+          - mysql_enabled is defined
+          - mysql_root_password is defined
+          - mysql_version == "8.0"
+        fail_msg: "必需的 MySQL 8.0 配置变量未正确设置"
+      tags: [mysql, validation]
+
+    - name: 前置检查 - 检测操作系统支持
+      ansible.builtin.assert:
+        that:
+          - ansible_os_family in ['RedHat', 'Debian']
+        fail_msg: "不支持的操作系统家族: {{ ansible_os_family }}"
+      tags: [mysql, validation]
+
+    - name: 执行 MySQL 8.0 安装和配置
+      when: mysql_enabled | bool
+      tags: [mysql]
+      block:
+        - name: 包含 MySQL 通用角色
+          ansible.builtin.include_role:
+            name: mysql_common
+          vars:
+            mysql_target_version: "8.0"
+
+        - name: 部署 MySQL 8.0 配置文件
+          ansible.builtin.template:
+            src: templates/my.cnf.j2
+            dest: "{{ '/etc/my.cnf' if ansible_os_family == 'RedHat' else '/etc/mysql/mysql.conf.d/mysqld.cnf' }}"
+            owner: root
+            group: root
+            mode: '0644'
+            backup: yes
+            validate: "/usr/sbin/mysqld --defaults-file=%s --validate-config 2>/dev/null || true"
+          notify: restart mysql
+          tags: [mysql, config]
+
+        - name: 确保 MySQL 服务运行并开机自启
+          ansible.builtin.service:
+            name: "{{ mysql_service_name if ansible_os_family == 'RedHat' else mysql_service_name_debian }}"
+            state: started
+            enabled: yes
+          tags: [mysql, service]
+
+        - name: 等待 MySQL 服务就绪
+          ansible.builtin.wait_for:
+            port: "{{ mysql_port }}"
+            delay: 5
+            timeout: 60
+            state: started
+          tags: [mysql, verify]
+
+        - name: 获取 MySQL 临时根密码（首次安装）
+          ansible.builtin.shell: |
+            grep 'temporary password' {{ mysql_log_error }} | awk '{print $NF}' | tail -1
+          register: mysql_temp_password
+          changed_when: false
+          failed_when: false
+          no_log: true
+          tags: [mysql, security]
+
+        - name: 设置 MySQL 根用户密码（使用临时密码）
+          community.mysql.mysql_user:
+            name: root
+            password: "{{ mysql_root_password }}"
+            login_user: root
+            login_password: "{{ mysql_temp_password.stdout }}"
+            host: localhost
+            state: present
+          when:
+            - mysql_temp_password.stdout is defined
+            - mysql_temp_password.stdout | length > 0
+          no_log: true
+          failed_when: false
+          tags: [mysql, security]
+
+        - name: 设置 MySQL 根用户密码（标准方式）
+          community.mysql.mysql_user:
+            name: root
+            password: "{{ mysql_root_password }}"
+            login_unix_socket: "{{ mysql_socket }}"
+            state: present
+            check_implicit_admin: yes
+          no_log: true
+          when: mysql_root_password is defined
+          failed_when: false
+          tags: [mysql, security]
+
+        - name: 配置 MySQL 根用户远程访问权限
+          community.mysql.mysql_user:
+            name: root
+            password: "{{ mysql_root_password }}"
+            host: "{{ item }}"
+            login_user: root
+            login_password: "{{ mysql_root_password }}"
+            state: present
+          loop:
+            - "127.0.0.1"
+            - "::1"
+          no_log: true
+          when: mysql_root_password is defined
+          tags: [mysql, security]
+
+        - name: 移除匿名用户
+          community.mysql.mysql_user:
+            name: ""
+            host_all: yes
+            login_user: root
+            login_password: "{{ mysql_root_password }}"
+            state: absent
+          tags: [mysql, security]
+
+        - name: 移除测试数据库
+          community.mysql.mysql_db:
+            name: test
+            login_user: root
+            login_password: "{{ mysql_root_password }}"
+            state: absent
+          tags: [mysql, security]
+
+        - name: 创建应用数据库
+          community.mysql.mysql_db:
+            name: "{{ item.name }}"
+            encoding: "{{ item.encoding | default(mysql_character_set) }}"
+            collation: "{{ item.collation | default(mysql_collation) }}"
+            login_user: root
+            login_password: "{{ mysql_root_password }}"
+            state: "{{ item.state | default('present') }}"
+          loop: "{{ mysql_databases }}"
+          when: mysql_databases is defined and mysql_databases | length > 0
+          tags: [mysql, databases]
+
+        - name: 创建应用用户（MySQL 8.0 兼容方式）
+          community.mysql.mysql_user:
+            name: "{{ item.name }}"
+            password: "{{ item.password }}"
+            priv: "{{ item.priv }}"
+            host: "{{ item.host | default('localhost') }}"
+            login_user: root
+            login_password: "{{ mysql_root_password }}"
+            state: "{{ item.state | default('present') }}"
+            plugin: "mysql_native_password"  # MySQL 8.0 默认使用 caching_sha2_password
+          loop: "{{ mysql_users }}"
+          when: mysql_users is defined and mysql_users | length > 0
+          no_log: true
+          tags: [mysql, users]
+
+        - name: 配置防火墙规则（开放 MySQL 端口）
+          ansible.posix.firewalld:
+            port: "{{ mysql_port }}/tcp"
+            permanent: yes
+            immediate: yes
+            state: enabled
+          when:
+            - database_firewall_enabled | bool
+            - ansible_os_family == "RedHat"
+          tags: [mysql, firewall]
+
+        - name: 配置防火墙规则（Ubuntu/Debian）
+          community.general.ufw:
+            rule: allow
+            port: "{{ mysql_port }}"
+            proto: tcp
+          when:
+            - database_firewall_enabled | bool
+            - ansible_os_family == "Debian"
+          tags: [mysql, firewall]
+
+        - name: 验证 MySQL 版本
+          community.mysql.mysql_info:
+            login_user: root
+            login_password: "{{ mysql_root_password }}"
+            filter: version
+          register: mysql_version_info
+          retries: "{{ app_retry_count | default(3) }}"
+          delay: "{{ app_retry_delay | default(5) }}"
+          tags: [mysql, verify]
+
+        - name: 验证 MySQL 数据库列表
+          community.mysql.mysql_info:
+            login_user: root
+            login_password: "{{ mysql_root_password }}"
+            filter: databases
+          register: mysql_databases_info
+          tags: [mysql, verify]
+
+        - name: 输出 MySQL 8.0 安装信息
+          ansible.builtin.debug:
+            msg:
+              - "MySQL 8.0 数据库安装完成！"
+              - "版本: {{ mysql_version_info.version.full if mysql_version_info.version is defined else 'unknown' }}"
+              - "端口: {{ mysql_port }}"
+              - "数据目录: {{ mysql_data_dir }}"
+              - "配置文件: {{ '/etc/my.cnf' if ansible_os_family == 'RedHat' else '/etc/mysql/mysql.conf.d/mysqld.cnf' }}"
+              - "Socket: {{ mysql_socket }}"
+              - "已创建数据库: {{ mysql_databases | map(attribute='name') | list if mysql_databases is defined else [] }}"
+              - "⚠️ MySQL 8.0 默认使用 caching_sha2_password 认证插件"
+              - "⚠️ 请妥善保管数据库密码，建议使用 Ansible Vault 加密敏感信息"
+          tags: [mysql, info]
+
+      rescue:
+        - name: 错误处理 - 记录失败信息
+          ansible.builtin.debug:
+            msg:
+              - "MySQL 8.0 安装配置失败"
+              - "错误信息: {{ ansible_failed_result | default('未知错误') }}"
+              - "请检查日志文件: {{ mysql_log_error }}"
+
+        - name: 错误处理 - 收集故障排查信息
+          ansible.builtin.shell: |
+            echo "=== MySQL 服务状态 ===" 
+            systemctl status {{ mysql_service_name if ansible_os_family == 'RedHat' else mysql_service_name_debian }} || true
+            echo "=== MySQL 错误日志（最后 20 行）===" 
+            tail -n 20 {{ mysql_log_error }} 2>/dev/null || echo "日志文件不存在"
+          register: mysql_debug_info
+          changed_when: false
+          failed_when: false
+
+        - name: 错误处理 - 显示故障排查信息
+          ansible.builtin.debug:
+            var: mysql_debug_info.stdout_lines
+
+        - name: 错误处理 - 终止 playbook 执行
+          ansible.builtin.fail:
+            msg: "MySQL 8.0 安装配置失败，请根据上述信息进行排查"

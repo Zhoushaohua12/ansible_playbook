@@ -1,0 +1,4 @@
+---
+# PostgreSQL 备份角色默认变量
+postgresql_backup_parallel_jobs: 2
+postgresql_backup_verify: false

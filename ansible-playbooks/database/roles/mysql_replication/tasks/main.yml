@@ -1,0 +1,75 @@
+---
+# MySQL 复制角色 - 主从复制配置任务
+
+- name: 确保 MySQL 服务正在运行
+  ansible.builtin.service:
+    name: "{{ mysql_service_name if ansible_os_family == 'RedHat' else mysql_service_name_debian }}"
+    state: started
+  tags: [mysql, replication, service]
+
+- name: 创建复制配置目录
+  ansible.builtin.file:
+    path: "{{ '/etc/my.cnf.d' if ansible_os_family == 'RedHat' else '/etc/mysql/mysql.conf.d' }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags: [mysql, replication, config]
+
+- name: 验证服务器 ID 唯一性
+  ansible.builtin.assert:
+    that:
+      - mysql_server_id is defined
+      - mysql_server_id | int > 0
+    fail_msg: "服务器 ID 必须是大于 0 的整数"
+  tags: [mysql, replication, validation]
+
+# 主服务器特定任务
+- name: 主服务器 - 确保二进制日志已启用
+  ansible.builtin.lineinfile:
+    path: "{{ '/etc/my.cnf' if ansible_os_family == 'RedHat' else '/etc/mysql/mysql.conf.d/mysqld.cnf' }}"
+    regexp: '^log_bin\s*='
+    line: "log_bin = {{ mysql_log_bin }}"
+    state: present
+  when: mysql_replication_role == 'master'
+  tags: [mysql, replication, master, config]
+
+- name: 主服务器 - 检查二进制日志状态
+  community.mysql.mysql_query:
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+    query: "SHOW MASTER STATUS"
+  register: master_status_check
+  when: mysql_replication_role == 'master'
+  failed_when: false
+  tags: [mysql, replication, master, verify]
+
+# 从服务器特定任务
+- name: 从服务器 - 启用只读模式
+  community.mysql.mysql_variables:
+    variable: read_only
+    value: "{{ mysql_read_only | default(1) }}"
+    mode: persist
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+  when: mysql_replication_role == 'slave'
+  tags: [mysql, replication, slave, config]
+
+- name: 从服务器 - 测试与主服务器的连接
+  ansible.builtin.wait_for:
+    host: "{{ mysql_replication_master_host }}"
+    port: "{{ mysql_replication_master_port | default(3306) }}"
+    timeout: 10
+    state: started
+  when: mysql_replication_role == 'slave'
+  tags: [mysql, replication, slave, verify]
+
+- name: 从服务器 - 检查复制状态
+  community.mysql.mysql_replication:
+    mode: getreplica
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+  register: slave_status_check
+  when: mysql_replication_role == 'slave'
+  failed_when: false
+  tags: [mysql, replication, slave, verify]

@@ -1,0 +1,99 @@
+---
+# PostgreSQL 通用角色 - 安装和基础配置任务
+
+# RedHat/CentOS 系列
+- name: 安装 PostgreSQL 仓库（RedHat/CentOS）
+  ansible.builtin.yum:
+    name: "{{ postgresql_repo_url_redhat }}"
+    state: present
+    disable_gpg_check: yes
+  when: ansible_os_family == "RedHat"
+  tags: [postgresql, repository]
+
+- name: 禁用默认 PostgreSQL 模块（RedHat 8+）
+  ansible.builtin.command:
+    cmd: "dnf -qy module disable postgresql"
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_distribution_major_version | int >= 8
+  failed_when: false
+  changed_when: false
+  tags: [postgresql, repository]
+
+# Debian/Ubuntu 系列
+- name: 添加 PostgreSQL APT 仓库密钥（Debian/Ubuntu）
+  ansible.builtin.apt_key:
+    url: "{{ postgresql_repo_key_url }}"
+    state: present
+  when: ansible_os_family == "Debian"
+  tags: [postgresql, repository]
+
+- name: 添加 PostgreSQL APT 仓库（Debian/Ubuntu）
+  ansible.builtin.apt_repository:
+    repo: "deb {{ postgresql_repo_url_debian }} {{ ansible_distribution_release }}-pgdg main"
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+  tags: [postgresql, repository]
+
+- name: 更新 APT 缓存（Debian/Ubuntu）
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  when: ansible_os_family == "Debian"
+  tags: [postgresql, packages]
+
+# 安装 PostgreSQL 包
+- name: 安装 PostgreSQL 包
+  ansible.builtin.package:
+    name: "{{ postgresql_packages_redhat if ansible_os_family == 'RedHat' else postgresql_packages_debian }}"
+    state: present
+  register: postgresql_install_result
+  tags: [postgresql, packages]
+
+# 初始化数据库（首次安装，仅 RedHat/CentOS）
+- name: 检查 PostgreSQL 数据目录是否已初始化（RedHat/CentOS）
+  ansible.builtin.stat:
+    path: "{{ postgresql_data_dir }}/PG_VERSION"
+  register: postgresql_data_initialized
+  when: ansible_os_family == "RedHat"
+  tags: [postgresql, initialization]
+
+- name: 初始化 PostgreSQL 数据库（RedHat/CentOS）
+  ansible.builtin.command:
+    cmd: "/usr/pgsql-{{ postgresql_version }}/bin/postgresql-{{ postgresql_version }}-setup initdb"
+  when:
+    - ansible_os_family == "RedHat"
+    - not postgresql_data_initialized.stat.exists
+  environment:
+    PGSETUP_INITDB_OPTIONS: "--encoding={{ postgresql_encoding }} --locale={{ postgresql_locale }}"
+  tags: [postgresql, initialization]
+
+# 创建必需的目录
+- name: 创建 PostgreSQL 日志目录
+  ansible.builtin.file:
+    path: "{{ postgresql_data_dir if ansible_os_family == 'RedHat' else postgresql_data_dir_debian }}/log"
+    state: directory
+    owner: "{{ postgresql_user }}"
+    group: "{{ postgresql_group }}"
+    mode: '0700'
+  tags: [postgresql, directories]
+
+# 确保服务启动
+- name: 启动 PostgreSQL 服务
+  ansible.builtin.service:
+    name: "{{ postgresql_service_name if ansible_os_family == 'RedHat' else postgresql_service_name_debian }}"
+    state: started
+    enabled: yes
+  tags: [postgresql, service]
+
+# 安装 pg_stat_statements 扩展
+- name: 创建 pg_stat_statements 扩展
+  community.postgresql.postgresql_ext:
+    name: pg_stat_statements
+    db: postgres
+  become_user: "{{ postgresql_user }}"
+  failed_when: false
+  environment:
+    PGDATA: "{{ postgresql_data_dir if ansible_os_family == 'RedHat' else postgresql_data_dir_debian }}"
+  tags: [postgresql, extensions]

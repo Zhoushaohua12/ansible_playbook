@@ -1,0 +1,64 @@
+---
+# 数据库操作包 - 通用处理程序
+# 处理 MySQL/MariaDB 和 PostgreSQL 服务管理
+
+# ============================================================================
+# MySQL/MariaDB 处理程序
+# ============================================================================
+- name: 重启 MySQL 服务
+  ansible.builtin.service:
+    name: "{{ mysql_service_name if ansible_os_family == 'RedHat' else mysql_service_name_debian }}"
+    state: restarted
+  listen: "restart mysql"
+
+- name: 重新加载 MySQL 配置
+  ansible.builtin.service:
+    name: "{{ mysql_service_name if ansible_os_family == 'RedHat' else mysql_service_name_debian }}"
+    state: reloaded
+  listen: "reload mysql"
+
+- name: 重启 MariaDB 服务
+  ansible.builtin.service:
+    name: "{{ mariadb_service_name }}"
+    state: restarted
+  listen: "restart mariadb"
+
+- name: 重新加载 MariaDB 配置
+  ansible.builtin.service:
+    name: "{{ mariadb_service_name }}"
+    state: reloaded
+  listen: "reload mariadb"
+
+# ============================================================================
+# PostgreSQL 处理程序
+# ============================================================================
+- name: 重启 PostgreSQL 服务
+  ansible.builtin.service:
+    name: "{{ postgresql_service_name if ansible_os_family == 'RedHat' else postgresql_service_name_debian }}"
+    state: restarted
+  listen: "restart postgresql"
+
+- name: 重新加载 PostgreSQL 配置
+  ansible.builtin.service:
+    name: "{{ postgresql_service_name if ansible_os_family == 'RedHat' else postgresql_service_name_debian }}"
+    state: reloaded
+  listen: "reload postgresql"
+
+# ============================================================================
+# 备份服务通知处理程序（可选）
+# ============================================================================
+- name: 发送备份成功通知
+  ansible.builtin.debug:
+    msg: "数据库备份配置已更新，下次定时任务将使用新配置"
+  listen: "backup config updated"
+
+- name: 测试备份脚本
+  ansible.builtin.command:
+    cmd: "/usr/local/bin/{{ item }}_backup.sh test"
+  loop:
+    - mysql
+    - postgresql
+  when: item in ['mysql', 'postgresql']
+  failed_when: false
+  changed_when: false
+  listen: "test backup scripts"

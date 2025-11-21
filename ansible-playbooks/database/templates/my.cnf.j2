@@ -1,0 +1,156 @@
+# MySQL/MariaDB 配置文件
+# 由 Ansible 自动生成 - 请勿手动编辑
+# 生成时间: {{ ansible_date_time.iso8601 }}
+# 管理主机: {{ inventory_hostname }}
+# MySQL 版本: {{ mysql_version }}
+
+[client]
+# 客户端配置
+port = {{ mysql_port }}
+socket = {{ mysql_socket }}
+default-character-set = {{ mysql_character_set }}
+
+[mysql]
+# MySQL 命令行客户端配置
+default-character-set = {{ mysql_character_set }}
+prompt = "MySQL [\\d]> "
+
+[mysqld]
+# 服务器基本配置
+user = {{ mysql_user }}
+port = {{ mysql_port }}
+bind-address = {{ mysql_bind_address }}
+socket = {{ mysql_socket }}
+pid-file = {{ mysql_pid_file }}
+datadir = {{ mysql_data_dir }}
+
+# 字符集配置
+character-set-server = {{ mysql_character_set }}
+collation-server = {{ mysql_collation }}
+init_connect = 'SET NAMES {{ mysql_character_set }}'
+
+# 连接配置
+max_connections = {{ mysql_max_connections }}
+max_connect_errors = 100
+max_allowed_packet = {{ mysql_max_allowed_packet }}
+interactive_timeout = 28800
+wait_timeout = 28800
+
+# 日志配置
+log_error = {{ mysql_log_error }}
+{% if mysql_slow_query_log | default(1) == 1 %}
+slow_query_log = 1
+slow_query_log_file = {{ mysql_slow_query_log_file }}
+long_query_time = {{ mysql_long_query_time }}
+log_queries_not_using_indexes = {{ mysql_log_queries_not_using_indexes }}
+{% endif %}
+
+# 二进制日志配置（复制和备份必需）
+{% if mysql_replication_enabled | default(false) or mysql_version == "5.7" or mysql_version == "8.0" %}
+server-id = {{ mysql_server_id }}
+log_bin = {{ mysql_log_bin }}
+binlog_format = {{ mysql_binlog_format }}
+{% if mysql_version == "8.0" %}
+binlog_expire_logs_seconds = {{ mysql_expire_logs_days | default(7) * 86400 }}
+{% else %}
+expire_logs_days = {{ mysql_expire_logs_days | default(7) }}
+{% endif %}
+max_binlog_size = {{ mysql_max_binlog_size }}
+sync_binlog = 1
+{% if mysql_binlog_do_db | default([]) | length > 0 %}
+{% for db in mysql_binlog_do_db %}
+binlog_do_db = {{ db }}
+{% endfor %}
+{% endif %}
+{% if mysql_binlog_ignore_db | default([]) | length > 0 %}
+{% for db in mysql_binlog_ignore_db %}
+binlog_ignore_db = {{ db }}
+{% endfor %}
+{% endif %}
+{% endif %}
+
+# GTID 配置（MySQL 8.0 推荐）
+{% if mysql_gtid_mode | default('OFF') == 'ON' %}
+gtid_mode = ON
+enforce_gtid_consistency = ON
+{% endif %}
+
+# 复制配置（从服务器）
+{% if mysql_replication_enabled | default(false) and mysql_replication_role == 'slave' %}
+read_only = {{ mysql_read_only | default(1) }}
+relay_log = {{ mysql_relay_log }}
+relay_log_recovery = {{ mysql_relay_log_recovery }}
+{% if mysql_version == "8.0" %}
+replica_parallel_workers = {{ mysql_slave_parallel_workers }}
+replica_parallel_type = {{ mysql_slave_parallel_type }}
+{% else %}
+slave_parallel_workers = {{ mysql_slave_parallel_workers }}
+slave_parallel_type = {{ mysql_slave_parallel_type }}
+{% endif %}
+{% endif %}
+
+# InnoDB 存储引擎配置
+default_storage_engine = InnoDB
+innodb_buffer_pool_size = {{ mysql_innodb_buffer_pool_size }}
+innodb_log_file_size = {{ mysql_innodb_log_file_size }}
+innodb_flush_log_at_trx_commit = {{ mysql_innodb_flush_log_at_trx_commit }}
+innodb_flush_method = {{ mysql_innodb_flush_method }}
+innodb_file_per_table = 1
+innodb_open_files = 2000
+innodb_io_capacity = 2000
+innodb_lock_wait_timeout = 50
+
+# 查询缓存配置（MySQL 5.7）
+{% if mysql_version == "5.7" %}
+query_cache_type = 0
+query_cache_size = {{ mysql_query_cache_size }}
+{% endif %}
+
+# 表缓存配置
+table_open_cache = {{ mysql_table_open_cache }}
+table_definition_cache = 1024
+open_files_limit = 10240
+
+# 线程缓存配置
+thread_cache_size = {{ mysql_thread_cache_size }}
+thread_stack = 256K
+
+# 临时表配置
+tmp_table_size = {{ mysql_tmp_table_size }}
+max_heap_table_size = {{ mysql_max_heap_table_size }}
+
+# MyISAM 配置（兼容性）
+key_buffer_size = 16M
+myisam_sort_buffer_size = 8M
+
+# 排序和连接缓冲区
+sort_buffer_size = 2M
+read_buffer_size = 2M
+read_rnd_buffer_size = 4M
+join_buffer_size = 2M
+
+# SQL 模式（建议使用严格模式）
+{% if mysql_version == "8.0" %}
+sql_mode = STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+{% else %}
+sql_mode = STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+{% endif %}
+
+# SSL/TLS 配置
+{% if mysql_ssl_enabled | default(false) %}
+ssl-ca = {{ mysql_ssl_ca }}
+ssl-cert = {{ mysql_ssl_cert }}
+ssl-key = {{ mysql_ssl_key }}
+require_secure_transport = {{ mysql_require_secure_transport }}
+{% endif %}
+
+[mysqldump]
+# mysqldump 工具配置
+quick
+max_allowed_packet = {{ mysql_max_allowed_packet }}
+default-character-set = {{ mysql_character_set }}
+
+[mysqld_safe]
+# mysqld_safe 配置
+pid-file = {{ mysql_pid_file }}
+log-error = {{ mysql_log_error }}

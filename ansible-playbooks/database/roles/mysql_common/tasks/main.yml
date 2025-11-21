@@ -1,0 +1,130 @@
+---
+# MySQL 通用角色 - 安装和基础配置任务
+# 支持 MySQL 5.7, 8.0 和 MariaDB
+
+- name: 检测是否使用 MariaDB
+  ansible.builtin.set_fact:
+    use_mariadb: "{{ mariadb_enabled | default(false) }}"
+  tags: [mysql, mariadb, detection]
+
+- name: 设置数据库包名（MySQL）
+  ansible.builtin.set_fact:
+    db_packages: "{{ mysql_packages_redhat if ansible_os_family == 'RedHat' else mysql_packages_debian }}"
+    db_service: "{{ mysql_service_name if ansible_os_family == 'RedHat' else mysql_service_name_debian }}"
+  when: not use_mariadb
+  tags: [mysql, packages]
+
+- name: 设置数据库包名（MariaDB）
+  ansible.builtin.set_fact:
+    db_packages: "{{ mariadb_packages_redhat if ansible_os_family == 'RedHat' else mariadb_packages_debian }}"
+    db_service: "{{ mariadb_service_name }}"
+  when: use_mariadb
+  tags: [mariadb, packages]
+
+# RedHat/CentOS 系列
+- name: 安装 MySQL 仓库（RedHat/CentOS）
+  ansible.builtin.yum:
+    name: "{{ mysql_repo_url_redhat_8 if ansible_distribution_major_version | int == 8 else mysql_repo_url_redhat_9 }}"
+    state: present
+    disable_gpg_check: yes
+  when:
+    - ansible_os_family == "RedHat"
+    - not use_mariadb
+  tags: [mysql, repository]
+
+- name: 安装 MariaDB 仓库（RedHat/CentOS）
+  ansible.builtin.yum:
+    name: mariadb-server
+    state: present
+  when:
+    - ansible_os_family == "RedHat"
+    - use_mariadb
+  tags: [mariadb, repository]
+
+# Debian/Ubuntu 系列
+- name: 添加 MySQL APT 仓库密钥（Debian/Ubuntu）
+  ansible.builtin.apt_key:
+    url: "{{ mysql_repo_key_url }}"
+    state: present
+  when:
+    - ansible_os_family == "Debian"
+    - not use_mariadb
+  tags: [mysql, repository]
+
+- name: 添加 MySQL APT 仓库（Debian/Ubuntu）
+  ansible.builtin.apt_repository:
+    repo: "deb {{ mysql_repo_url_debian }} {{ ansible_distribution_release }} mysql-{{ mysql_version }}"
+    state: present
+    update_cache: yes
+  when:
+    - ansible_os_family == "Debian"
+    - not use_mariadb
+  failed_when: false
+  tags: [mysql, repository]
+
+- name: 更新 APT 缓存（Debian/Ubuntu）
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  when: ansible_os_family == "Debian"
+  tags: [mysql, mariadb, packages]
+
+# 安装数据库包
+- name: 安装 MySQL/MariaDB 包
+  ansible.builtin.package:
+    name: "{{ db_packages }}"
+    state: present
+  register: db_install_result
+  tags: [mysql, mariadb, packages]
+
+# 创建必需的目录
+- name: 创建 MySQL 日志目录
+  ansible.builtin.file:
+    path: "{{ mysql_log_dir }}"
+    state: directory
+    owner: "{{ mysql_user }}"
+    group: "{{ mysql_group }}"
+    mode: '0755'
+  tags: [mysql, mariadb, directories]
+
+- name: 创建 MySQL 运行目录
+  ansible.builtin.file:
+    path: "{{ mysql_pid_file | dirname }}"
+    state: directory
+    owner: "{{ mysql_user }}"
+    group: "{{ mysql_group }}"
+    mode: '0755'
+  tags: [mysql, mariadb, directories]
+
+# 初始化数据库（首次安装）
+- name: 检查 MySQL 数据目录是否已初始化
+  ansible.builtin.stat:
+    path: "{{ mysql_data_dir }}/mysql"
+  register: mysql_data_initialized
+  tags: [mysql, mariadb, initialization]
+
+- name: 初始化 MySQL 数据目录（RedHat/CentOS）
+  ansible.builtin.command:
+    cmd: "mysqld --initialize-insecure --user={{ mysql_user }} --datadir={{ mysql_data_dir }}"
+  when:
+    - ansible_os_family == "RedHat"
+    - not mysql_data_initialized.stat.exists
+    - not use_mariadb
+  tags: [mysql, initialization]
+
+- name: 初始化 MySQL 数据目录（Debian/Ubuntu）
+  ansible.builtin.command:
+    cmd: "mysql_install_db --user={{ mysql_user }} --datadir={{ mysql_data_dir }}"
+  when:
+    - ansible_os_family == "Debian"
+    - not mysql_data_initialized.stat.exists
+  failed_when: false
+  tags: [mysql, mariadb, initialization]
+
+# 确保服务启动
+- name: 启动 MySQL/MariaDB 服务
+  ansible.builtin.service:
+    name: "{{ db_service }}"
+    state: started
+    enabled: yes
+  tags: [mysql, mariadb, service]
