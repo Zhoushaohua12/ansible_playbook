@@ -1,0 +1,323 @@
+# assemble 模块配置变量示例
+
+# ========== 基础配置 ==========
+# 配置片段目录
+config_fragments_dir: /tmp/assemble_demo/config_fragments
+
+# 组装后的配置文件路径
+assembled_config_path: /tmp/assemble_demo/assembled_config.conf
+
+# 文件权限
+file_permissions: "0644"
+
+# 文件所有者
+file_owner: "{{ ansible_user_id }}"
+
+# 文件所属组
+file_group: "{{ ansible_user_id }}"
+
+# 文件间分隔符
+config_delimiter: "\n"
+
+# 是否创建备份
+create_backup: true
+
+# ========== 配置片段内容 ==========
+# 是否创建示例片段文件
+create_sample_fragments: true
+
+# 基础配置片段
+config_fragments:
+  - filename: "01_basic.conf"
+    content: |
+      # 基础配置
+      server_name = demo.example.com
+      listen_port = 8080
+      max_connections = 1000
+      
+  - filename: "02_security.conf"
+    content: |
+      # 安全配置
+      enable_ssl = true
+      ssl_cert_path = /etc/ssl/certs/server.crt
+      ssl_key_path = /etc/ssl/private/server.key
+      
+  - filename: "03_logging.conf"
+    content: |
+      # 日志配置
+      log_level = info
+      log_file = /var/log/demo/app.log
+      log_rotation = daily
+
+# ========== 过滤组装配置 ==========
+# 是否启用过滤组装
+enable_filtered_assemble: false
+
+# 过滤片段目录
+filtered_fragments_dir: /tmp/assemble_demo/filtered_fragments
+
+# 过滤组装目标文件
+filtered_assembled_path: /tmp/assemble_demo/filtered_assembled.conf
+
+# 文件过滤正则表达式
+file_filter_regex: '.*\.conf$'
+
+# 过滤片段文件
+filtered_fragments:
+  - filename: "app.conf"
+    content: |
+      # 应用配置
+      app_name = demo_app
+      app_version = 1.0.0
+  - filename: "database.conf"
+    content: |
+      # 数据库配置
+      db_host = localhost
+      db_port = 5432
+  - filename: "cache.conf"
+    content: |
+      # 缓存配置
+      cache_type = redis
+      cache_host = localhost
+  - filename: "ignore.tmp"
+    content: |
+      # 这个文件会被过滤掉
+      temporary_file = true
+
+# ========== 证书链组装配置 ==========
+# 是否启用证书组装
+enable_cert_assemble: false
+
+# 证书片段目录
+cert_fragments_dir: /tmp/assemble_demo/cert_fragments
+
+# 组装后的证书文件路径
+assembled_cert_path: /tmp/assemble_demo/fullchain.pem
+
+# 证书文件权限
+cert_permissions: "0644"
+
+# 证书所有者
+cert_owner: root
+
+# 证书所属组
+cert_group: ssl-cert
+
+# 证书分隔符
+cert_delimiter: "\n"
+
+# 证书片段文件
+certificate_fragments:
+  - filename: "01_root.crt"
+    content: |
+      -----BEGIN CERTIFICATE-----
+      MIIDXTCCAkWgAwIBAgIJAMOJAAAAAAAAAAAwDQYJKoZIhvcNAQELBQAwXjELMAkGA1UE
+      BhMCVVMxCzAJBgNVBAgMAkNBMRYwFAYDVQQHDA1TYW4gRnJhbmNpc2NvMRAwDgYDVQQK
+      DAdFeGFtcGxlMRgwFgYDVQQDDA9FeGFtcGxlIFJvb3QgQ0EwHhcNMjQwMTAxMDAwMDAw
+      WhcNMjUwMTAxMDAwMDAwWjBeMQswCQYDVQQGEwJVUzELMAkGA1UECAwCQ0ExFjAUBgNV
+      BAcMDVNhbiBGcmFuY2lzY28xEDAOBgNVBAoMB0V4YW1wbGUxGDAWBgNVBAMMD0V4YW1w
+      bGUgUm9vdCBDQTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAL7/Uexample
+      root_certificate_content_here
+      -----END CERTIFICATE-----
+      
+  - filename: "02_intermediate.crt"
+    content: |
+      -----BEGIN CERTIFICATE-----
+      MIIDXTCCAkWgAwIBAgIJAMOJBBBBBBBBBBwDQYJKoZIhvcNAQELBQAwXjELMAkGA1UE
+      BhMCVVMxCzAJBgNVBAgMAkNBMRYwFAYDVQQHDA1TYW4gRnJhbmNpc2NvMRAwDgYDVQQK
+      DAdFeGFtcGxlMRgwFgYDVQQDDA9FeGFtcGxlIEludGVybWVkaWF0ZSBDQTAeFw0yNDAx
+      MDEwMDAwMDBaFw0yNTAxMDEwMDAwMDBaMF4xCzAJBgNVBAYTAlVTMQswCQYDVQQIDAJD
+      QTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzEQMA4GA1UECgwHRXhhbXBsZTEYMBYGA1UE
+      AwwPRXhhbXBsZSBJbnRlcm1lZGlhdGUgQ0EwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw
+      ggEKAoIBAQC+example_intermediate_cert_content
+      -----END CERTIFICATE-----
+      
+  - filename: "03_server.crt"
+    content: |
+      -----BEGIN CERTIFICATE-----
+      MIIDXTCCAkWgAwIBAgIJAMOJCCCCCCCCCCwDQYJKoZIhvcNAQELBQAwXjELMAkGA1UE
+      BhMCVVMxCzAJBgNVBAgMAkNBMRYwFAYDVQQHDA1TYW4gRnJhbmNpc2NvMRAwDgYDVQQK
+      DAdFeGFtcGxlMRgwFgYDVQQDDA9FeGFtcGxlIFNlcnZlciBDQTAdBgNVHQ4EFgQUKb1U
+      example_server_cert_content
+      -----END CERTIFICATE-----
+
+# ========== 日志文件合并配置 ==========
+# 是否启用日志组装
+enable_log_assemble: false
+
+# 日志片段目录
+log_fragments_dir: /tmp/assemble_demo/log_fragments
+
+# 合并后的日志文件路径
+assembled_log_path: /tmp/assemble_demo/merged_log.log
+
+# 日志文件权限
+log_permissions: "0644"
+
+# 日志分隔符
+log_delimiter: "\n--- Log Entry ---\n"
+
+# 日志片段文件
+log_fragments:
+  - filename: "app.log"
+    content: |
+      2024-01-01 10:00:00 INFO Application started successfully
+      2024-01-01 10:01:00 DEBUG Loading configuration
+      2024-01-01 10:02:00 INFO Database connected
+      
+  - filename: "error.log"
+    content: |
+      2024-01-01 10:05:00 ERROR Failed to connect to external service
+      2024-01-01 10:06:00 WARN Retrying connection attempt
+      
+  - filename: "access.log"
+    content: |
+      2024-01-01 10:10:00 INFO GET /api/health 200
+      2024-01-01 10:11:00 INFO POST /api/data 201
+      2024-01-01 10:12:00 INFO GET /api/users 200
+
+# ========== 有序组装配置 ==========
+# 是否启用有序组装演示
+enable_ordered_assemble: false
+
+# 有序片段目录
+ordered_fragments_dir: /tmp/assemble_demo/ordered_fragments
+
+# 有序组装目标文件
+ordered_assembled_path: /tmp/assemble_demo/ordered_assembled.conf
+
+# 有序片段文件（演示命名顺序）
+ordered_fragments:
+  - filename: "01_first.conf"
+    content: |
+      # 第一个配置片段
+      priority = high
+      order = 1
+      
+  - filename: "10_middle.conf"
+    content: |
+      # 中间配置片段
+      priority = medium
+      order = 10
+      
+  - filename: "20_last.conf"
+    content: |
+      # 最后配置片段
+      priority = low
+      order = 20
+
+# ========== 清理配置 ==========
+# 是否在演示后清理
+cleanup_after_demo: false
+
+# 需要清理的路径列表
+cleanup_paths:
+  - /tmp/assemble_demo/config_fragments
+  - /tmp/assemble_demo/filtered_fragments
+  - /tmp/assemble_demo/cert_fragments
+  - /tmp/assemble_demo/log_fragments
+  - /tmp/assemble_demo/ordered_fragments
+  - /tmp/assemble_demo/assembled_config.conf
+  - /tmp/assemble_demo/filtered_assembled.conf
+  - /tmp/assemble_demo/fullchain.pem
+  - /tmp/assemble_demo/merged_log.log
+  - /tmp/assemble_demo/ordered_assembled.conf
+
+# ========== 高级配置选项 ==========
+# 是否忽略隐藏文件
+ignore_hidden_files: true
+
+# 文件排序方式（lexicographic、numeric）
+file_sort_order: lexicographic
+
+# 是否验证组装后的文件
+validate_assembled_file: true
+
+# 验证命令（如需要）
+validation_command: ""
+
+# ========== 环境特定配置 ==========
+# 开发环境配置
+development_config:
+  fragments_dir: /tmp/dev/config.d
+  delimiter: "\n# Dev Config\n"
+  backup: false
+
+# 测试环境配置
+testing_config:
+  fragments_dir: /tmp/test/config.d
+  delimiter: "\n# Test Config\n"
+  backup: true
+
+# 生产环境配置（更严格）
+production_config:
+  fragments_dir: /etc/production/config.d
+  delimiter: "\n# Production Config\n"
+  backup: true
+  permissions: "0600"
+  owner: root
+  group: root
+
+# ========== 常用分隔符参考 ==========
+# 常用分隔符类型
+common_delimiters:
+  newline: "\n"
+  double_newline: "\n\n"
+  comment_separator: "\n# --- Section ---\n"
+  yaml_separator: "\n---\n"
+  json_separator: "\n,\n"
+  custom: "\n# {{ inventory_hostname }} Config\n"
+
+# ⚠️  严重警告 - assemble 模块安全注意事项：
+# 1. 文件内容安全风险：
+#    - 确保源文件内容不包含敏感信息或恶意代码
+#    - 验证文件片段的来源和完整性
+#    - 避免组装未经验证的第三方配置片段
+
+# 2. 权限和访问控制：
+#    - 设置适当的文件权限保护组装后的配置文件
+#    - 限制配置文件的访问权限，遵循最小权限原则
+#    - 确保源目录不被未授权用户修改
+
+# 3. 备份和版本控制：
+#    - 启用备份功能保护原配置文件
+#    - 定期清理旧备份文件避免磁盘空间问题
+#    - 建立配置文件的版本控制机制
+
+# 4. 组装顺序和内容验证：
+#    - 确保文件组装顺序符合应用预期要求
+#    - 使用命名约定控制文件处理顺序
+#    - 验证组装后的配置文件语法正确性
+
+# ⚠️  文件系统注意：
+# 1. 源目录要求：
+#    - 确保源目录具有适当的读取权限
+#    - 源目录中的文件应该是文本格式
+#    - 避免在源目录中放置二进制文件
+
+# 2. 目标路径安全：
+#    - 确保目标目录具有写入权限
+#    - 避免覆盖重要的系统配置文件
+#    - 使用临时路径进行组装验证
+
+# 3. 文件大小和性能：
+#    - 大量文件组装可能影响性能
+#    - 考虑目标文件的最终大小
+#    - 监控磁盘空间使用情况
+
+# ⚠️  在生产环境使用前的建议：
+# - 使用 --check 模式预览组装操作：ansible-playbook playbook.yml --check
+# - 在测试环境验证所有配置片段的内容和顺序
+# - 准备详细的配置变更计划和回滚方案
+# - 配置监控系统跟踪配置文件变更
+# - 建立配置文件验证和测试流程
+# - 实施配置文件的备份和恢复机制
+# - 定期审查和清理配置片段目录
+
+# ⚠️  故障排查提示：
+# - 如果组装后的配置无效，检查文件顺序和分隔符设置
+# - 使用 diff 命令比较组装前后的文件差异
+# - 检查源文件的内容格式和编码
+# - 验证正则表达式过滤器是否正确匹配文件
+# - 查看目标目录的权限和磁盘空间
+# - 使用 cat 或 head 命令检查组装后的文件内容

@@ -1,0 +1,229 @@
+# get_url 模块配置变量示例
+
+# ========== 基础下载配置 ==========
+# 示例配置文件下载URL
+sample_config_url: https://httpbin.org/json
+
+# 配置文件目标路径
+sample_config_dest: /tmp/sample_config.json
+
+# ========== 软件包下载配置 ==========
+# 是否启用软件包下载
+enable_package_download: false
+
+# 软件包下载URL
+package_download_url: https://releases.ansible.com/ansible/ansible-2.9.27.tar.gz
+
+# 软件包目标路径
+package_dest_path: /tmp/ansible-2.9.27.tar.gz
+
+# 软件包校验和（SHA-256）
+package_checksum: sha256:5d058208c2a4a32a8289296311e5c8f5b9d6a4e3f8b4c2f1a9e8d7c6b5a4321
+
+# ========== 私有资源下载配置 ==========
+# 是否启用私有资源下载
+enable_private_download: false
+
+# 私有资源下载URL
+private_resource_url: https://api.github.com/repos/ansible/ansible
+
+# 私有资源目标路径
+private_resource_dest: /tmp/github_api_response.json
+
+# 下载认证头部（敏感信息，建议使用 Vault）
+download_headers:
+  Authorization: "Bearer {{ vault_github_token }}"
+  User-Agent: "Ansible/{{ ansible_version }}"
+  Accept: "application/vnd.github.v3+json"
+
+# ========== 批量下载配置 ==========
+# 是否启用批量下载
+enable_batch_download: false
+
+# 批量下载文件列表
+batch_download_files:
+  - url: https://httpbin.org/uuid
+    dest: /tmp/uuid.json
+    checksum: ""
+    mode: "0644"
+    timeout: 30
+  - url: https://httpbin.org/ip
+    dest: /tmp/ip_info.json
+    mode: "0644"
+    timeout: 30
+  - url: https://httpbin.org/user-agent
+    dest: /tmp/user_agent.json
+    mode: "0644"
+    timeout: 30
+
+# ========== 可靠下载配置 ==========
+# 是否启用可靠下载（带重试）
+enable_reliable_download: false
+
+# 可靠下载URL
+reliable_download_url: https://httpbin.org/delay/2
+
+# 可靠下载目标路径
+reliable_download_dest: /tmp/delayed_response.json
+
+# 可靠下载超时时间
+reliable_download_timeout: 30
+
+# ========== 性能测试配置 ==========
+# 是否启用性能测试
+enable_performance_test: false
+
+# 性能测试URL（较大文件）
+performance_test_url: https://httpbin.org/bytes/1048576
+
+# 性能测试目标路径
+performance_test_dest: /tmp/performance_test.bin
+
+# 性能测试超时时间
+performance_test_timeout: 60
+
+# ========== 通用配置参数 ==========
+# 文件权限模式
+file_permissions: "0644"
+
+# 文件所有者
+file_owner: "{{ ansible_user_id }}"
+
+# 文件所属组
+file_group: "{{ ansible_user_id }}"
+
+# 下载超时时间（秒）
+download_timeout: 30
+
+# 下载重试次数
+download_retries: 3
+
+# 重试间隔（秒）
+retry_delay: 5
+
+# ========== 连接测试配置 ==========
+# 是否启用连接测试
+test_connectivity: false
+
+# 是否验证SSL证书
+validate_ssl_certs: true
+
+# ========== 清理配置 ==========
+# 是否在测试后清理文件
+cleanup_after_test: false
+
+# 需要清理的文件列表
+cleanup_files:
+  - /tmp/sample_config.json
+  - /tmp/ansible-2.9.27.tar.gz
+  - /tmp/github_api_response.json
+  - /tmp/uuid.json
+  - /tmp/ip_info.json
+  - /tmp/user_agent.json
+  - /tmp/delayed_response.json
+  - /tmp/performance_test.bin
+
+# ========== 高级配置选项 ==========
+# 下载User-Agent字符串
+user_agent_string: "Ansible/{{ ansible_version }} (get_url module demo)"
+
+# HTTP代理配置（如果需要）
+http_proxy: ""
+
+# HTTPS代理配置（如果需要）
+https_proxy: ""
+
+# 最大重定向次数
+max_redirects: 5
+
+# 是否跟随重定向
+follow_redirects: true
+
+# ========== 环境特定配置 ==========
+# 开发环境下载源
+development_sources:
+  base_url: "https://dev.example.com"
+  timeout: 60
+  retries: 5
+
+# 测试环境下载源
+testing_sources:
+  base_url: "https://test.example.com"
+  timeout: 30
+  retries: 3
+
+# 生产环境下载源（更严格）
+production_sources:
+  base_url: "https://prod.example.com"
+  timeout: 120
+  retries: 10
+  validate_certs: true
+
+# ========== 常用下载源参考 ==========
+# 开源软件下载源
+open_source_sources:
+  github_releases: "https://releases.github.com"
+  pypi_packages: "https://pypi.org/simple"
+  nginx_downloads: "https://nginx.org/download"
+  apache_downloads: "https://downloads.apache.org"
+
+# 系统工具下载源
+system_tools_sources:
+  epel_repo: "https://dl.fedoraproject.org/pub/epel"
+  docker_ce: "https://download.docker.com/linux"
+  kubernetes: "https://storage.googleapis.com/kubernetes-release"
+
+# ⚠️  严重警告 - get_url 模块安全注意事项：
+# 1. 网络传输安全：
+#    - 优先使用 HTTPS 协议确保传输加密
+#    - 验证 SSL 证书有效性，避免中间人攻击
+#    - 避免在不安全的网络中下载敏感文件
+
+# 2. 文件完整性验证：
+#    - 始终使用 checksum 参数验证文件完整性
+#    - 使用 SHA-256 或更强的哈希算法
+#    - 定期更新和验证校验和值的准确性
+
+# 3. 认证信息安全：
+#    - 使用 Ansible Vault 存储敏感认证信息
+#    - 遵循最小权限原则配置访问权限
+#    - 定期轮换访问令牌、密码和证书
+
+# 4. 目标路径安全：
+#    - 确保目标目录具有适当的写入权限
+#    - 避免覆盖重要系统配置文件
+#    - 使用临时目录进行下载验证和测试
+
+# ⚠️  网络和性能注意：
+# 1. 网络连接稳定性：
+#    - 实施适当的重试机制处理网络不稳定
+#    - 设置合理的超时时间避免长时间等待
+#    - 考虑使用 CDN 或镜像加速下载
+
+# 2. 带宽和资源管理：
+#    - 大文件下载可能影响网络带宽
+#    - 监控磁盘空间确保有足够存储空间
+#    - 考虑在非高峰时段进行大文件下载
+
+# 3. 错误处理和日志：
+#    - 记录下载失败的原因和详细信息
+#    - 实施适当的错误恢复机制
+#    - 监控下载成功率和性能指标
+
+# ⚠️  在生产环境使用前的建议：
+# - 使用 --check 模式预览下载操作：ansible-playbook playbook.yml --check
+# - 在测试环境验证所有下载URL的可达性和文件完整性
+# - 准备详细的下载计划和错误处理方案
+# - 配置监控系统跟踪下载性能和成功率
+# - 建立文件校验和验证和更新流程
+# - 实施访问控制和审计机制
+# - 准备网络故障和认证失效的应急预案
+
+# ⚠️  故障排查提示：
+# - 如果下载失败，检查网络连接和DNS解析
+# - 验证URL的正确性和服务器可达性
+# - 检查认证信息是否有效且未过期
+# - 查看目标目录的权限和磁盘空间
+# - 使用 curl 或 wget 命令进行手动下载测试
+# - 检查防火墙和代理设置是否阻止下载
+# - 验证SSL证书链是否完整和有效

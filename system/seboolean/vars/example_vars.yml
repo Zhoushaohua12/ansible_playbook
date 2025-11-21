@@ -1,0 +1,135 @@
+# seboolean 模块配置变量示例
+
+# ========== 基础 HTTP 服务配置 ==========
+# HTTP 服务网络访问权限布尔值
+httpd_network_bool: httpd_can_network_connect
+
+# HTTP 服务网络访问状态（on/off、yes/no、true/false）
+httpd_network_state: on
+
+# ========== FTP 服务配置 ==========
+# FTP 用户家目录访问权限布尔值
+ftp_home_dir_bool: ftp_home_dir
+
+# FTP 用户家目录访问状态
+ftp_home_dir_state: on
+
+# ========== SSH 服务增强配置 ==========
+# 是否启用 SSH 服务增强功能
+enable_ssh_enhancements: false
+
+# SSH 密钥签名权限布尔值
+ssh_keysign_bool: ssh_keysign
+
+# SSH 密钥签名权限状态
+ssh_keysign_state: on
+
+# ========== 邮件服务配置 ==========
+# 是否启用邮件功能
+enable_mail_functionality: false
+
+# HTTP 服务邮件发送权限布尔值
+httpd_sendmail_bool: httpd_can_sendmail
+
+# HTTP 服务邮件发送权限状态
+httpd_sendmail_state: on
+
+# ========== 批量配置选项 ==========
+# 是否启用批量配置模式
+enable_batch_configuration: false
+
+# Web 服务相关布尔值批量配置
+web_service_booleans:
+  - name: httpd_can_network_connect
+    state: on
+  - name: httpd_can_sendmail
+    state: off
+  - name: httpd_read_user_content
+    state: on
+  - name: httpd_enable_homedirs
+    state: off
+
+# ========== 高级配置选项 ==========
+# 安全策略模式（strict、targeted、mls）
+selinux_policy_mode: targeted
+
+# 是否在变更前创建备份
+create_backup_before_change: true
+
+# 配置验证模式（strict、loose）
+validation_mode: strict
+
+# ========== 审计和监控 ==========
+# 是否启用详细审计日志
+enable_detailed_audit: true
+
+# 审计日志保留天数
+audit_retention_days: 30
+
+# 是否发送变更通知
+send_change_notifications: false
+
+# ========== 环境特定配置 ==========
+# 开发环境布尔值配置
+development_booleans:
+  httpd_can_network_connect: on
+  ftp_home_dir: on
+  ssh_keysign: off
+
+# 测试环境布尔值配置
+testing_booleans:
+  httpd_can_network_connect: on
+  ftp_home_dir: on
+  ssh_keysign: on
+
+# 生产环境布尔值配置（更严格）
+production_booleans:
+  httpd_can_network_connect: off
+  ftp_home_dir: off
+  ssh_keysign: on
+
+# ⚠️  严重警告 - SELinux 布尔值配置安全注意事项：
+# 1. 权限最小化原则：
+#    - 只启用应用必需的布尔值，不要过度放宽权限
+#    - 定期审查已启用的布尔值，禁用不再需要的
+#    - 避免使用 "on" 状态除非确实需要
+
+# 2. 生产环境风险评估：
+#    - 修改布尔值前评估安全风险和业务影响
+#    - 在测试环境充分验证变更效果
+#    - 分阶段启用关键权限，避免一次性过多变更
+
+# 3. 监控和审计要求：
+#    - 启用 auditd 监控 SELinux 违规事件
+#    - 定期检查布尔值状态是否符合预期
+#    - 记录所有变更原因和授权信息
+
+# 4. 回滚和恢复计划：
+#    - 准备详细的回滚方案
+#    - 记录原始布尔值状态
+#    - 建立变更审批流程
+
+# ⚠️  系统兼容性注意：
+# 1. SELinux 仅在 RHEL/CentOS/Fedora 等 Red Hat 系列系统上支持
+# 2. 不同版本的 SELinux 策略可能包含不同的布尔值
+# 3. 某些布尔值可能在特定策略版本中不存在
+
+# ⚠️  应用兼容性警告：
+# 1. 启用某些布尔值可能影响应用安全性
+# 2. 禁用必要布尔值可能导致应用功能异常
+# 3. 布尔值变更可能影响其他依赖服务
+
+# ⚠️  在生产环境使用前的建议：
+# - 使用 --check 模式预览变更：ansible-playbook playbook.yml --check
+# - 在测试环境验证所有布尔值变更对应用的影响
+# - 准备详细的变更计划和回滚步骤
+# - 配置监控系统跟踪应用行为变化
+# - 与安全团队协作评估安全风险
+# - 定期备份 SELinux 配置和策略文件
+# - 建立布尔值变更的审批和记录流程
+
+# ⚠️  故障排查提示：
+# - 如果应用异常，首先检查相关的 SELinux 布尔值状态
+# - 查看 /var/log/audit/audit.log 中的 AVC 拒绝消息
+# - 使用 setroubleshoot 工具分析 SELinux 问题
+# - 必要时使用 audit2allow 生成自定义策略规则

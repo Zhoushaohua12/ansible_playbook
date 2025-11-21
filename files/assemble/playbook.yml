@@ -1,0 +1,311 @@
+---
+- name: assemble 模块使用示例演示
+  hosts: localhost
+  gather_facts: true
+  check_mode: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 准备示例片段文件 ==========
+    - name: 创建配置片段目录
+      ansible.builtin.file:
+        path: "{{ config_fragments_dir }}"
+        state: directory
+        mode: '0755'
+        owner: "{{ file_owner }}"
+        group: "{{ file_group }}"
+    
+    - name: 创建配置片段文件
+      ansible.builtin.copy:
+        content: "{{ item.content }}"
+        dest: "{{ config_fragments_dir }}/{{ item.filename }}"
+        mode: '0644'
+        owner: "{{ file_owner }}"
+        group: "{{ file_group }}"
+      loop: "{{ config_fragments }}"
+      when: create_sample_fragments | default(true)
+    
+    # ========== 基础配置文件组装 ==========
+    - name: 组装基础配置文件
+      ansible.builtin.assemble:
+        src: "{{ config_fragments_dir }}"
+        dest: "{{ assembled_config_path }}"
+        mode: "{{ file_permissions }}"
+        owner: "{{ file_owner }}"
+        group: "{{ file_group }}"
+        delimiter: "{{ config_delimiter }}"
+        backup: "{{ create_backup }}"
+      register: basic_assemble_result
+    
+    - name: 显示基础组装结果
+      ansible.builtin.debug:
+        msg: |
+          基础配置文件组装完成：
+          源目录: {{ config_fragments_dir }}
+          目标文件: {{ assembled_config_path }}
+          是否变更: {{ basic_assemble_result.changed }}
+          备份文件: {{ basic_assemble_result.backup_file | default('未创建备份') }}
+    
+    # ========== 带过滤的组装 ==========
+    - name: 创建过滤测试片段
+      ansible.builtin.copy:
+        content: "{{ item.content }}"
+        dest: "{{ filtered_fragments_dir }}/{{ item.filename }}"
+        mode: '0644'
+      loop: "{{ filtered_fragments }}"
+      when: enable_filtered_assemble | default(false)
+    
+    - name: 使用正则表达式过滤组装
+      ansible.builtin.assemble:
+        src: "{{ filtered_fragments_dir }}"
+        dest: "{{ filtered_assembled_path }}"
+        regexp: "{{ file_filter_regex }}"
+        mode: "{{ file_permissions }}"
+        delimiter: "{{ config_delimiter }}"
+        backup: "{{ create_backup }}"
+      register: filtered_assemble_result
+      when: enable_filtered_assemble | default(false)
+    
+    - name: 显示过滤组装结果
+      ansible.builtin.debug:
+        msg: |
+          过滤组装完成：
+          过滤规则: {{ file_filter_regex }}
+          目标文件: {{ filtered_assembled_path }}
+          是否变更: {{ filtered_assemble_result.changed }}
+      when: enable_filtered_assemble | default(false)
+    
+    # ========== 证书链组装演示 ==========
+    - name: 创建证书片段目录
+      ansible.builtin.file:
+        path: "{{ cert_fragments_dir }}"
+        state: directory
+        mode: '0755'
+      when: enable_cert_assemble | default(false)
+    
+    - name: 创建证书片段文件
+      ansible.builtin.copy:
+        content: "{{ item.content }}"
+        dest: "{{ cert_fragments_dir }}/{{ item.filename }}"
+        mode: '0644'
+      loop: "{{ certificate_fragments }}"
+      when: enable_cert_assemble | default(false)
+    
+    - name: 组装 SSL 证书链
+      ansible.builtin.assemble:
+        src: "{{ cert_fragments_dir }}"
+        dest: "{{ assembled_cert_path }}"
+        mode: "{{ cert_permissions }}"
+        owner: "{{ cert_owner }}"
+        group: "{{ cert_group }}"
+        delimiter: "{{ cert_delimiter }}"
+        backup: "{{ create_backup }}"
+      register: cert_assemble_result
+      when: enable_cert_assemble | default(false)
+    
+    - name: 显示证书组装结果
+      ansible.builtin.debug:
+        msg: |
+          SSL 证书链组装完成：
+          源目录: {{ cert_fragments_dir }}
+          目标文件: {{ assembled_cert_path }}
+          是否变更: {{ cert_assemble_result.changed }}
+          证书权限: {{ cert_permissions }}
+      when: enable_cert_assemble | default(false)
+    
+    # ========== 日志文件合并演示 ==========
+    - name: 创建日志片段目录
+      ansible.builtin.file:
+        path: "{{ log_fragments_dir }}"
+        state: directory
+        mode: '0755'
+      when: enable_log_assemble | default(false)
+    
+    - name: 创建日志片段文件
+      ansible.builtin.copy:
+        content: "{{ item.content }}"
+        dest: "{{ log_fragments_dir }}/{{ item.filename }}"
+        mode: '0644'
+      loop: "{{ log_fragments }}"
+      when: enable_log_assemble | default(false)
+    
+    - name: 合并日志文件
+      ansible.builtin.assemble:
+        src: "{{ log_fragments_dir }}"
+        dest: "{{ assembled_log_path }}"
+        mode: "{{ log_permissions }}"
+        delimiter: "{{ log_delimiter }}"
+        backup: "{{ create_backup }}"
+      register: log_assemble_result
+      when: enable_log_assemble | default(false)
+    
+    - name: 显示日志合并结果
+      ansible.builtin.debug:
+        msg: |
+          日志文件合并完成：
+          源目录: {{ log_fragments_dir }}
+          目标文件: {{ assembled_log_path }}
+          是否变更: {{ log_assemble_result.changed }}
+      when: enable_log_assemble | default(false)
+    
+    # ========== 验证组装结果 ==========
+    - name: 检查组装后的文件内容
+      ansible.builtin.stat:
+        path: "{{ assembled_config_path }}"
+      register: assembled_file_stat
+    
+    - name: 显示文件验证结果
+      ansible.builtin.debug:
+        msg: |
+          组装文件验证：
+          文件路径: {{ assembled_config_path }}
+          文件存在: {{ assembled_file_stat.stat.exists }}
+          文件大小: {{ assembled_file_stat.stat.size }} 字节
+          文件权限: {{ assembled_file_stat.stat.mode }}
+          文件所有者: {{ assembled_file_stat.stat.pw_name }}
+          文件所属组: {{ assembled_file_stat.stat.gr_name }}
+    
+    - name: 读取组装文件的部分内容
+      ansible.builtin.command: "head -20 {{ assembled_config_path }}"
+      register: assembled_content_preview
+      changed_when: false
+      when: assembled_file_stat.stat.exists
+    
+    - name: 显示文件内容预览
+      ansible.builtin.debug:
+        msg: |
+          组装文件内容预览（前20行）：
+          {{ assembled_content_preview.stdout_lines }}
+      when: assembled_file_stat.stat.exists
+    
+    # ========== 源文件列表验证 ==========
+    - name: 列出源目录中的文件
+      ansible.builtin.command: "ls -la {{ config_fragments_dir }}"
+      register: source_files_list
+      changed_when: false
+    
+    - name: 显示源文件列表
+      ansible.builtin.debug:
+        msg: |
+          源目录文件列表：
+          {{ source_files_list.stdout_lines }}
+    
+    # ========== 组装顺序演示 ==========
+    - name: 创建有序片段演示
+      ansible.builtin.copy:
+        content: "{{ item.content }}"
+        dest: "{{ ordered_fragments_dir }}/{{ item.filename }}"
+        mode: '0644'
+      loop: "{{ ordered_fragments }}"
+      when: enable_ordered_assemble | default(false)
+    
+    - name: 演示文件顺序组装
+      ansible.builtin.assemble:
+        src: "{{ ordered_fragments_dir }}"
+        dest: "{{ ordered_assembled_path }}"
+        delimiter: "{{ config_delimiter }}"
+        mode: "{{ file_permissions }}"
+        backup: "{{ create_backup }}"
+      register: ordered_assemble_result
+      when: enable_ordered_assemble | default(false)
+    
+    - name: 显示有序组装结果
+      ansible.builtin.debug:
+        msg: |
+          有序组装完成：
+          源目录: {{ ordered_fragments_dir }}
+          目标文件: {{ ordered_assembled_path }}
+          是否变更: {{ ordered_assemble_result.changed }}
+          文件顺序: 按文件名字典序排列
+      when: enable_ordered_assemble | default(false)
+    
+    # ========== 清理演示 ==========
+    - name: 清理临时文件和目录
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ cleanup_paths }}"
+      when: cleanup_after_demo | default(false)
+    
+    - name: 显示清理结果
+      ansible.builtin.debug:
+        msg: |
+          清理完成：
+          已删除: {{ cleanup_paths | join(', ') }}
+      when: cleanup_after_demo | default(false)
+    
+    # ========== 安全建议和最佳实践 ==========
+    - name: 显示 assemble 模块安全建议
+      ansible.builtin.debug:
+        msg: |
+          assemble 模块安全建议和最佳实践：
+          
+          1. 文件内容安全：
+             - 确保源文件内容不包含敏感信息
+             - 验证文件片段的来源和完整性
+             - 避免组装未经验证的配置片段
+          
+          2. 权限控制：
+             - 设置适当的文件权限保护配置文件
+             - 限制配置文件的访问权限
+             - 使用最小权限原则
+          
+          3. 备份策略：
+             - 启用备份功能保护原配置
+             - 定期清理旧备份文件
+             - 建立配置版本控制机制
+          
+          4. 顺序控制：
+             - 确保文件组装顺序符合预期
+             - 使用命名约定控制文件顺序
+             - 验证组装后的配置有效性
+          
+          5. 过滤和选择：
+             - 使用 regexp 参数精确控制组装文件
+             - 避免组装临时或备份文件
+             - 测试正则表达式确保匹配正确
+          
+          6. 分隔符使用：
+             - 使用适当的分隔符便于调试
+             - 考虑配置文件的语法要求
+             - 避免分隔符影响配置解析
+          
+          常见应用场景：
+          - 配置文件片段组装
+          - SSL 证书链合并
+          - 日志文件归档
+          - 文档章节合并
+          - 脚本文件组合
+    
+    # ========== 配置完成总结 ==========
+    - name: assemble 模块配置完成总结
+      ansible.builtin.debug:
+        msg: |
+          assemble 模块演示已完成：
+          
+          已演示的功能：
+          1. 基础文件组装: {{ config_fragments_dir }} -> {{ assembled_config_path }}
+          2. 过滤组装: {{ filtered_assembled_path if enable_filtered_assemble | default(false) else '跳过' }}
+          3. 证书链组装: {{ assembled_cert_path if enable_cert_assemble | default(false) else '跳过' }}
+          4. 日志文件合并: {{ assembled_log_path if enable_log_assemble | default(false) else '跳过' }}
+          5. 有序组装: {{ ordered_assembled_path if enable_ordered_assemble | default(false) else '跳过' }}
+          
+          重要特性：
+          - 文件按字典序组装，使用命名控制顺序
+          - 支持正则表达式过滤源文件
+          - 可配置分隔符便于调试和格式化
+          - 自动备份保护原配置文件
+          - 支持权限和所有者设置
+          
+          注意事项：
+          - 在生产环境使用前充分测试组装结果
+          - 验证组装后配置文件的语法正确性
+          - 考虑使用版本控制系统管理配置片段
+          - 定期备份重要配置文件
+          
+          相关命令：
+          - ls -la: 查看源目录文件列表
+          - cat file: 查看组装后的文件内容
+          - diff file1 file2: 比较文件差异
+          - sort: 查看文件排序顺序

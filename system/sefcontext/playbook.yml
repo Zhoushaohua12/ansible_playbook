@@ -1,0 +1,294 @@
+---
+- name: sefcontext 模块使用示例演示
+  hosts: localhost
+  gather_facts: true
+  check_mode: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== Web 应用目录上下文配置 ==========
+    - name: 配置 Web 应用主目录上下文
+      ansible.posix.sefcontext:
+        target: "{{ webapp_root_path }}"
+        setype: "{{ webapp_context_type }}"
+        state: present
+      become: yes
+      register: webapp_context_result
+    
+    - name: 显示 Web 应用目录配置结果
+      ansible.builtin.debug:
+        msg: |
+          Web 应用目录上下文配置：
+          路径: {{ webapp_root_path }}
+          类型: {{ webapp_context_type }}
+          结果: {{ webapp_context_result }}
+    
+    # ========== 日志目录上下文配置 ==========
+    - name: 配置应用日志目录上下文
+      ansible.posix.sefcontext:
+        target: "{{ log_directory_path }}"
+        setype: "{{ log_context_type }}"
+        state: present
+      become: yes
+      register: log_context_result
+    
+    - name: 显示日志目录配置结果
+      ansible.builtin.debug:
+        msg: |
+          日志目录上下文配置：
+          路径: {{ log_directory_path }}
+          类型: {{ log_context_type }}
+          结果: {{ log_context_result }}
+    
+    # ========== 数据目录上下文配置 ==========
+    - name: 配置应用数据目录上下文
+      ansible.posix.sefcontext:
+        target: "{{ data_directory_path }}"
+        setype: "{{ data_context_type }}"
+        state: present
+      become: yes
+      register: data_context_result
+      when: configure_data_directory | default(false)
+    
+    - name: 显示数据目录配置结果
+      ansible.builtin.debug:
+        msg: |
+          数据目录上下文配置：
+          路径: {{ data_directory_path }}
+          类型: {{ data_context_type }}
+          结果: {{ data_context_result }}
+      when: configure_data_directory | default(false)
+    
+    # ========== 临时文件目录配置 ==========
+    - name: 配置临时文件目录上下文
+      ansible.posix.sefcontext:
+        target: "{{ temp_directory_path }}"
+        setype: "{{ temp_context_type }}"
+        state: present
+      become: yes
+      register: temp_context_result
+      when: configure_temp_directory | default(false)
+    
+    - name: 显示临时目录配置结果
+      ansible.builtin.debug:
+        msg: |
+          临时目录上下文配置：
+          路径: {{ temp_directory_path }}
+          类型: {{ temp_context_type }}
+          结果: {{ temp_context_result }}
+      when: configure_temp_directory | default(false)
+    
+    # ========== 批量上下文配置 ==========
+    - name: 批量配置应用目录上下文
+      ansible.posix.sefcontext:
+        target: "{{ item.target }}"
+        setype: "{{ item.setype }}"
+        state: present
+      become: yes
+      loop: "{{ application_contexts }}"
+      register: batch_context_results
+      when: enable_batch_configuration | default(false)
+    
+    - name: 显示批量配置结果
+      ansible.builtin.debug:
+        msg: |
+          批量目录上下文配置结果：
+          {% for result in batch_context_results.results %}
+          - {{ result.item.target }}: {{ result.item.setype }} (变更: {{ result.changed }})
+          {% endfor %}
+      when: enable_batch_configuration | default(false)
+    
+    # ========== 应用上下文到现有文件 ==========
+    - name: 应用上下文到现有文件
+      ansible.builtin.command: restorecon -R {{ item.path }}
+      become: yes
+      loop: "{{ apply_context_paths }}"
+      register: restorecon_results
+      when: apply_context_immediately | default(false)
+      ignore_errors: yes
+    
+    - name: 显示上下文应用结果
+      ansible.builtin.debug:
+        msg: |
+          上下文应用结果：
+          {% for result in restorecon_results.results %}
+          - {{ result.item.path }}: {{ '成功' if result.rc == 0 else '失败' }}
+          {% endfor %}
+      when: apply_context_immediately | default(false)
+    
+    # ========== 检查当前上下文映射 ==========
+    - name: 检查当前 SELinux 文件上下文映射
+      ansible.builtin.shell: |
+        echo "=== 当前 SELinux 文件上下文映射检查 ==="
+        
+        if command -v semanage &> /dev/null; then
+          echo "查询已配置的上下文映射："
+          semanage fcontext -l | grep -E "(myapp|webapp|custom)" | head -10
+        else
+          echo "semanage 命令不可用，安装 policycoreutils-python-utils"
+        fi
+      register: current_mappings
+      changed_when: false
+      become: yes
+      ignore_errors: yes
+    
+    - name: 显示当前上下文映射
+      ansible.builtin.debug:
+        msg: "{{ current_mappings.stdout_lines }}"
+    
+    # ========== 验证文件上下文状态 ==========
+    - name: 验证文件上下文状态
+      ansible.builtin.shell: |
+        echo "=== 文件上下文状态验证 ==="
+        
+        # 创建测试目录（如果不存在）
+        mkdir -p /tmp/test_context 2>/dev/null || true
+        
+        if command -v ls &> /dev/null; then
+          echo "检查测试目录上下文："
+          ls -Zd /tmp/test_context 2>/dev/null || echo "无法获取上下文"
+          
+          echo ""
+          echo "检查系统目录上下文示例："
+          ls -Zd /etc 2>/dev/null || echo "无法获取 /etc 上下文"
+          ls -Zd /var/log 2>/dev/null || echo "无法获取 /var/log 上下文"
+        fi
+      register: context_verification
+      changed_when: false
+    
+    - name: 显示上下文验证结果
+      ansible.builtin.debug:
+        msg: "{{ context_verification.stdout_lines }}"
+    
+    # ========== SELinux 状态检查 ==========
+    - name: 检查 SELinux 整体状态
+      ansible.builtin.shell: |
+        echo "=== SELinux 系统状态 ==="
+        
+        if command -v sestatus &> /dev/null; then
+          sestatus
+        else
+          echo "sestatus 命令不可用"
+        fi
+      register: selinux_status
+      changed_when: false
+    
+    - name: 显示 SELinux 状态
+      ansible.builtin.debug:
+        msg: "{{ selinux_status.stdout_lines }}"
+    
+    # ========== 上下文映射查询和说明 ==========
+    - name: 查询特定上下文映射说明
+      ansible.builtin.shell: |
+        echo "=== 常用 SELinux 上下文说明 ==="
+        
+        if command -v semanage &> /dev/null; then
+          echo "查询 Web 服务相关上下文："
+          semanage fcontext -l | grep -E "httpd" | head -5
+          
+          echo ""
+          echo "查询日志相关上下文："
+          semanage fcontext -l | grep -E "log" | head -3
+          
+          echo ""
+          echo "查询临时文件相关上下文："
+          semanage fcontext -l | grep -E "tmp" | head -3
+        else
+          echo "semanage 命令不可用"
+        fi
+      register: context_descriptions
+      changed_when: false
+      become: yes
+      ignore_errors: yes
+    
+    - name: 显示上下文说明
+      ansible.builtin.debug:
+        msg: "{{ context_descriptions.stdout_lines }}"
+    
+    # ========== 安全建议和最佳实践 ==========
+    - name: 显示 SELinux 上下文配置建议
+      ansible.builtin.debug:
+        msg: |
+          SELinux 文件上下文配置安全建议：
+          
+          1. 路径模式设计：
+             - 使用精确路径避免误匹配
+             - (/.*)? 匹配目录和所有子目录
+             - 测试模式确保覆盖预期范围
+          
+          2. 上下文类型选择：
+             - httpd_sys_content_t: Web 服务静态内容
+             - var_log_t: 日志文件
+             - tmp_t: 临时文件
+             - etc_t: 配置文件
+          
+          3. 配置最佳实践：
+             - 分阶段配置不同类型目录
+             - 使用 restorecon 应用到现有文件
+             - 定期验证上下文配置
+          
+          4. 安全注意事项：
+             - 只配置应用必需的上下文
+             - 避免过度宽松的安全标签
+             - 定期审查上下文映射的必要性
+          
+          5. 故障排查：
+             - 使用 ls -Z 查看文件上下文
+             - 检查 AVC 拒绝日志
+             - 使用 semanage 管理上下文映射
+          
+          常用上下文类型：
+          - httpd_sys_content_t: Web 内容文件
+          - httpd_log_t: Web 服务日志
+          - httpd_tmp_t: Web 临时文件
+          - var_log_t: 系统日志文件
+          - etc_t: 配置文件
+          - tmp_t: 临时文件
+          - user_home_t: 用户家目录文件
+    
+    # ========== 配置验证和清理演示 ==========
+    - name: 演示上下文配置清理
+      ansible.posix.sefcontext:
+        target: "{{ cleanup_context_path }}"
+        state: absent
+      become: yes
+      register: cleanup_result
+      when: demonstrate_cleanup | default(false)
+    
+    - name: 显示清理结果
+      ansible.builtin.debug:
+        msg: |
+          上下文映射清理演示：
+          路径: {{ cleanup_context_path }}
+          状态: 已移除
+          结果: {{ cleanup_result }}
+      when: demonstrate_cleanup | default(false)
+    
+    # ========== 配置完成总结 ==========
+    - name: SELinux 文件上下文配置完成总结
+      ansible.builtin.debug:
+        msg: |
+          SELinux 文件上下文配置已完成：
+          
+          已配置的上下文映射：
+          1. {{ webapp_root_path }}: {{ webapp_context_type }}
+          2. {{ log_directory_path }}: {{ log_context_type }}
+          {% if configure_data_directory | default(false) %}
+          3. {{ data_directory_path }}: {{ data_context_type }}
+          {% endif %}
+          {% if configure_temp_directory | default(false) %}
+          4. {{ temp_directory_path }}: {{ temp_context_type }}
+          {% endif %}
+          
+          重要说明：
+          - 上下文映射立即生效，但现有文件需要运行 restorecon
+          - 新创建的文件会自动获得映射的上下文
+          - 在生产环境使用前请充分测试
+          - 定期验证文件上下文是否符合预期
+          
+          相关命令：
+          - semanage fcontext -l: 查看所有上下文映射
+          - ls -Z /path/to/file: 查看文件上下文
+          - restorecon -R /path: 应用上下文到目录
+          - sestatus: 查看 SELinux 状态

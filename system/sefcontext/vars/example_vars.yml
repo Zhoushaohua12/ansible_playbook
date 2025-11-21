@@ -1,0 +1,186 @@
+# sefcontext 模块配置变量示例
+
+# ========== Web 应用目录配置 ==========
+# Web 应用根目录路径
+webapp_root_path: /opt/myapp(/.*)?
+
+# Web 应用目录 SELinux 上下文类型
+webapp_context_type: httpd_sys_content_t
+
+# ========== 日志目录配置 ==========
+# 应用日志目录路径
+log_directory_path: /var/log/myapp(/.*)?
+
+# 日志目录 SELinux 上下文类型
+log_context_type: var_log_t
+
+# ========== 数据目录配置 ==========
+# 是否配置数据目录
+configure_data_directory: false
+
+# 应用数据目录路径
+data_directory_path: /opt/myapp/data(/.*)?
+
+# 数据目录 SELinux 上下文类型
+data_context_type: mysqld_db_t
+
+# ========== 临时文件目录配置 ==========
+# 是否配置临时文件目录
+configure_temp_directory: false
+
+# 临时文件目录路径
+temp_directory_path: /opt/myapp/tmp(/.*)?
+
+# 临时文件 SELinux 上下文类型
+temp_context_type: tmp_t
+
+# ========== 批量配置选项 ==========
+# 是否启用批量配置模式
+enable_batch_configuration: false
+
+# 应用目录上下文批量配置
+application_contexts:
+  - target: /opt/myapp(/.*)?
+    setype: httpd_sys_content_t
+  - target: /var/log/myapp(/.*)?
+    setype: var_log_t
+  - target: /opt/myapp/config(/.*)?
+    setype: etc_t
+  - target: /opt/myapp/uploads(/.*)?
+    setype: httpd_sys_rw_content_t
+
+# ========== 上下文应用配置 ==========
+# 是否立即应用上下文到现有文件
+apply_context_immediately: false
+
+# 需要应用上下文的路径列表
+apply_context_paths:
+  - path: /opt/myapp
+  - path: /var/log/myapp
+
+# ========== 清理和演示配置 ==========
+# 是否演示上下文清理
+demonstrate_cleanup: false
+
+# 清理演示路径
+cleanup_context_path: /tmp/demo_context(/.*)?
+
+# ========== 高级配置选项 ==========
+# SELinux 用户设置（可选）
+secontext_seuser: system_u
+
+# SELinux 范围设置（可选）
+secontext_serange: s0
+
+# 是否启用详细模式
+enable_verbose_mode: true
+
+# 配置验证模式（strict、loose）
+validation_mode: strict
+
+# ========== 环境特定配置 ==========
+# 开发环境上下文配置
+development_contexts:
+  webapp:
+    target: /opt/devapp(/.*)?
+    setype: httpd_sys_content_t
+  logs:
+    target: /var/log/devapp(/.*)?
+    setype: var_log_t
+
+# 测试环境上下文配置
+testing_contexts:
+  webapp:
+    target: /opt/testapp(/.*)?
+    setype: httpd_sys_content_t
+  logs:
+    target: /var/log/testapp(/.*)?
+    setype: var_log_t
+  data:
+    target: /opt/testapp/data(/.*)?
+    setype: mysqld_db_t
+
+# 生产环境上下文配置（更严格）
+production_contexts:
+  webapp:
+    target: /opt/prodapp(/.*)?
+    setype: httpd_sys_content_t
+  logs:
+    target: /var/log/prodapp(/.*)?
+    setype: var_log_t
+  config:
+    target: /opt/prodapp/config(/.*)?
+    setype: etc_t
+  uploads:
+    target: /opt/prodapp/uploads(/.*)?
+    setype: httpd_sys_rw_content_t
+
+# ========== 常用上下文类型参考 ==========
+# Web 服务相关
+web_context_types:
+  content: httpd_sys_content_t
+  log: httpd_log_t
+  script: httpd_sys_script_exec_t
+  rw_content: httpd_sys_rw_content_t
+  tmp: httpd_tmp_t
+
+# 数据库相关
+database_context_types:
+  data: mysqld_db_t
+  log: mysqld_log_t
+  tmp: mysqld_tmp_t
+  sock: mysqld_var_run_t
+
+# 系统相关
+system_context_types:
+  etc: etc_t
+  log: var_log_t
+  tmp: tmp_t
+  user_home: user_home_t
+
+# ⚠️  严重警告 - SELinux 文件上下文配置安全注意事项：
+# 1. 路径模式设计风险：
+#    - 通配符 (/.*)? 会匹配所有子目录，确保路径精确性
+#    - 避免过于宽泛的路径模式，防止误标记重要文件
+#    - 测试路径模式确保只覆盖预期目录
+
+# 2. 上下文类型安全影响：
+#    - 错误的上下文类型可能导致应用无法访问文件
+#    - 过于宽松的上下文会降低系统安全性
+#    - 某些上下文类型可能影响系统服务正常运行
+
+# 3. 生产环境风险评估：
+#    - 上下文变更影响所有匹配路径的文件
+#    - 现有文件需要运行 restorecon 应用新上下文
+#    - 在测试环境充分验证配置效果
+
+# 4. 监控和维护要求：
+#    - 定期检查文件上下文是否符合预期
+#    - 监控 SELinux 违规日志
+#    - 记录所有上下文变更和原因
+
+# ⚠️  系统兼容性注意：
+# 1. SELinux 仅在 RHEL/CentOS/Fedora 等 Red Hat 系列系统上支持
+# 2. 不同版本的 SELinux 策略可能包含不同的上下文类型
+# 3. 某些上下文类型可能在特定策略版本中不存在
+
+# ⚠️  应用兼容性警告：
+# 1. 上下文变更可能影响应用文件访问权限
+# 2. 新创建的文件会自动获得映射的上下文
+# 3. 应用可能需要特定的上下文类型才能正常运行
+
+# ⚠️  在生产环境使用前的建议：
+# - 使用 --check 模式预览变更：ansible-playbook playbook.yml --check
+# - 在测试环境验证所有上下文变更对应用的影响
+# - 准备详细的变更计划和回滚步骤
+# - 配置监控系统跟踪文件访问权限变化
+# - 与安全团队协作评估安全风险
+# - 定期备份 SELinux 配置和策略文件
+# - 建立上下文变更的审批和记录流程
+
+# ⚠️  故障排查提示：
+# - 如果应用无法访问文件，检查文件 SELinux 上下文
+# - 使用 ls -Z 查看文件当前上下文
+# - 查看 /var/log/audit/audit.log 中的 AVC 拒绝消息
+# - 使用 restorecon 修复不正确的文件上下文
+# - 使用 semanage fcontext -l 查看所有上下文映射规则
