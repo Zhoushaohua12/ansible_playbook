@@ -1,0 +1,155 @@
+# ⚠️ 本文件仅为示例，占位符必须使用 Ansible Vault 或环境变量替换
+
+# ========== MongoDB 连接配置 ==========
+mongodb_host: "localhost"
+mongodb_port: 27017
+
+# ========== 管理员账号配置 ==========
+mongodb_admin_user: "admin"
+mongodb_admin_password: "PLEASE_CHANGE_ADMIN_PASSWORD"
+mongodb_admin_database: "admin"
+
+# ========== 数据库配置 ==========
+# 应用数据库名称
+mongodb_app_database: "app_db"
+
+# 多个数据库列表
+mongodb_databases:
+  - "app_db"
+  - "reporting_db"
+  - "analytics_db"
+  - "logging_db"
+
+# 测试环境数据库
+mongodb_test_databases:
+  - "test_app_db"
+  - "test_reporting_db"
+
+# 要删除的数据库
+mongodb_databases_to_delete:
+  - "old_test_db"
+  - "deprecated_db"
+
+# ========== 副本集配置 ==========
+# 是否使用副本集
+use_replica_set: false
+
+# 副本集名称
+mongodb_replica_set: "rs0"
+
+# ========== SSL 配置 ==========
+# 是否使用 SSL
+use_ssl: false
+
+# SSL 证书要求
+mongodb_ssl_cert_reqs: "CERT_REQUIRED"
+
+# ========== 认证配置 ==========
+# 是否使用自定义认证机制
+use_custom_auth: false
+
+# 认证机制
+mongodb_auth_mechanism: "SCRAM-SHA-256"
+
+# ========== 操作控制 ==========
+# 是否创建多个数据库
+create_multiple_databases: false
+
+# 是否创建测试数据库
+create_test_databases: false
+
+# 是否删除数据库
+delete_databases: false
+
+# 是否在创建前检查
+check_before_create: false
+
+# 是否验证数据库
+verify_databases: false
+
+# ========== 安全提示 ==========
+# ⚠️  特别注意：
+# 1. 所有密码必须使用 Ansible Vault 加密存储，禁止明文密码
+# 2. 删除数据库前必须确认已备份，数据删除不可恢复
+# 3. 生产环境必须：
+#    - 使用 SSL 加密连接
+#    - 使用强认证机制（SCRAM-SHA-256）
+#    - 限制管理账号的访问 IP
+#    - 记录所有数据库创建和删除操作
+# 4. 数据库名称应遵循命名规范，避免使用特殊字符
+# 5. 生产环境部署前，一定要使用 --check 模式预览：
+#    ansible-playbook database/mongodb_db/playbook.yml --check
+# 6. 删除数据库操作特别危险，必须经过审批和确认
+# 7. 副本集环境需要指定 replica_set 参数
+
+# ========== MongoDB 数据库命名规范 ==========
+# 数据库命名建议：
+database_naming_conventions:
+  rules:
+    - "使用小写字母"
+    - "使用下划线分隔单词"
+    - "避免使用特殊字符"
+    - "不要以数字开头"
+    - "长度不超过 64 字符"
+  examples:
+    - "app_db - 应用数据库"
+    - "user_data - 用户数据库"
+    - "order_system - 订单系统数据库"
+  reserved:
+    - "admin - 系统管理数据库"
+    - "local - 本地数据库"
+    - "config - 配置数据库"
+
+# ========== MongoDB 认证机制 ==========
+# 可用的认证机制：
+auth_mechanisms:
+  scram_sha_1:
+    name: "SCRAM-SHA-1"
+    description: "默认认证机制"
+    use_case: "MongoDB 3.0+"
+  scram_sha_256:
+    name: "SCRAM-SHA-256"
+    description: "增强安全认证机制"
+    use_case: "MongoDB 4.0+，推荐使用"
+  mongodb_x509:
+    name: "MONGODB-X509"
+    description: "基于 X.509 证书认证"
+    use_case: "高安全要求环境"
+
+# ========== MongoDB 数据库管理最佳实践 ==========
+best_practices:
+  planning:
+    - "规划数据库结构和命名规范"
+    - "评估数据量和性能需求"
+    - "设计数据库权限模型"
+  
+  implementation:
+    - "使用有意义的数据库名称"
+    - "为不同环境使用不同数据库"
+    - "配置适当的副本集"
+    - "启用认证和授权"
+  
+  security:
+    - "使用强密码和 SSL"
+    - "限制网络访问"
+    - "定期备份数据库"
+    - "审计数据库操作"
+  
+  monitoring:
+    - "监控数据库大小"
+    - "监控连接数和性能"
+    - "配置告警机制"
+    - "定期审查数据库列表"
+
+# ========== MongoDB 副本集说明 ==========
+replica_set_info:
+  description: "MongoDB 副本集提供数据冗余和高可用性"
+  benefits:
+    - "自动故障转移"
+    - "数据冗余"
+    - "读写分离"
+    - "零停机维护"
+  configuration:
+    minimum_members: 3
+    recommended_members: "3 或 5（奇数）"
+    priority_settings: "配置节点优先级"

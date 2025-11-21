@@ -1,7 +1,7 @@
 # 模块索引 (Module Index)
 
-- 生成时间: 2025-11-21T01:43:59.885579+00:00
-- 覆盖统计: 15 个章节 / 101 个模块
+- 生成时间: 2025-11-21T02:02:08.836766+00:00
+- 覆盖统计: 15 个章节 / 106 个模块
 - 待补充模块: 5 项 (来自 ansible-doc 差异)
 
 ## 高级特性总览 (`advanced`)
@@ -69,16 +69,19 @@
 
 ## 数据库模块实践指南 (`database`)
 
-本目录提供主流数据库系统（MySQL、PostgreSQL、MongoDB）的 Ansible 自动化管理示例，涵盖用户管理、数据库创建、权限授予等常见运维场景。所有示例均通过 check_mode 或 delegate_to 方式运行，适合在本地环境学习和测试。
+本目录提供主流数据库系统（MySQL、PostgreSQL、MongoDB）的 Ansible 自动化管理示例，涵盖用户管理、数据库创建、权限授予、主从复制等常见运维场景。所有示例均通过 check_mode 或 delegate_to 方式运行，适合在本地环境学习和测试。
 
-**外部依赖**: community.mongodb, community.mysql, community.postgresql
+**外部依赖**: ansible.builtin, community.mongodb, community.mysql, community.postgresql
 
 | 模块 | 摘要 | 示例 | 覆盖状态 |
 | --- | --- | --- | --- |
+| [MongoDB 数据库管理模块使用指南](database/mongodb_db/README.md) | community.mongodb.mongodb_db 模块用于管理 MongoDB 数据库，支持创建、删除数据库等操作。适用于应用部署、数据库初始化、环境清理等场景。 | `database/mongodb_db/playbook.yml` | covered |
 | [mongodb_user 模块使用指南](database/mongodb_user/README.md) | community.mongodb.mongodb_user 模块用于管理 MongoDB 数据库的用户账号，包括创建、删除用户，配置角色和权限。适用于 MongoDB 应用部署、用户权限管理、安全加固等场景。 | `database/mongodb_user/playbook.yml` | covered |
 | [mysql_db 模块使用指南](database/mysql_db/README.md) | community.mysql.mysql_db 模块用于管理 MySQL 和 MariaDB 数据库，包括创建、删除数据库，导入导出 SQL 文件，设置字符集和排序规则。适用于应用部署、数据库初始化、备份恢复等场景。 | `database/mysql_db/playbook.yml` | covered |
+| [MySQL 主从复制管理模块使用指南](database/mysql_replication/README.md) | community.mysql.mysql_replication 模块用于管理 MySQL 主从复制（Replication）配置和状态，支持启动/停止复制、获取复制状态、配置复制参数等操作。适用于高可用架构部署、数据库容灾、读写分离场景。 | `database/mysql_replication/playbook.yml` | covered |
 | [mysql_user 模块使用指南](database/mysql_user/README.md) | community.mysql.mysql_user 模块用于管理 MySQL 和 MariaDB 数据库的用户账号，包括创建、删除用户，设置密码，以及授予或撤销数据库权限。适用于自动化数据库用户生命周期管理、应用部署中的权限配置等场景。 | `database/mysql_user/playbook.yml` | covered |
 | [postgresql_db 模块使用指南](database/postgresql_db/README.md) | community.postgresql.postgresql_db 模块用于管理 PostgreSQL 数据库，包括创建、删除数据库，设置 owner、encoding、template 等属性。适用于 PostgreSQL 应用部署、数据库初始化、多租户环境管理等场景。 | `database/postgresql_db/playbook.yml` | covered |
+| [PostgreSQL 权限管理模块使用指南](database/postgresql_privs/README.md) | community.postgresql.postgresql_privs 模块用于管理 PostgreSQL 数据库对象的权限（GRANT/REVOKE），支持数据库、表、序列、函数、模式等多种对象类型的权限授予和撤销。适用于权限最小化、安全加固、多租户环境、合规审计等场景。 | `database/postgresql_privs/playbook.yml` | covered |
 | [postgresql_user 模块使用指南](database/postgresql_user/README.md) | community.postgresql.postgresql_user 模块用于管理 PostgreSQL 数据库用户（角色），包括创建、删除用户，设置密码，以及授予或撤销数据库权限。适用于自动化数据库用户生命周期管理、应用部署中的权限配置、多租户账号隔离等场景。 | `database/postgresql_user/playbook.yml` | covered |
 
 ## 文件操作模块实践指南 (`files`)
@@ -144,12 +147,13 @@
 
 ## 网络模块实践指南 (`network`)
 
-本章节介绍 Ansible 中网络配置与监控的核心模块，涵盖防火墙规则管理（firewalld/ufw/iptables）、网络连接监控（wait_for）、端口健康探测（port）、静态路由管理（route）和网络接口管理（interface）。这些模块广泛应用于安全加固、容器编排、多层部署、网络配置管理等场景，所有示例均包含中文注释和最佳实践说明。
+本章节介绍 Ansible 中网络配置与监控的核心模块，涵盖防火墙规则管理（firewalld/ufw/iptables）、网络连接监控（wait_for）、端口健康探测（port）、静态路由管理（route）、网络接口管理（interface/nmcli）、VLAN 配置（vlan）和网卡绑定（bonding）。这些模块广泛应用于安全加固、容器编排、多层部署、网络配置管理、高可用网络架构等场景，所有示例均包含中文注释和最佳实践说明。
 
 **外部依赖**: ansible.builtin, ansible.posix, community.general
 
 | 模块 | 摘要 | 示例 | 覆盖状态 |
 | --- | --- | --- | --- |
+| [网络接口绑定（Bonding）模块使用指南](network/bonding/README.md) | community.general.nmcli 模块用于配置网络接口绑定（Network Interface Bonding），也称为链路聚合或网卡绑定。通过将多个物理网络接口聚合为一个逻辑接口，实现网络冗余、负载均衡和带宽聚合。广泛应用于服务器高可用架构、数据中心网络和关键业务系统。 | `network/bonding/playbook.yml` | covered |
 | [firewalld 模块使用指南](network/firewalld/README.md) | community.general.firewalld 模块用于管理 RHEL/CentOS/Fedora 系统的动态防火墙。与静态 iptables 不同，firewalld 支持在线更新规则而无需重启服务，并引入了 zone（区域）的概念，可根据网络信任级别应用不同的策略。 | `network/firewalld/playbook.yml` | covered |
 | [interface 模块使用指南](network/interface/README.md) | community.general.nmcli 模块用于管理 Linux 系统的网络接口配置，通过 NetworkManager 的命令行工具实现接口的创建、修改、删除和状态管理。此模块适用于服务器网络配置、虚拟化管理、容器网络、VPN 连接等场景，能够统一管理不同类型的网络接口（以太网、VLAN、Bridge、Bond 等）。 | `network/interface/playbook.yml` | covered |
 | [iptables 模块使用指南](network/iptables/README.md) | community.general.iptables 模块用于直接管理 Linux 内核的 iptables 防火墙规则。相比高层抽象的 firewalld/ufw，iptables 提供了对防火墙的细粒度控制，包括 NAT、DNAT、SNAT、自定义链等高级功能，适合需要复杂网络配置的场景。 | `network/iptables/playbook.yml` | covered |
@@ -157,6 +161,7 @@
 | [port 模块使用指南](network/port/README.md) | ansible.builtin.wait_for 模块用于端口健康探测，通过检查目标主机端口的可用性来验证服务状态。此模块特别适用于集群部署、滚动更新、依赖链路中确保服务可用性等场景。相比直接连接测试，wait_for 提供了重试、超时、延迟等灵活控制机制，并支持通过 delegate_to: localhost 从控制节点进行远程检查，避免实际连接到目标服务。 | `network/port/playbook.yml` | covered |
 | [route 模块使用指南](network/route/README.md) | ansible.posix.route 模块用于管理系统的静态路由表，支持添加、删除和修改路由规则。此模块适用于多网卡环境、复杂网络拓扑、VPN 配置、容器网络等场景，能够精确控制网络流量的路径选择。通过 Ansible 的幂等性特性，可以确保路由配置的一致性和可重复性。 | `network/route/playbook.yml` | covered |
 | [ufw 模块使用指南](network/ufw/README.md) | community.general.ufw 模块用于管理 Ubuntu/Debian 系统的 Uncomplicated Firewall（ufw）。相比复杂的 iptables，ufw 提供了更简洁的界面和默认安全策略，非常适合快速配置基础防火墙规则。 | `network/ufw/playbook.yml` | covered |
+| [VLAN 网络配置模块使用指南](network/vlan/README.md) | community.general.nmcli 模块用于配置 VLAN（虚拟局域网）网络接口，实现网络隔离、流量分割和多租户环境管理。VLAN 技术允许在同一物理网络设备上创建多个逻辑隔离的网络，广泛应用于企业网络、数据中心、云平台和多环境部署场景。 | `network/vlan/playbook.yml` | covered |
 | [wait_for 模块使用指南](network/wait_for/README.md) | ansible.builtin.wait_for 模块用于等待特定条件满足后再继续执行后续任务。最常见的场景是等待服务端口开放，适用于集群部署、滚动更新、依赖链路中确保服务可用性等场景。相比直接检查，wait_for 提供了重试、超时、延迟等灵活控制。 | `network/wait_for/playbook.yml` | covered |
 
 ### 学习路径建议

@@ -1,0 +1,270 @@
+# ⚠️ 本文件仅为示例，占位符必须根据实际环境替换
+
+# ========== 主备模式绑定配置 ==========
+# 绑定接口配置
+bond_primary_conn_name: "bond0"
+bond_primary_ifname: "bond0"
+bond_primary_mode: "active-backup"  # 主备模式
+bond_primary_ip4: "192.168.1.100/24"
+bond_primary_gw4: "192.168.1.1"
+bond_primary_dns4:
+  - "8.8.8.8"
+  - "8.8.4.4"
+
+# 从属接口配置
+bond_primary_slave1_conn: "bond0-slave-eth0"
+bond_primary_slave1_if: "eth0"
+bond_primary_slave2_conn: "bond0-slave-eth1"
+bond_primary_slave2_if: "eth1"
+
+# ========== LACP 模式绑定配置 ==========
+# 是否创建 LACP 绑定
+create_lacp_bond: false
+
+# LACP 绑定配置
+bond_lacp_conn_name: "bond1"
+bond_lacp_ifname: "bond1"
+bond_lacp_mode: "802.3ad"  # LACP 模式，需要交换机支持
+bond_lacp_ip4: "10.0.0.100/24"
+bond_lacp_gw4: "10.0.0.1"
+
+# LACP 从属接口列表
+bond_lacp_slaves:
+  - conn_name: "bond1-slave-eth2"
+    ifname: "eth2"
+  - conn_name: "bond1-slave-eth3"
+    ifname: "eth3"
+
+# ========== TLB 负载均衡模式绑定配置 ==========
+# 是否创建 TLB 绑定
+create_tlb_bond: false
+
+# TLB 绑定配置
+bond_tlb_conn_name: "bond2"
+bond_tlb_ifname: "bond2"
+bond_tlb_mode: "balance-tlb"  # TLB 负载均衡模式
+bond_tlb_ip4: "172.16.0.100/24"
+
+# TLB 从属接口列表
+bond_tlb_slave_interfaces:
+  - "eth4"
+  - "eth5"
+  - "eth6"
+  - "eth7"
+
+# ========== DHCP 模式绑定配置 ==========
+# 是否创建 DHCP 绑定
+create_dhcp_bond: false
+
+# DHCP 绑定配置
+bond_dhcp_conn_name: "bond3"
+bond_dhcp_ifname: "bond3"
+bond_dhcp_mode: "active-backup"
+
+# DHCP 从属接口列表
+bond_dhcp_slaves:
+  - conn_name: "bond3-slave-eth8"
+    ifname: "eth8"
+  - conn_name: "bond3-slave-eth9"
+    ifname: "eth9"
+
+# ========== 批量绑定配置 ==========
+# 是否批量创建绑定
+create_batch_bonds: false
+
+# 批量绑定接口列表
+bond_interfaces:
+  - conn_name: "bond-web"
+    ifname: "bond10"
+    mode: "active-backup"
+    method4: "manual"
+    ip4: "192.168.10.100/24"
+    gw4: "192.168.10.1"
+    dns4:
+      - "8.8.8.8"
+  - conn_name: "bond-app"
+    ifname: "bond11"
+    mode: "active-backup"
+    method4: "manual"
+    ip4: "192.168.20.100/24"
+    gw4: "192.168.20.1"
+  - conn_name: "bond-db"
+    ifname: "bond12"
+    mode: "active-backup"
+    method4: "manual"
+    ip4: "192.168.30.100/24"
+    gw4: "192.168.30.1"
+
+# ========== 绑定验证配置 ==========
+# 是否验证绑定配置
+verify_bonding: false
+
+# 是否测试故障切换
+test_failover: false
+
+# 是否测试连通性
+test_connectivity: false
+
+# ========== 绑定删除配置 ==========
+# 是否删除绑定
+delete_bonding: false
+
+# 要删除的从属接口连接
+bond_slaves_to_delete:
+  - "old-bond-slave-eth0"
+  - "old-bond-slave-eth1"
+
+# 要删除的绑定接口
+bonds_to_delete:
+  - "old-bond0"
+  - "test-bond1"
+
+# ========== 配置备份 ==========
+# 是否备份绑定配置
+backup_bond_config: false
+
+# 备份文件路径
+bond_backup_file: "/tmp/bond_backup_$(date +%Y%m%d_%H%M%S).txt"
+
+# ========== 安全提示 ==========
+# ⚠️  特别注意：
+# 1. 绑定配置需要至少两个物理网络接口
+# 2. LACP 模式（802.3ad）需要交换机支持并正确配置
+# 3. 修改绑定配置可能导致网络中断，请在控制台或维护窗口期操作
+# 4. 生产环境修改绑定配置前必须：
+#    - 确保 bonding 内核模块已加载：modprobe bonding
+#    - 备份当前网络配置
+#    - 测试故障切换和负载均衡功能
+#    - 准备配置回滚方案
+#    - 确认有物理访问权限
+# 5. 生产环境部署前，一定要使用 --check 模式预览：
+#    ansible-playbook network/bonding/playbook.yml --check
+# 6. 建议先创建绑定接口，测试成功后再添加从属接口
+# 7. 删除绑定时，应先删除从属接口，再删除绑定接口
+
+# ========== 绑定模式详解 ==========
+# 绑定模式选择指南：
+bonding_modes:
+  mode_0:
+    name: "balance-rr"
+    description: "轮询模式 - 数据包顺序传输到所有接口"
+    features: "负载均衡、容错"
+    requirements: "无特殊要求"
+    use_case: "需要负载均衡的场景"
+  
+  mode_1:
+    name: "active-backup"
+    description: "主备模式 - 只有一个接口活动，其他备用"
+    features: "容错、最常用"
+    requirements: "无特殊要求"
+    use_case: "高可用场景，最推荐使用"
+  
+  mode_2:
+    name: "balance-xor"
+    description: "XOR 模式 - 基于 MAC 地址的负载均衡"
+    features: "负载均衡、容错"
+    requirements: "无特殊要求"
+    use_case: "基于 MAC 地址的负载均衡"
+  
+  mode_3:
+    name: "broadcast"
+    description: "广播模式 - 所有接口发送相同数据"
+    features: "容错"
+    requirements: "无特殊要求"
+    use_case: "特殊场景，较少使用"
+  
+  mode_4:
+    name: "802.3ad"
+    description: "LACP 模式 - IEEE 802.3ad 动态链路聚合"
+    features: "动态聚合、负载均衡、容错"
+    requirements: "交换机必须支持 LACP"
+    use_case: "需要交换机支持的高性能场景"
+  
+  mode_5:
+    name: "balance-tlb"
+    description: "TLB 模式 - 自适应负载均衡（出站）"
+    features: "出站负载均衡、无需交换机支持"
+    requirements: "网卡驱动支持 ethtool"
+    use_case: "不需要交换机支持的负载均衡"
+  
+  mode_6:
+    name: "balance-alb"
+    description: "ALB 模式 - 自适应负载均衡（入站和出站）"
+    features: "双向负载均衡、无需交换机支持"
+    requirements: "网卡驱动支持 ethtool"
+    use_case: "不需要交换机支持的双向负载均衡"
+
+# ========== 绑定配置参数 ==========
+# 链路监控参数：
+bonding_parameters:
+  miimon:
+    description: "MII 链路监控间隔（毫秒）"
+    default: 100
+    recommended: "100-1000"
+    note: "用于检测链路状态变化"
+  
+  arp_interval:
+    description: "ARP 监控间隔（毫秒）"
+    default: 0
+    recommended: "1000-3000"
+    note: "与 miimon 互斥，二选一"
+  
+  arp_ip_target:
+    description: "ARP 监控目标 IP"
+    example: "192.168.1.1"
+    note: "用于 ARP 监控时指定目标 IP"
+  
+  primary:
+    description: "首选主接口"
+    example: "eth0"
+    note: "active-backup 模式下的首选主接口"
+  
+  primary_reselect:
+    description: "主接口重选策略"
+    values: "always、better、failure"
+    default: "always"
+
+# ========== 故障排查指南 ==========
+# 常见问题诊断命令：
+troubleshooting_commands:
+  check_bond_status: "cat /proc/net/bonding/bond0"
+  check_active_slave: "cat /sys/class/net/bond0/bonding/active_slave"
+  check_bond_mode: "cat /sys/class/net/bond0/bonding/mode"
+  check_slaves: "cat /sys/class/net/bond0/bonding/slaves"
+  check_mii_status: "cat /sys/class/net/bond0/bonding/mii_status"
+  
+  # 接口操作
+  bring_down_slave: "ip link set eth0 down"
+  bring_up_slave: "ip link set eth0 up"
+  
+  # 网络测试
+  test_connectivity: "ping -c 4 8.8.8.8"
+  check_interface: "ip addr show bond0"
+  check_routes: "ip route show"
+
+# ========== 最佳实践建议 ==========
+# 生产环境绑定配置建议：
+best_practices:
+  planning:
+    - "根据业务需求选择合适的绑定模式"
+    - "评估交换机是否支持 LACP（802.3ad）"
+    - "规划网卡分配和 IP 地址段"
+    - "制定故障切换测试计划"
+  
+  implementation:
+    - "先在测试环境验证配置"
+    - "使用 check_mode 预览变更"
+    - "分步骤创建绑定和添加从属接口"
+    - "配置完成后立即测试故障切换"
+  
+  monitoring:
+    - "监控绑定接口状态和活动接口"
+    - "监控网络流量和带宽使用"
+    - "配置接口故障告警"
+    - "定期检查绑定配置和状态"
+  
+  maintenance:
+    - "定期测试故障切换功能"
+    - "记录配置变更和测试结果"
+    - "保持配置文档更新"
+    - "定期审查和优化配置"

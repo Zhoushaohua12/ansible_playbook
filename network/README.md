@@ -1,7 +1,7 @@
 # 网络模块实践指南
 
 ## 章节概览
-本章节介绍 Ansible 中网络配置与监控的核心模块，涵盖防火墙规则管理（firewalld/ufw/iptables）、网络连接监控（wait_for）、端口健康探测（port）、静态路由管理（route）和网络接口管理（interface）。这些模块广泛应用于安全加固、容器编排、多层部署、网络配置管理等场景，所有示例均包含中文注释和最佳实践说明。
+本章节介绍 Ansible 中网络配置与监控的核心模块，涵盖防火墙规则管理（firewalld/ufw/iptables）、网络连接监控（wait_for）、端口健康探测（port）、静态路由管理（route）、网络接口管理（interface/nmcli）、VLAN 配置（vlan）和网卡绑定（bonding）。这些模块广泛应用于安全加固、容器编排、多层部署、网络配置管理、高可用网络架构等场景，所有示例均包含中文注释和最佳实践说明。
 
 ## 与 system/firewall 的区别
 本 `network/` 目录专注于**跨系统网络配置与监控**的通用模块：
@@ -20,6 +20,8 @@
 | **route** | 静态路由管理 | 多网卡环境、VPN 配置、容器网络、复杂网络拓扑 | ansible.posix collection、系统路由工具 |
 | **interface** | 网络接口管理 | 服务器网络配置、虚拟化管理、高可用网络、移动设备 | community.general collection、NetworkManager 服务 |
 | **nmcli** | NetworkManager 网络连接管理 | 以太网、无线、VLAN、网桥、绑定等网络连接配置 | community.general collection、NetworkManager 服务 |
+| **vlan** | VLAN 网络配置 | 网络隔离、多租户环境、数据中心网络分段、存储网络 | community.general collection、NetworkManager 服务、8021q 模块 |
+| **bonding** | 网卡绑定/链路聚合 | 网络冗余、负载均衡、高可用架构、带宽聚合 | community.general collection、NetworkManager 服务、bonding 模块 |
 
 ## 涉及模块
 
@@ -36,6 +38,8 @@
 - [route 模块](route/README.md)：静态路由管理，支持多接口路由、优先级设置和系统兼容性
 - [interface 模块](interface/README.md)：网络接口管理，支持以太网、网桥、绑定、VLAN 等接口类型
 - [nmcli 模块](nmcli/README.md)：NetworkManager 网络连接管理，支持以太网、无线、VLAN、网桥、绑定等连接配置
+- [vlan 模块](vlan/README.md)：VLAN 网络配置，支持网络隔离、多租户环境、存储网络等场景
+- [bonding 模块](bonding/README.md)：网卡绑定配置，支持多种绑定模式、故障切换、负载均衡
 
 ## 安全使用建议
 

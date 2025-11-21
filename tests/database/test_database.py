@@ -7,13 +7,16 @@ import re
 import pytest
 import yaml
 
-MODULES = ["mysql_user", "mysql_db", "postgresql_db", "postgresql_user", "mongodb_user"]
+MODULES = ["mysql_user", "mysql_db", "postgresql_db", "postgresql_user", "mongodb_user", "mysql_replication", "postgresql_privs", "mongodb_db"]
 FQCN_EXPECTATIONS = {
     "mysql_user": "community.mysql.mysql_user",
     "mysql_db": "community.mysql.mysql_db",
     "postgresql_db": "community.postgresql.postgresql_db",
     "postgresql_user": "community.postgresql.postgresql_user",
     "mongodb_user": "community.mongodb.mongodb_user",
+    "mysql_replication": "community.mysql.mysql_replication",
+    "postgresql_privs": "community.postgresql.postgresql_privs",
+    "mongodb_db": "community.mongodb.mongodb_db",
 }
 COLLECTION_DEPENDENCIES = {
     "mysql_user": "community.mysql",
@@ -21,6 +24,9 @@ COLLECTION_DEPENDENCIES = {
     "postgresql_db": "community.postgresql",
     "postgresql_user": "community.postgresql",
     "mongodb_user": "community.mongodb",
+    "mysql_replication": "community.mysql",
+    "postgresql_privs": "community.postgresql",
+    "mongodb_db": "community.mongodb",
 }
 
 
@@ -103,6 +109,9 @@ class TestModuleDocumentation(TestDatabaseFixtures):
             "postgresql_db": ["psycopg2"],
             "postgresql_user": ["psycopg2"],
             "mongodb_user": ["pymongo"],
+            "mysql_replication": ["PyMySQL", "mysqlclient"],
+            "postgresql_privs": ["psycopg2"],
+            "mongodb_db": ["pymongo"],
         }
         for name, path in module_dirs.items():
             content = (path / "README.md").read_text(encoding="utf-8")
@@ -261,6 +270,9 @@ class TestVarsFiles(TestDatabaseFixtures):
             "postgresql_db": ["postgres_host", "postgres_port", "postgres_admin"],
             "postgresql_user": ["postgres_host", "postgres_port", "postgres_admin", "postgres_user", "postgres_role"],
             "mongodb_user": ["mongodb_host", "mongodb_port", "mongodb_admin"],
+            "mysql_replication": ["mysql_master", "mysql_slave", "mysql_repl"],
+            "postgresql_privs": ["postgres_host", "postgres_port", "postgres_admin"],
+            "mongodb_db": ["mongodb_host", "mongodb_port", "mongodb_admin"],
         }
         for name, path in module_dirs.items():
             content = (path / "vars" / "example_vars.yml").read_text(encoding="utf-8")
