@@ -1,0 +1,35 @@
+---
+# Nginx Proxy 角色 - 反向代理配置任务
+
+- name: 部署反向代理虚拟主机配置
+  ansible.builtin.template:
+    src: templates/reverse_proxy.conf.j2
+    dest: "{{ nginx_vhost_dir }}/{{ item.name }}.conf"
+    owner: root
+    group: root
+    mode: '0644'
+    validate: "nginx -t -c {{ nginx_conf_file }}"
+  loop: "{{ nginx_reverse_proxy_vhosts | default([]) }}"
+  when: nginx_reverse_proxy_enabled | bool
+  notify: reload nginx
+
+- name: 启用反向代理虚拟主机（创建符号链接）
+  ansible.builtin.file:
+    src: "{{ nginx_vhost_dir }}/{{ item.name }}.conf"
+    dest: "{{ nginx_vhost_enabled_dir }}/{{ item.name }}.conf"
+    state: link
+  loop: "{{ nginx_reverse_proxy_vhosts | default([]) }}"
+  when:
+    - nginx_reverse_proxy_enabled | bool
+    - item.enabled | default(true)
+  notify: reload nginx
+
+- name: 部署代理头部安全加固片段
+  ansible.builtin.template:
+    src: templates/proxy_headers.j2
+    dest: "{{ nginx_conf_d_dir }}/proxy_headers.conf"
+    owner: root
+    group: root
+    mode: '0644'
+  when: nginx_reverse_proxy_enabled | bool
+  notify: reload nginx

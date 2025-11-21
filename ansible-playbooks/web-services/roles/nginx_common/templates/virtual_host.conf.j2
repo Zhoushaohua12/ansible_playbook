@@ -1,0 +1,58 @@
+# 虚拟主机配置：{{ item.server_name }}
+# ⚠️ 教学说明：此配置演示如何使用 Jinja2 模板动态生成虚拟主机配置
+
+server {
+    listen {{ item.listen_port | default(80) }};
+    {% if item.listen_ipv6 | default(true) %}listen [::]:{{ item.listen_port | default(80) }};{% endif %}
+    server_name {{ item.server_name }};
+
+    root {{ item.root }};
+    index {{ item.index | default('index.html index.htm') }};
+
+    access_log {{ item.access_log | default(nginx_log_dir + '/access.log') }};
+    error_log {{ item.error_log | default(nginx_log_dir + '/error.log') }};
+
+    {% if nginx_security_enabled | default(true) %}
+    # 安全头部（中文注释）
+    add_header X-Frame-Options "{{ nginx_x_frame_options }}" always;
+    add_header X-Content-Type-Options "{{ nginx_x_content_type_options }}" always;
+    add_header X-XSS-Protection "{{ nginx_x_xss_protection }}" always;
+    {% if nginx_referrer_policy %}add_header Referrer-Policy "{{ nginx_referrer_policy }}" always;{% endif %}
+    {% endif %}
+
+    {% if nginx_rate_limit_enabled %}
+    # 限流配置（中文注释：保护服务器免受过载）
+    limit_req zone={{ nginx_rate_limit_zone_name }} burst={{ nginx_rate_limit_burst }} {% if nginx_rate_limit_nodelay %}nodelay{% endif %};
+    {% endif %}
+
+    {% if nginx_conn_limit_enabled %}
+    limit_conn {{ nginx_conn_limit_zone_name }} {{ nginx_conn_limit_number }};
+    {% endif %}
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    {% if item.php_enabled | default(false) %}
+    # PHP-FPM 配置（中文注释：处理 PHP 请求）
+    location ~ \.php$ {
+        include fastcgi_params;
+        fastcgi_pass {{ item.php_socket | default('unix:/var/run/php/php-fpm.sock') }};
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_index index.php;
+    }
+    {% endif %}
+
+    {% if item.locations is defined %}
+    {% for loc in item.locations %}
+    location {{ loc.path }} {
+        {{ loc.config }}
+    }
+    {% endfor %}
+    {% endif %}
+
+    {% if item.ssl_enabled | default(false) and item.http_redirect | default(false) %}
+    # HTTP 到 HTTPS 自动跳转（中文注释：强制使用 HTTPS 提高安全性）
+    return 301 https://$server_name$request_uri;
+    {% endif %}
+}

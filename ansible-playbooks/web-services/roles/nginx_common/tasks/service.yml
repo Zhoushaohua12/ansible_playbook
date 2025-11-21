@@ -1,0 +1,71 @@
+---
+# Nginx 通用角色 - 服务管理任务
+# 负责启动、启用 Nginx 服务以及配置 SELinux/防火墙
+
+- name: 确保 Nginx 服务已启动并开机自启
+  ansible.builtin.service:
+    name: "{{ nginx_service_name }}"
+    state: started
+    enabled: yes
+  tags: [service]
+
+- name: SELinux - 允许 Nginx 访问网络端口
+  ansible.posix.seboolean:
+    name: httpd_can_network_connect
+    state: yes
+    persistent: yes
+  when:
+    - ansible_selinux is defined
+    - ansible_selinux.status == 'enabled'
+  tags: [service, security]
+
+- name: SELinux - 允许 Nginx 代理
+  ansible.posix.seboolean:
+    name: httpd_can_network_relay
+    state: yes
+    persistent: yes
+  when:
+    - ansible_selinux is defined
+    - ansible_selinux.status == 'enabled'
+  tags: [service, security]
+
+- name: 配置防火墙（firewalld）
+  ansible.posix.firewalld:
+    service: http
+    permanent: yes
+    state: enabled
+    immediate: yes
+  when:
+    - nginx_firewall_enabled | bool
+    - ansible_os_family == 'RedHat'
+  tags: [service, security]
+
+- name: 配置防火墙（firewalld - HTTPS）
+  ansible.posix.firewalld:
+    service: https
+    permanent: yes
+    state: enabled
+    immediate: yes
+  when:
+    - nginx_firewall_enabled | bool
+    - nginx_ssl_enabled | bool
+    - ansible_os_family == 'RedHat'
+  tags: [service, security]
+
+- name: 配置防火墙（UFW）
+  community.general.ufw:
+    rule: allow
+    name: "Nginx Full"
+  when:
+    - nginx_firewall_enabled | bool
+    - ansible_os_family == 'Debian'
+  tags: [service, security]
+
+- name: 验证 Nginx 配置
+  ansible.builtin.command:
+    cmd: nginx -t
+  changed_when: false
+  notify:
+    - verify nginx config
+    - reload nginx
+  tags: [verify]

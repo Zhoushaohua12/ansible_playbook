@@ -1,0 +1,118 @@
+---
+# Nginx 通用角色 - 安装任务
+# 根据变量执行包管理器或源码编译安装
+
+- name: 前置检查 - 验证安装方式
+  ansible.builtin.assert:
+    that:
+      - nginx_install_method in ['package', 'source']
+    fail_msg: "nginx_install_method 必须为 package 或 source"
+  tags: [validation]
+
+- name: 安装前准备 - 更新包缓存（Debian）
+  ansible.builtin.apt:
+    update_cache: yes
+  when:
+    - ansible_os_family == 'Debian'
+    - nginx_install_method == 'package'
+  tags: [install, packages]
+
+- name: 安装前准备 - 包缓存（RedHat）
+  ansible.builtin.yum:
+    name: []
+    state: present
+  when:
+    - ansible_os_family == 'RedHat'
+    - nginx_install_method == 'package'
+  tags: [install, packages]
+  changed_when: false
+
+- name: 通过包管理器安装 Nginx（RedHat 系列）
+  ansible.builtin.yum:
+    name: "{{ nginx_packages_redhat }}"
+    state: present
+  when:
+    - nginx_install_method == 'package'
+    - ansible_os_family == 'RedHat'
+  tags: [install, packages]
+
+- name: 通过包管理器安装 Nginx（Debian 系列）
+  ansible.builtin.apt:
+    name: "{{ nginx_packages_debian }}"
+    state: present
+  when:
+    - nginx_install_method == 'package'
+    - ansible_os_family == 'Debian'
+  tags: [install, packages]
+
+- name: 安装源码依赖（RedHat）
+  ansible.builtin.yum:
+    name: "{{ nginx_source_dependencies_redhat }}"
+    state: present
+  when:
+    - nginx_install_method == 'source'
+    - ansible_os_family == 'RedHat'
+  tags: [install, source]
+
+- name: 安装源码依赖（Debian）
+  ansible.builtin.apt:
+    name: "{{ nginx_source_dependencies_debian }}"
+    state: present
+  when:
+    - nginx_install_method == 'source'
+    - ansible_os_family == 'Debian'
+  tags: [install, source]
+
+- name: 创建源码构建目录
+  ansible.builtin.file:
+    path: /usr/local/src/nginx
+    state: directory
+    mode: '0755'
+  when: nginx_install_method == 'source'
+  tags: [install, source]
+
+- name: 下载 Nginx 源码包
+  ansible.builtin.get_url:
+    url: "{{ nginx_source_url }}"
+    dest: "/usr/local/src/nginx/nginx-{{ nginx_version }}.tar.gz"
+    mode: '0644'
+  when: nginx_install_method == 'source'
+  tags: [install, source]
+
+- name: 解压 Nginx 源码
+  ansible.builtin.unarchive:
+    src: "/usr/local/src/nginx/nginx-{{ nginx_version }}.tar.gz"
+    dest: /usr/local/src/nginx
+    remote_src: yes
+    creates: "/usr/local/src/nginx/nginx-{{ nginx_version }}"
+  when: nginx_install_method == 'source'
+  tags: [install, source]
+
+- name: 配置 Nginx 源码
+  ansible.builtin.command:
+    cmd: "./configure {{ nginx_source_configure_options | join(' ') }}"
+    chdir: "/usr/local/src/nginx/nginx-{{ nginx_version }}"
+  when: nginx_install_method == 'source'
+  tags: [install, source]
+  args:
+    creates: "/usr/local/src/nginx/nginx-{{ nginx_version }}/objs/ngx_http_module.o"
+
+- name: 编译并安装 Nginx 源码
+  ansible.builtin.command:
+    cmd: make && make install
+    chdir: "/usr/local/src/nginx/nginx-{{ nginx_version }}"
+  when: nginx_install_method == 'source'
+  tags: [install, source]
+  args:
+    creates: /usr/local/nginx/sbin/nginx
+
+- name: 创建 systemd 服务文件（源码安装）
+  ansible.builtin.template:
+    src: nginx.service.j2
+    dest: /etc/systemd/system/nginx.service
+    owner: root
+    group: root
+    mode: '0644'
+  when: nginx_install_method == 'source'
+  notify: reload systemd
+  tags: [install, service]

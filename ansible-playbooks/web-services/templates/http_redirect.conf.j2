@@ -1,0 +1,9 @@
+# HTTP 到 HTTPS 跳转配置：{{ item.server_name }}
+# 中文注释：强制使用 HTTPS 提高安全性
+
+server {
+    listen 80;
+    {% if item.listen_ipv6 | default(true) %}listen [::]:80;{% endif %}
+    server_name {{ item.server_name }};
+    return 301 https://$server_name$request_uri;
+}

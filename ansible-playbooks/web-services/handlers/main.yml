@@ -1,0 +1,184 @@
+---
+# Web 服务操作包 - 通用处理程序
+# 处理 Nginx 服务管理、配置验证和日志轮转
+
+# ============================================================================
+# systemd 处理程序
+# ============================================================================
+- name: 重新加载 systemd 守护进程
+  ansible.builtin.systemd:
+    daemon_reload: yes
+  listen: "reload systemd"
+
+# ============================================================================
+# Nginx 服务处理程序
+# ============================================================================
+- name: 重启 Nginx 服务
+  ansible.builtin.service:
+    name: "{{ nginx_service_name }}"
+    state: restarted
+  listen: "restart nginx"
+
+- name: 重新加载 Nginx 配置
+  ansible.builtin.service:
+    name: "{{ nginx_service_name }}"
+    state: reloaded
+  listen: "reload nginx"
+
+- name: 验证 Nginx 配置
+  ansible.builtin.command:
+    cmd: nginx -t
+  changed_when: false
+  register: nginx_config_test
+  failed_when: nginx_config_test.rc != 0
+  listen: "verify nginx config"
+
+- name: 测试 Nginx 配置并重载
+  ansible.builtin.shell: |
+    nginx -t && systemctl reload {{ nginx_service_name }}
+  changed_when: true
+  listen: "test and reload nginx"
+
+- name: 平滑重启 Nginx
+  ansible.builtin.shell: |
+    nginx -s reload
+  changed_when: true
+  failed_when: false
+  listen: "graceful reload nginx"
+
+# ============================================================================
+# SSL 证书更新处理程序
+# ============================================================================
+- name: 重新生成 SSL 证书
+  ansible.builtin.include_role:
+    name: nginx_ssl
+    tasks_from: generate_certificates
+  listen: "regenerate ssl certificates"
+
+- name: 验证 SSL 证书
+  ansible.builtin.command:
+    cmd: openssl x509 -in {{ item.ssl_certificate }} -noout -text
+  loop: "{{ nginx_https_vhosts | default([]) }}"
+  when: 
+    - nginx_https_vhosts is defined
+    - item.ssl_certificate is defined
+  changed_when: false
+  failed_when: false
+  listen: "verify ssl certificates"
+
+# ============================================================================
+# 日志轮转处理程序
+# ============================================================================
+- name: 执行 Nginx 日志轮转
+  ansible.builtin.command:
+    cmd: logrotate -f /etc/logrotate.d/nginx
+  changed_when: true
+  failed_when: false
+  listen: "rotate nginx logs"
+
+- name: 清理旧日志文件
+  ansible.builtin.find:
+    paths: "{{ nginx_log_dir }}"
+    patterns: "*.log.*"
+    age: "{{ nginx_log_rotation_days }}d"
+    recurse: yes
+  register: old_logs
+  listen: "cleanup old logs"
+
+- name: 删除过期日志
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ old_logs.files }}"
+  when: old_logs.files is defined
+  listen: "cleanup old logs"
+
+# ============================================================================
+# 缓存管理处理程序
+# ============================================================================
+- name: 清理 Nginx 缓存
+  ansible.builtin.file:
+    path: "{{ nginx_cache_dir }}"
+    state: absent
+  when: nginx_cache_enabled | bool
+  listen: "clear nginx cache"
+
+- name: 重新创建缓存目录
+  ansible.builtin.file:
+    path: "{{ nginx_cache_dir }}"
+    state: directory
+    owner: "{{ nginx_user if ansible_os_family == 'RedHat' else nginx_user_debian }}"
+    group: "{{ nginx_group if ansible_os_family == 'RedHat' else nginx_group_debian }}"
+    mode: '0755'
+  when: nginx_cache_enabled | bool
+  listen: "clear nginx cache"
+
+# ============================================================================
+# 防火墙更新处理程序
+# ============================================================================
+- name: 更新防火墙规则（RedHat）
+  ansible.posix.firewalld:
+    port: "{{ item }}/tcp"
+    permanent: yes
+    immediate: yes
+    state: enabled
+  loop: "{{ nginx_firewall_allowed_ports }}"
+  when:
+    - nginx_firewall_enabled | bool
+    - ansible_os_family == "RedHat"
+  listen: "update firewall rules"
+
+- name: 更新防火墙规则（Debian）
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: "{{ nginx_firewall_allowed_ports }}"
+  when:
+    - nginx_firewall_enabled | bool
+    - ansible_os_family == "Debian"
+  listen: "update firewall rules"
+
+# ============================================================================
+# 备份处理程序（可选）
+# ============================================================================
+- name: 发送配置更新通知
+  ansible.builtin.debug:
+    msg: "Nginx 配置已更新，服务已重新加载"
+  listen: "config updated notification"
+
+- name: 备份 Nginx 配置
+  ansible.builtin.archive:
+    path: "{{ nginx_conf_dir }}"
+    dest: "{{ nginx_backup_dir }}/nginx-config-{{ ansible_date_time.iso8601_basic_short }}.tar.gz"
+    format: gz
+  when: nginx_backup_enabled | bool
+  listen: "backup nginx config"
+
+# ============================================================================
+# 健康检查处理程序
+# ============================================================================
+- name: 验证 Nginx 服务状态
+  ansible.builtin.service:
+    name: "{{ nginx_service_name }}"
+    state: started
+  register: nginx_status_check
+  listen: "check nginx health"
+
+- name: 测试 HTTP 端点
+  ansible.builtin.uri:
+    url: "http://localhost"
+    method: GET
+    status_code: 200,301,302,403,404
+    timeout: 5
+  register: http_check
+  failed_when: false
+  changed_when: false
+  listen: "check nginx health"
+
+- name: 显示健康检查结果
+  ansible.builtin.debug:
+    msg:
+      - "Nginx 服务状态: {{ nginx_status_check.state | default('未知') }}"
+      - "HTTP 响应状态: {{ http_check.status | default('未响应') }}"
+  listen: "check nginx health"

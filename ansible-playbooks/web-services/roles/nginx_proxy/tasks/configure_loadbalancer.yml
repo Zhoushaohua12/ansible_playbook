@@ -1,0 +1,25 @@
+---
+# Nginx Proxy 角色 - 负载均衡配置任务
+
+- name: 部署负载均衡虚拟主机配置
+  ansible.builtin.template:
+    src: templates/load_balancer.conf.j2
+    dest: "{{ nginx_vhost_dir }}/lb-{{ item.name }}.conf"
+    owner: root
+    group: root
+    mode: '0644'
+    validate: "nginx -t -c {{ nginx_conf_file }}"
+  loop: "{{ nginx_load_balancers | default([]) }}"
+  when: nginx_load_balancer_enabled | bool
+  notify: reload nginx
+
+- name: 启用负载均衡虚拟主机
+  ansible.builtin.file:
+    src: "{{ nginx_vhost_dir }}/lb-{{ item.name }}.conf"
+    dest: "{{ nginx_vhost_enabled_dir }}/lb-{{ item.name }}.conf"
+    state: link
+  loop: "{{ nginx_load_balancers | default([]) }}"
+  when:
+    - nginx_load_balancer_enabled | bool
+    - item.enabled | default(true)
+  notify: reload nginx

@@ -1,0 +1,11 @@
+# 通用 upstream 定义（中文注释：供反向代理和负载均衡引用）
+{% for backend in nginx_backend_servers %}
+upstream {{ backend.name }} {
+    {% if backend.method is defined %}
+    {{ backend.method }};
+    {% endif %}
+    {% for server in backend.servers %}
+    server {{ server.address }} weight={{ server.weight | default(1) }} max_fails={{ server.max_fails | default(3) }} fail_timeout={{ server.fail_timeout | default(30) }}s;
+    {% endfor %}
+}
+{% endfor %}

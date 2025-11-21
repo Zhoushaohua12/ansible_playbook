@@ -1,0 +1,20 @@
+---
+galaxy_info:
+  role_name: nginx_ssl
+  author: DevOps Team
+  description: Nginx SSL/TLS 管理角色
+  license: MIT
+  min_ansible_version: 2.9
+  platforms:
+    - name: EL
+      versions: ['7', '8', '9']
+    - name: Debian
+      versions: ['buster', 'bullseye']
+    - name: Ubuntu
+      versions: ['focal', 'jammy']
+  galaxy_tags:
+    - nginx
+    - ssl
+    - security
+
+dependencies: []

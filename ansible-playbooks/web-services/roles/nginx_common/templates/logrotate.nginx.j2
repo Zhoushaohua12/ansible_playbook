@@ -1,0 +1,13 @@
+# Nginx 日志轮转配置（中文注释：每周轮转，保留 {{ nginx_log_rotation_count }} 份）
+{{ nginx_log_dir }}/access.log {{ nginx_log_dir }}/error.log {
+    weekly
+    rotate {{ nginx_log_rotation_count }}
+    missingok
+    notifempty
+    delaycompress
+    compress
+    sharedscripts
+    postrotate
+        [ -f {{ nginx_pid_file }} ] && kill -USR1 `cat {{ nginx_pid_file }}`
+    endscript
+}

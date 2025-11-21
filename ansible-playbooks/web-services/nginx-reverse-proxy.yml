@@ -1,0 +1,140 @@
+---
+# ⚠️ 教学声明：本 playbook 演示 Nginx 反向代理配置，包含头部安全加固、WebSocket 支持、缓存与限流
+# 功能说明：自定义 proxy_set_header、速率限制、缓存策略，并验证后端连通性
+- name: Nginx 反向代理配置
+  hosts: web_servers
+  gather_facts: true
+  become: yes
+  vars_files:
+    - vars/default.yml
+
+  handlers:
+    - name: 重新加载 Nginx 配置
+      ansible.builtin.service:
+        name: "{{ nginx_service_name }}"
+        state: reloaded
+      listen: "reload nginx"
+
+    - name: 验证 Nginx 配置
+      ansible.builtin.command:
+        cmd: nginx -t
+      changed_when: false
+      listen: "verify nginx config"
+
+  tasks:
+    - name: 前置检查 - 验证反向代理变量
+      ansible.builtin.assert:
+        that:
+          - nginx_reverse_proxy_enabled | bool
+          - nginx_reverse_proxy_vhosts is defined
+          - nginx_reverse_proxy_vhosts | length > 0
+        fail_msg: "未定义反向代理虚拟主机或未启用此功能"
+      tags: [nginx, proxy, validation]
+
+    - name: 执行反向代理配置
+      tags: [nginx, proxy]
+      block:
+        - name: 包含 nginx_common 角色（基础安装）
+          ansible.builtin.include_role:
+            name: nginx_common
+          tags: [install, config]
+
+        - name: 根据需要包含 nginx_ssl 角色
+          ansible.builtin.include_role:
+            name: nginx_ssl
+          when: nginx_ssl_enabled | bool
+          tags: [ssl, security]
+
+        - name: 包含 nginx_proxy 角色（上游与头部加固）
+          ansible.builtin.include_role:
+            name: nginx_proxy
+          tags: [upstream, security, config]
+
+        - name: 渲染反向代理虚拟主机配置
+          ansible.builtin.template:
+            src: templates/reverse_proxy.conf.j2
+            dest: "{{ nginx_vhost_dir }}/{{ item.name }}.conf"
+            owner: root
+            group: root
+            mode: '0644'
+            validate: "nginx -t -c {{ nginx_conf_file }}"
+          loop: "{{ nginx_reverse_proxy_vhosts }}"
+          notify: reload nginx
+          tags: [config]
+
+        - name: 启用反向代理虚拟主机
+          ansible.builtin.file:
+            src: "{{ nginx_vhost_dir }}/{{ item.name }}.conf"
+            dest: "{{ nginx_vhost_enabled_dir }}/{{ item.name }}.conf"
+            state: link
+          loop: "{{ nginx_reverse_proxy_vhosts }}"
+          when: item.enabled | default(true)
+          notify: reload nginx
+          tags: [config]
+
+        - name: 验证后端服务连通性
+          ansible.builtin.uri:
+            url: "{{ item.proxy_pass }}"
+            method: GET
+            status_code: 200,301,302,403,404,503
+            timeout: 10
+          register: backend_checks
+          failed_when: false
+          loop: "{{ nginx_reverse_proxy_vhosts }}"
+          loop_control:
+            label: "proxy {{ item.name }}"
+          tags: [verify]
+
+        - name: 验证 Nginx 配置语法
+          ansible.builtin.command:
+            cmd: nginx -t
+          changed_when: false
+          register: proxy_nginx_test
+          tags: [verify]
+
+        - name: 测试反向代理端点
+          ansible.builtin.uri:
+            url: "http://localhost:{{ item.listen_port | default(80) }}"
+            method: GET
+            status_code: 200,301,302,403,404,502,503
+            timeout: 10
+          register: proxy_checks
+          failed_when: false
+          loop: "{{ nginx_reverse_proxy_vhosts }}"
+          loop_control:
+            label: "test {{ item.name }}"
+          tags: [verify]
+
+        - name: 输出反向代理配置结果
+          ansible.builtin.debug:
+            msg:
+              - "反向代理配置已完成"
+              - "已配置站点: {{ nginx_reverse_proxy_vhosts | map(attribute='server_name') | list }}"
+              - "后端连通性: {{ backend_checks.results | map(attribute='status') | list }}"
+              - "代理端点测试: {{ proxy_checks.results | map(attribute='status') | list }}"
+              - "⚠️ 请验证 X-Forwarded-* 头部、WebSocket 连接与缓存策略"
+          tags: [info]
+
+      rescue:
+        - name: 错误处理 - 输出失败详情
+          ansible.builtin.debug:
+            msg:
+              - "反向代理配置失败"
+              - "错误信息: {{ ansible_failed_result | default('未知错误') }}"
+
+        - name: 错误处理 - 收集日志
+          ansible.builtin.shell: |
+            nginx -t 2>&1 || true
+            systemctl status {{ nginx_service_name }} || true
+            tail -n 50 {{ nginx_log_dir }}/error.log 2>/dev/null || echo "无错误日志"
+          register: proxy_debug
+          changed_when: false
+          failed_when: false
+
+        - name: 错误处理 - 显示日志
+          ansible.builtin.debug:
+            var: proxy_debug.stdout_lines
+
+        - name: 错误处理 - 终止执行
+          ansible.builtin.fail:
+            msg: "反向代理任务失败，详情见日志"

@@ -35,6 +35,17 @@ ansible-playbooks/
 │   │   ├── database_backup/    # 数据库备份角色
 │   │   └── cloud_sync/        # 云同步角色
 │   └── README.md              # 维护策略文档
+├── web-services/               # Web 服务/Nginx 场景 Playbooks
+│   ├── nginx-install-configure.yml  # 包/源码安装与基础调优
+│   ├── nginx-vhost-https.yml        # HTTPS、自签名证书、HSTS
+│   ├── nginx-loadbalancer.yml       # 负载均衡、上游、健康检查
+│   ├── nginx-reverse-proxy.yml      # 反向代理、缓存、限流
+│   ├── vars/
+│   │   └── default.yml              # Nginx 参数与安全配置
+│   ├── templates/                   # nginx.conf、虚拟主机、SSL 片段
+│   ├── roles/                       # nginx_common / nginx_ssl / nginx_proxy
+│   ├── handlers/                    # reload/restart/验证处理程序
+│   └── README.md                    # Web 服务文档
 └── README.md                  # 主文档（本文件）
 ```
 
@@ -59,6 +70,7 @@ ansible-galaxy collection install community.docker
 ansible-galaxy collection install community.mysql
 ansible-galaxy collection install community.general
 ansible-galaxy collection install community.postgresql
+ansible-galaxy collection install community.crypto
 ```
 
 ### 主机清单配置
@@ -119,6 +131,23 @@ ansible-playbook -i inventory monitoring/elk-stack-install.yml
 ansible-playbook -i inventory maintenance/backup-strategy.yml
 ```
 
+#### 4. Web 服务（Nginx 场景）
+
+```bash
+# 包/源码安装 + 基础调优
+ansible-playbook -i inventory web-services/nginx-install-configure.yml --syntax-check
+ansible-playbook -i inventory web-services/nginx-install-configure.yml --tags install,config
+
+# HTTPS 虚拟主机与自签名证书（使用 community.crypto）
+ansible-playbook -i inventory web-services/nginx-vhost-https.yml --limit web_frontend --tags ssl
+
+# 负载均衡与健康检查
+ansible-playbook -i inventory web-services/nginx-loadbalancer.yml --tags loadbalancer
+
+# 反向代理、缓存、限流
+ansible-playbook -i inventory web-services/nginx-reverse-proxy.yml --tags proxy,security
+```
+
 ## 📦 功能特性
 
 ### 应用部署套件
@@ -141,6 +170,15 @@ ansible-playbook -i inventory maintenance/backup-strategy.yml
 - **数据库备份**: MySQL + PostgreSQL + MongoDB 支持
 - **云同步**: AWS S3 + 阿里云 OSS + Azure Blob
 - **自动化管理**: 定时任务 + 验证 + 清理 + 监控
+
+### Web 服务套件（Nginx 场景）
+
+- **Nginx 安装**: 包管理器 + 源码编译（可变量切换）
+- **虚拟主机**: HTTP/HTTPS、PHP-FPM、SSL 证书
+- **自签名证书**: 使用 community.crypto 自动生成
+- **负载均衡**: least_conn/ip_hash/hash、健康检查
+- **反向代理**: 自定义头部、缓存、速率限制、WebSocket
+- **性能调优**: Worker 进程、Gzip、Buffer、超时配置
 
 ## ⚙️ 配置管理
 

@@ -1,0 +1,15 @@
+---
+# Nginx Proxy 角色 - 主任务文件
+# 负责反向代理和负载均衡配置
+
+- name: 导入代理配置任务
+  ansible.builtin.import_tasks: configure_proxy.yml
+  tags: [nginx, proxy, config]
+
+- name: 导入负载均衡配置任务
+  ansible.builtin.import_tasks: configure_loadbalancer.yml
+  tags: [nginx, loadbalancer, config]
+
+- name: 导入上游服务器配置任务
+  ansible.builtin.import_tasks: configure_upstream.yml
+  tags: [nginx, upstream, config]

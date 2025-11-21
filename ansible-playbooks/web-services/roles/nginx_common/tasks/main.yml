@@ -1,0 +1,15 @@
+---
+# Nginx 通用角色 - 主任务文件
+# 负责 Nginx 的安装、基础配置和服务管理
+
+- name: 导入安装任务
+  ansible.builtin.import_tasks: install.yml
+  tags: [nginx, install]
+
+- name: 导入配置任务
+  ansible.builtin.import_tasks: configure.yml
+  tags: [nginx, config]
+
+- name: 导入服务管理任务
+  ansible.builtin.import_tasks: service.yml
+  tags: [nginx, service]

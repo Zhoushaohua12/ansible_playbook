@@ -1,0 +1,30 @@
+---
+galaxy_info:
+  role_name: nginx_common
+  author: DevOps Team
+  description: Nginx 通用安装和配置角色
+  company: Example Company
+  license: MIT
+  min_ansible_version: 2.9
+  platforms:
+    - name: EL
+      versions:
+        - 7
+        - 8
+        - 9
+    - name: Debian
+      versions:
+        - buster
+        - bullseye
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+  galaxy_tags:
+    - nginx
+    - web
+    - webserver
+    - http
+    - proxy
+
+dependencies: []

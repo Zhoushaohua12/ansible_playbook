@@ -11,6 +11,7 @@ APPLICATION_DEPLOY = "application-deploy"
 MONITORING = "monitoring"
 MAINTENANCE = "maintenance"
 DATABASE = "database"
+WEB_SERVICES = "web-services"
 
 APPLICATION_PLAYBOOKS = [
     "docker-install.yml",
@@ -36,11 +37,32 @@ DATABASE_PLAYBOOKS = [
     "postgresql-backup.yml"
 ]
 
+WEB_SERVICES_PLAYBOOKS = [
+    "nginx-install-configure.yml",
+    "nginx-vhost-https.yml",
+    "nginx-loadbalancer.yml",
+    "nginx-reverse-proxy.yml",
+]
+
+WEB_SERVICES_TEMPLATES = [
+    "nginx.conf.j2",
+    "virtual_host.conf.j2",
+    "ssl.conf.j2",
+    "load_balancer.conf.j2",
+    "reverse_proxy.conf.j2",
+    "fastcgi_params.j2",
+    "upstream_map.j2",
+    "upstreams.conf.j2",
+    "https_vhost.conf.j2",
+    "http_redirect.conf.j2",
+]
+
 REQUIRED_COLLECTIONS = [
     "community.docker",
     "community.mysql", 
     "community.general",
-    "community.postgresql"
+    "community.postgresql",
+    "community.crypto",
 ]
 
 
@@ -68,6 +90,10 @@ class TestAnsiblePlaybooksFixtures:
         return playbooks_root / DATABASE
 
     @pytest.fixture(scope="class")
+    def web_services_dir(self, playbooks_root: Path) -> Path:
+        return playbooks_root / WEB_SERVICES
+
+    @pytest.fixture(scope="class")
     def application_playbooks(self, application_deploy_dir: Path) -> List[Path]:
         return [application_deploy_dir / pb for pb in APPLICATION_PLAYBOOKS]
 
@@ -83,6 +109,10 @@ class TestAnsiblePlaybooksFixtures:
     def database_playbooks(self, database_dir: Path) -> List[Path]:
         return [database_dir / pb for pb in DATABASE_PLAYBOOKS]
 
+    @pytest.fixture(scope="class")
+    def web_services_playbooks(self, web_services_dir: Path) -> List[Path]:
+        return [web_services_dir / pb for pb in WEB_SERVICES_PLAYBOOKS]
+
 
 class TestAnsiblePlaybooksStructure(TestAnsiblePlaybooksFixtures):
     """校验 ansible-playbooks 目录结构"""
@@ -91,7 +121,7 @@ class TestAnsiblePlaybooksStructure(TestAnsiblePlaybooksFixtures):
         assert playbooks_root.exists(), "ansible-playbooks 目录不存在"
 
     def test_main_categories_exist(self, playbooks_root: Path) -> None:
-        for category in [APPLICATION_DEPLOY, MONITORING, MAINTENANCE, DATABASE]:
+        for category in [APPLICATION_DEPLOY, MONITORING, MAINTENANCE, DATABASE, WEB_SERVICES]:
             category_dir = playbooks_root / category
             assert category_dir.exists(), f"缺少 {category} 目录"
             assert category_dir.is_dir(), f"{category} 不是目录"
@@ -360,7 +390,7 @@ class TestReadmeFiles(TestAnsiblePlaybooksFixtures):
         assert readme.exists(), "ansible-playbooks 根目录缺少 README.md"
 
     def test_category_readmes_exist(self, playbooks_root: Path) -> None:
-        for category in [APPLICATION_DEPLOY, MONITORING, MAINTENANCE]:
+        for category in [APPLICATION_DEPLOY, MONITORING, MAINTENANCE, DATABASE, WEB_SERVICES]:
             readme = playbooks_root / category / "README.md"
             assert readme.exists(), f"{category} 目录缺少 README.md"
 
@@ -449,13 +479,13 @@ class TestChineseDocumentation(TestAnsiblePlaybooksFixtures):
             assert "⚠️" in content, f"{playbook.name} 应包含警告符号"
 
     def test_chinese_warnings_in_vars(self, playbooks_root: Path) -> None:
-        for category in [APPLICATION_DEPLOY, MONITORING, MAINTENANCE, DATABASE]:
+        for category in [APPLICATION_DEPLOY, MONITORING, MAINTENANCE, DATABASE, WEB_SERVICES]:
             vars_file = playbooks_root / category / "vars" / "default.yml"
             content = vars_file.read_text(encoding="utf-8")
             assert "⚠️ 重要提示" in content or "⚠️" in content, f"{category}/vars/default.yml 应包含中文重要提示"
 
     def test_chinese_readmes(self, playbooks_root: Path) -> None:
-        for category in [APPLICATION_DEPLOY, MONITORING, MAINTENANCE, DATABASE]:
+        for category in [APPLICATION_DEPLOY, MONITORING, MAINTENANCE, DATABASE, WEB_SERVICES]:
             readme = playbooks_root / category / "README.md"
             content = readme.read_text(encoding="utf-8")
             assert "教学" in content or "学习" in content, f"{category}/README.md 应声明教学用途"
