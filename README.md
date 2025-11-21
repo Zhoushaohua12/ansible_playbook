@@ -57,6 +57,99 @@
 
 `docs/MODULE_INDEX.md` 中的表格可直接在编辑器/浏览器中搜索（`Cmd/Ctrl + F`），也可以依赖 `reports/module_index.json` 在自定义脚本里实现更复杂的检索逻辑。
 
+## 模块差异分析工具
+
+`tools/module_diff.py` 提供全面的模块覆盖分析，帮助识别项目与 Ansible 官方模块库之间的缺口：
+
+### 核心功能
+
+- **自动获取模块列表**：执行 `ansible-doc -l` 获取所有可用模块（ansible-doc 不可用时自动降级到常用模块列表）
+- **多维度对比**：
+  - 对比 `metadata/modules.yaml` 中已声明的模块
+  - 对比文件系统中实际存在的模块目录
+  - 对比 `ansible-doc` 输出的官方模块列表
+- **优先级管理**：基于 `metadata/module_priorities.yml` 配置文件，将缺失模块按 P1/P2/P3 分组
+- **统计报告**：生成总体覆盖率、分类覆盖率、优先级分布等统计数据
+- **问题检测**：自动识别重复定义、元数据与文件系统不一致等问题
+
+### 使用方式
+
+#### 生成完整报告
+
+```bash
+# 使用缓存数据生成报告（推荐，速度快）
+venv/bin/python tools/module_diff.py
+
+# 刷新 ansible-doc 缓存并生成报告
+venv/bin/python tools/module_diff.py --refresh-cache
+```
+
+生成的报告文件：
+- `reports/module_diff.json`：机器可读的 JSON 格式，包含所有分析数据
+- `reports/module_diff.md`：人类可读的 Markdown 格式，包含表格和统计
+
+#### 按优先级筛选
+
+```bash
+# 仅查看 P1（高优先级）缺失模块
+venv/bin/python tools/module_diff.py --priority P1
+
+# 查看 P2（中等优先级）缺失模块
+venv/bin/python tools/module_diff.py --priority P2
+```
+
+#### 仅显示摘要
+
+```bash
+# 快速查看统计信息，不生成文件
+venv/bin/python tools/module_diff.py --summary
+```
+
+#### 自定义输出路径
+
+```bash
+venv/bin/python tools/module_diff.py \
+  --json-output custom/path.json \
+  --md-output custom/path.md
+```
+
+### 报告解读
+
+#### 模块状态
+
+- **covered**：模块已在 `metadata/modules.yaml` 中声明且文件系统中存在对应目录
+- **missing**：模块存在于 `ansible-doc` 输出但项目中尚未覆盖
+- **undocumented**：模块在项目元数据中但不在 `ansible-doc` 输出（可能是自定义模块或社区模块）
+
+#### 优先级定义（`metadata/module_priorities.yml`）
+
+- **P1（Critical/High）**：生产环境必备模块，如 copy、template、file、service、user 等
+- **P2（Medium）**：特定场景重要模块，如云平台操作、数据库管理、容器编排等
+- **P3（Low）**：专用或低频模块，如 raw、expect、capabilities 等
+
+#### 问题类型
+
+- **duplicates**：同一模块在多个分类中重复定义，建议合并或明确主分类
+- **inconsistencies**：
+  - `in_metadata_but_not_filesystem`：元数据中声明但缺少目录，需要创建对应示例
+  - `in_filesystem_but_not_metadata`：目录存在但未在元数据中声明，需要更新 `modules.yaml`
+
+### 工作流建议
+
+1. **定期刷新缓存**：每次 Ansible 版本升级后运行 `--refresh-cache`
+2. **优先补充 P1 模块**：参考报告中的 "Missing P1 Modules" 章节
+3. **解决不一致问题**：查看 "Inconsistencies" 章节并修复元数据或文件系统
+4. **更新优先级配置**：根据团队实际需求调整 `metadata/module_priorities.yml`
+5. **集成到 CI**：在 CI 流程中运行 `--summary` 监控覆盖率变化
+
+### 缓存管理
+
+ansible-doc 缓存位于 `.cache/ansible_doc_cache.json`：
+- 首次运行或使用 `--refresh-cache` 时会执行 `ansible-doc -l` 并缓存结果
+- 缓存可避免频繁调用 ansible-doc（执行较慢）
+- ansible-doc 不可用时自动降级到内置常用模块列表
+- 建议在每次 Ansible 升级后手动刷新缓存
+
 ## 进阶章节
 - [高级特性总览](advanced/README.md)
 - [应用管理指南](applications/README.md)
