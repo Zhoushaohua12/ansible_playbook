@@ -1,0 +1,261 @@
+---
+- name: MySQL 主从复制管理示例演示
+  hosts: localhost
+  gather_facts: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 获取主库状态 ==========
+    - name: 获取主库 binlog 位置信息
+      community.mysql.mysql_replication:
+        mode: getprimary
+        login_host: "{{ mysql_master_host }}"
+        login_port: "{{ mysql_master_port }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+      register: master_status
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ mysql_master_host }}"
+    
+    - name: 显示主库状态信息
+      ansible.builtin.debug:
+        msg: |
+          主库 Binlog 文件: {{ master_status.File | default('N/A') }}
+          主库 Binlog 位置: {{ master_status.Position | default('N/A') }}
+      when: master_status is defined
+    
+    # ========== 配置从库连接主库 ==========
+    - name: 配置从库连接到主库 - 使用 binlog 位置
+      community.mysql.mysql_replication:
+        mode: changeprimary
+        primary_host: "{{ mysql_master_host }}"
+        primary_port: "{{ mysql_master_port }}"
+        primary_user: "{{ mysql_repl_user }}"
+        primary_password: "{{ mysql_repl_password }}"
+        primary_log_file: "{{ mysql_binlog_file }}"
+        primary_log_pos: "{{ mysql_binlog_pos }}"
+        login_host: "{{ mysql_slave_host }}"
+        login_port: "{{ mysql_slave_port }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+      check_mode: true
+      no_log: true
+      when: not use_gtid_mode | default(false) | bool
+      delegate_to: "{{ mysql_slave_host }}"
+      notify: Start MySQL replication
+    
+    - name: 配置从库连接到主库 - 使用 GTID 模式
+      community.mysql.mysql_replication:
+        mode: changeprimary
+        primary_host: "{{ mysql_master_host }}"
+        primary_port: "{{ mysql_master_port }}"
+        primary_user: "{{ mysql_repl_user }}"
+        primary_password: "{{ mysql_repl_password }}"
+        primary_auto_position: yes
+        login_host: "{{ mysql_slave_host }}"
+        login_port: "{{ mysql_slave_port }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+      check_mode: true
+      no_log: true
+      when: use_gtid_mode | default(false) | bool
+      delegate_to: "{{ mysql_slave_host }}"
+      notify: Start MySQL replication
+    
+    # ========== 启动从库复制 ==========
+    - name: 启动从库复制进程
+      community.mysql.mysql_replication:
+        mode: startreplica
+        login_host: "{{ mysql_slave_host }}"
+        login_port: "{{ mysql_slave_port }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+      check_mode: true
+      no_log: true
+      when: start_replication | default(false) | bool
+      delegate_to: "{{ mysql_slave_host }}"
+    
+    # ========== 停止从库复制 ==========
+    - name: 停止从库复制进程
+      community.mysql.mysql_replication:
+        mode: stopreplica
+        login_host: "{{ mysql_slave_host }}"
+        login_port: "{{ mysql_slave_port }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+      check_mode: true
+      no_log: true
+      when: stop_replication | default(false) | bool
+      delegate_to: "{{ mysql_slave_host }}"
+    
+    # ========== 获取从库复制状态 ==========
+    - name: 获取从库复制状态详情
+      community.mysql.mysql_replication:
+        mode: getreplica
+        login_host: "{{ mysql_slave_host }}"
+        login_port: "{{ mysql_slave_port }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+      register: replica_status
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ mysql_slave_host }}"
+    
+    - name: 显示从库复制状态
+      ansible.builtin.debug:
+        msg: |
+          从库复制状态:
+          - IO 线程状态: {{ replica_status.Slave_IO_Running | default('N/A') }}
+          - SQL 线程状态: {{ replica_status.Slave_SQL_Running | default('N/A') }}
+          - 主库地址: {{ replica_status.Master_Host | default('N/A') }}
+          - 主库用户: {{ replica_status.Master_User | default('N/A') }}
+          - 主库日志文件: {{ replica_status.Master_Log_File | default('N/A') }}
+          - 读取主库日志位置: {{ replica_status.Read_Master_Log_Pos | default('N/A') }}
+          - 执行主库日志位置: {{ replica_status.Exec_Master_Log_Pos | default('N/A') }}
+          - 复制延迟秒数: {{ replica_status.Seconds_Behind_Master | default('N/A') }}
+      when: replica_status is defined
+    
+    # ========== 复制状态监控检查 ==========
+    - name: 检查复制进程是否正常运行
+      ansible.builtin.assert:
+        that:
+          - replica_status.Slave_IO_Running == "Yes"
+          - replica_status.Slave_SQL_Running == "Yes"
+        fail_msg: "复制进程异常: IO={{ replica_status.Slave_IO_Running }}, SQL={{ replica_status.Slave_SQL_Running }}"
+        success_msg: "复制进程运行正常"
+      when: 
+        - check_replication_health | default(false) | bool
+        - replica_status is defined
+      ignore_errors: yes
+    
+    - name: 检查复制延迟
+      ansible.builtin.debug:
+        msg: "警告: 复制延迟 {{ replica_status.Seconds_Behind_Master }} 秒，超过阈值 {{ replication_lag_threshold }} 秒"
+      when: 
+        - check_replication_health | default(false) | bool
+        - replica_status is defined
+        - replica_status.Seconds_Behind_Master | int > replication_lag_threshold | int
+    
+    # ========== 批量配置多从库 ==========
+    - name: 批量配置从库连接到主库
+      community.mysql.mysql_replication:
+        mode: changeprimary
+        primary_host: "{{ mysql_master_host }}"
+        primary_port: "{{ mysql_master_port }}"
+        primary_user: "{{ mysql_repl_user }}"
+        primary_password: "{{ mysql_repl_password }}"
+        primary_log_file: "{{ mysql_binlog_file }}"
+        primary_log_pos: "{{ mysql_binlog_pos }}"
+        login_host: "{{ item.host }}"
+        login_port: "{{ item.port | default(3306) }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+      check_mode: true
+      no_log: true
+      loop: "{{ mysql_slaves }}"
+      loop_control:
+        label: "{{ item.host }}"
+      when: configure_multiple_slaves | default(false) | bool
+      delegate_to: "{{ item.host }}"
+    
+    - name: 批量启动从库复制
+      community.mysql.mysql_replication:
+        mode: startreplica
+        login_host: "{{ item.host }}"
+        login_port: "{{ item.port | default(3306) }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+      check_mode: true
+      no_log: true
+      loop: "{{ mysql_slaves }}"
+      loop_control:
+        label: "{{ item.host }}"
+      when: configure_multiple_slaves | default(false) | bool
+      delegate_to: "{{ item.host }}"
+    
+    # ========== 批量检查从库状态 ==========
+    - name: 批量获取从库复制状态
+      community.mysql.mysql_replication:
+        mode: getreplica
+        login_host: "{{ item.host }}"
+        login_port: "{{ item.port | default(3306) }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+      register: all_replicas_status
+      check_mode: true
+      no_log: true
+      loop: "{{ mysql_slaves }}"
+      loop_control:
+        label: "{{ item.host }}"
+      when: check_all_replicas | default(false) | bool
+      delegate_to: "{{ item.host }}"
+    
+    - name: 显示所有从库复制状态
+      ansible.builtin.debug:
+        msg: |
+          从库: {{ item.item.host }}
+          - IO 线程: {{ item.Slave_IO_Running | default('N/A') }}
+          - SQL 线程: {{ item.Slave_SQL_Running | default('N/A') }}
+          - 复制延迟: {{ item.Seconds_Behind_Master | default('N/A') }} 秒
+      loop: "{{ all_replicas_status.results }}"
+      loop_control:
+        label: "{{ item.item.host }}"
+      when: check_all_replicas | default(false) | bool
+    
+    # ========== 重置复制配置 ==========
+    - name: 停止从库复制以准备重置
+      community.mysql.mysql_replication:
+        mode: stopreplica
+        login_host: "{{ mysql_slave_host }}"
+        login_port: "{{ mysql_slave_port }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+      check_mode: true
+      no_log: true
+      when: reset_replication | default(false) | bool
+      delegate_to: "{{ mysql_slave_host }}"
+    
+    - name: 重置从库复制配置
+      community.mysql.mysql_replication:
+        mode: resetreplica
+        login_host: "{{ mysql_slave_host }}"
+        login_port: "{{ mysql_slave_port }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+      check_mode: true
+      no_log: true
+      when: reset_replication | default(false) | bool
+      delegate_to: "{{ mysql_slave_host }}"
+    
+    # ========== SSL 加密复制配置 ==========
+    - name: 配置从库使用 SSL 连接主库
+      community.mysql.mysql_replication:
+        mode: changeprimary
+        primary_host: "{{ mysql_master_host }}"
+        primary_port: "{{ mysql_master_port }}"
+        primary_user: "{{ mysql_repl_user }}"
+        primary_password: "{{ mysql_repl_password }}"
+        primary_ssl: yes
+        primary_ssl_ca: "{{ mysql_ssl_ca_path }}"
+        login_host: "{{ mysql_slave_host }}"
+        login_port: "{{ mysql_slave_port }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+      check_mode: true
+      no_log: true
+      when: use_ssl_replication | default(false) | bool
+      delegate_to: "{{ mysql_slave_host }}"
+  
+  handlers:
+    - name: Start MySQL replication
+      community.mysql.mysql_replication:
+        mode: startreplica
+        login_host: "{{ mysql_slave_host }}"
+        login_port: "{{ mysql_slave_port }}"
+        login_user: "{{ mysql_admin_user }}"
+        login_password: "{{ mysql_admin_password }}"
+      no_log: true
+      delegate_to: "{{ mysql_slave_host }}"
+      ignore_errors: yes

@@ -1,0 +1,247 @@
+---
+- name: PostgreSQL 权限管理示例演示
+  hosts: localhost
+  gather_facts: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 授予数据库连接权限 ==========
+    - name: 授予应用用户数据库连接权限
+      community.postgresql.postgresql_privs:
+        database: "{{ postgres_app_database }}"
+        roles: "{{ postgres_app_user }}"
+        type: database
+        privs: CONNECT
+        state: present
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ postgres_host }}"
+    
+    # ========== 授予表 SELECT 权限 ==========
+    - name: 授予只读用户表查询权限
+      community.postgresql.postgresql_privs:
+        database: "{{ postgres_app_database }}"
+        roles: "{{ postgres_readonly_user }}"
+        type: table
+        objs: "{{ item }}"
+        schema: "{{ postgres_schema }}"
+        privs: SELECT
+        state: present
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+      check_mode: true
+      no_log: true
+      loop: "{{ postgres_readonly_tables }}"
+      delegate_to: "{{ postgres_host }}"
+    
+    # ========== 授予表读写权限 ==========
+    - name: 授予应用用户表读写权限
+      community.postgresql.postgresql_privs:
+        database: "{{ postgres_app_database }}"
+        roles: "{{ postgres_app_user }}"
+        type: table
+        objs: "{{ item }}"
+        schema: "{{ postgres_schema }}"
+        privs:
+          - SELECT
+          - INSERT
+          - UPDATE
+          - DELETE
+        state: present
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+      check_mode: true
+      no_log: true
+      loop: "{{ postgres_app_tables }}"
+      delegate_to: "{{ postgres_host }}"
+    
+    # ========== 授予模式所有表权限 ==========
+    - name: 授予只读用户模式中所有表的查询权限
+      community.postgresql.postgresql_privs:
+        database: "{{ postgres_app_database }}"
+        roles: "{{ postgres_readonly_user }}"
+        type: table
+        objs: ALL_IN_SCHEMA
+        schema: "{{ postgres_schema }}"
+        privs: SELECT
+        state: present
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+      check_mode: true
+      no_log: true
+      when: grant_all_tables | default(false) | bool
+      delegate_to: "{{ postgres_host }}"
+    
+    # ========== 授予序列权限 ==========
+    - name: 授予应用用户序列使用权限
+      community.postgresql.postgresql_privs:
+        database: "{{ postgres_app_database }}"
+        roles: "{{ postgres_app_user }}"
+        type: sequence
+        objs: "{{ item }}"
+        schema: "{{ postgres_schema }}"
+        privs:
+          - USAGE
+          - SELECT
+          - UPDATE
+        state: present
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+      check_mode: true
+      no_log: true
+      loop: "{{ postgres_sequences }}"
+      when: postgres_sequences is defined
+      delegate_to: "{{ postgres_host }}"
+    
+    # ========== 授予模式使用权限 ==========
+    - name: 授予用户模式使用权限
+      community.postgresql.postgresql_privs:
+        database: "{{ postgres_app_database }}"
+        roles: "{{ item }}"
+        type: schema
+        objs: "{{ postgres_schema }}"
+        privs: USAGE
+        state: present
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+      check_mode: true
+      no_log: true
+      loop:
+        - "{{ postgres_app_user }}"
+        - "{{ postgres_readonly_user }}"
+      delegate_to: "{{ postgres_host }}"
+    
+    # ========== 授予函数执行权限 ==========
+    - name: 授予应用用户函数执行权限
+      community.postgresql.postgresql_privs:
+        database: "{{ postgres_app_database }}"
+        roles: "{{ postgres_app_user }}"
+        type: function
+        objs: "{{ item }}"
+        schema: "{{ postgres_schema }}"
+        privs: EXECUTE
+        state: present
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+      check_mode: true
+      no_log: true
+      loop: "{{ postgres_functions }}"
+      when: postgres_functions is defined
+      delegate_to: "{{ postgres_host }}"
+    
+    # ========== 撤销权限 ==========
+    - name: 撤销用户表删除权限
+      community.postgresql.postgresql_privs:
+        database: "{{ postgres_app_database }}"
+        roles: "{{ postgres_app_user }}"
+        type: table
+        objs: "{{ item }}"
+        schema: "{{ postgres_schema }}"
+        privs: DELETE
+        state: absent
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+      check_mode: true
+      no_log: true
+      loop: "{{ postgres_protected_tables }}"
+      when: 
+        - revoke_delete_privs | default(false) | bool
+        - postgres_protected_tables is defined
+      delegate_to: "{{ postgres_host }}"
+    
+    # ========== 批量权限配置 ==========
+    - name: 批量配置用户权限
+      community.postgresql.postgresql_privs:
+        database: "{{ item.database }}"
+        roles: "{{ item.role }}"
+        type: "{{ item.type }}"
+        objs: "{{ item.objs }}"
+        schema: "{{ item.schema | default(omit) }}"
+        privs: "{{ item.privs }}"
+        state: "{{ item.state | default('present') }}"
+        grant_option: "{{ item.grant_option | default(omit) }}"
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+      check_mode: true
+      no_log: true
+      loop: "{{ postgres_privileges }}"
+      loop_control:
+        label: "{{ item.role }} on {{ item.objs }}"
+      when: configure_batch_privs | default(false) | bool
+      delegate_to: "{{ postgres_host }}"
+    
+    # ========== 授予备份账号权限 ==========
+    - name: 授予备份用户只读权限
+      community.postgresql.postgresql_privs:
+        database: "{{ postgres_app_database }}"
+        roles: "{{ postgres_backup_user }}"
+        type: table
+        objs: ALL_IN_SCHEMA
+        schema: "{{ postgres_schema }}"
+        privs: SELECT
+        state: present
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+      check_mode: true
+      no_log: true
+      when: configure_backup_user | default(false) | bool
+      delegate_to: "{{ postgres_host }}"
+    
+    # ========== 授予审计账号权限 ==========
+    - name: 授予审计用户查询权限
+      community.postgresql.postgresql_privs:
+        database: "{{ item }}"
+        roles: "{{ postgres_audit_user }}"
+        type: database
+        privs: CONNECT
+        state: present
+        login_host: "{{ postgres_host }}"
+        login_port: "{{ postgres_port }}"
+        login_user: "{{ postgres_admin_user }}"
+        login_password: "{{ postgres_admin_password }}"
+      check_mode: true
+      no_log: true
+      loop: "{{ postgres_databases }}"
+      when: configure_audit_user | default(false) | bool
+      delegate_to: "{{ postgres_host }}"
+    
+    # ========== 权限验证 ==========
+    - name: 验证用户权限配置
+      ansible.builtin.shell: |
+        psql -h {{ postgres_host }} -p {{ postgres_port }} -U {{ postgres_admin_user }} -d {{ postgres_app_database }} -c "SELECT * FROM information_schema.table_privileges WHERE grantee='{{ postgres_app_user }}' LIMIT 5;"
+      register: privs_check
+      changed_when: false
+      no_log: true
+      when: verify_privs | default(false) | bool
+      environment:
+        PGPASSWORD: "{{ postgres_admin_password }}"
+    
+    - name: 显示权限验证结果
+      ansible.builtin.debug:
+        msg: "{{ privs_check.stdout_lines }}"
+      when: 
+        - verify_privs | default(false) | bool
+        - privs_check is defined

@@ -1,0 +1,246 @@
+---
+- name: VLAN 网络配置示例演示
+  hosts: localhost
+  gather_facts: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 环境检查 ==========
+    - name: 检查 NetworkManager 服务状态
+      ansible.builtin.shell: systemctl is-active NetworkManager
+      register: nm_status
+      changed_when: false
+      ignore_errors: yes
+    
+    - name: 显示 NetworkManager 服务状态
+      ansible.builtin.debug:
+        msg: "NetworkManager 服务状态: {{ '运行中' if nm_status.rc == 0 else '未运行' }}"
+    
+    - name: 检查 8021q 模块是否加载
+      ansible.builtin.shell: lsmod | grep 8021q
+      register: vlan_module
+      changed_when: false
+      ignore_errors: yes
+    
+    - name: 显示 VLAN 模块状态
+      ansible.builtin.debug:
+        msg: "8021q 模块状态: {{ '已加载' if vlan_module.rc == 0 else '未加载' }}"
+    
+    - name: 检查可用网络接口
+      ansible.builtin.shell: nmcli device status
+      register: network_devices
+      changed_when: false
+    
+    - name: 显示可用网络接口
+      ansible.builtin.debug:
+        msg: |
+          可用网络接口：
+          {{ network_devices.stdout_lines }}
+    
+    # ========== 基础 VLAN 配置演示 ==========
+    - name: 创建 VLAN 100 接口 - Web 服务网络
+      community.general.nmcli:
+        conn_name: "{{ vlan_100_conn_name }}"
+        ifname: "{{ vlan_100_ifname }}"
+        type: vlan
+        vlan_id: "{{ vlan_100_id }}"
+        dev: "{{ vlan_parent_interface }}"
+        state: present
+        method4: manual
+        ip4: "{{ vlan_100_ip4 }}"
+        gw4: "{{ vlan_100_gw4 }}"
+        dns4: "{{ vlan_100_dns4 }}"
+        autoconnect: yes
+      check_mode: true
+      notify: Activate VLAN connection
+    
+    - name: 创建 VLAN 200 接口 - 应用服务网络
+      community.general.nmcli:
+        conn_name: "{{ vlan_200_conn_name }}"
+        ifname: "{{ vlan_200_ifname }}"
+        type: vlan
+        vlan_id: "{{ vlan_200_id }}"
+        dev: "{{ vlan_parent_interface }}"
+        state: present
+        method4: manual
+        ip4: "{{ vlan_200_ip4 }}"
+        gw4: "{{ vlan_200_gw4 }}"
+        autoconnect: yes
+      check_mode: true
+      notify: Activate VLAN connection
+    
+    - name: 创建 VLAN 300 接口 - 数据库服务网络
+      community.general.nmcli:
+        conn_name: "{{ vlan_300_conn_name }}"
+        ifname: "{{ vlan_300_ifname }}"
+        type: vlan
+        vlan_id: "{{ vlan_300_id }}"
+        dev: "{{ vlan_parent_interface }}"
+        state: present
+        method4: manual
+        ip4: "{{ vlan_300_ip4 }}"
+        gw4: "{{ vlan_300_gw4 }}"
+        autoconnect: yes
+      check_mode: true
+      notify: Activate VLAN connection
+    
+    # ========== 禁用父接口 IP 配置 ==========
+    - name: 配置父接口 - 不分配 IP 地址
+      community.general.nmcli:
+        conn_name: "{{ parent_conn_name }}"
+        ifname: "{{ vlan_parent_interface }}"
+        type: ethernet
+        state: present
+        method4: disabled
+        autoconnect: yes
+      check_mode: true
+      when: disable_parent_ip | default(false) | bool
+    
+    # ========== 批量 VLAN 创建 ==========
+    - name: 批量创建 VLAN 接口
+      community.general.nmcli:
+        conn_name: "{{ item.conn_name }}"
+        ifname: "{{ item.ifname }}"
+        type: vlan
+        vlan_id: "{{ item.vlan_id }}"
+        dev: "{{ item.dev }}"
+        state: present
+        method4: "{{ item.method4 }}"
+        ip4: "{{ item.ip4 | default(omit) }}"
+        gw4: "{{ item.gw4 | default(omit) }}"
+        dns4: "{{ item.dns4 | default(omit) }}"
+        mtu: "{{ item.mtu | default(omit) }}"
+        autoconnect: yes
+      check_mode: true
+      loop: "{{ vlan_interfaces }}"
+      loop_control:
+        label: "{{ item.conn_name }}"
+      when: create_batch_vlans | default(false) | bool
+      notify: Activate VLAN connection
+    
+    # ========== DHCP 模式 VLAN 配置 ==========
+    - name: 创建 VLAN 接口使用 DHCP
+      community.general.nmcli:
+        conn_name: "{{ dhcp_vlan_conn_name }}"
+        ifname: "{{ dhcp_vlan_ifname }}"
+        type: vlan
+        vlan_id: "{{ dhcp_vlan_id }}"
+        dev: "{{ vlan_parent_interface }}"
+        state: present
+        method4: auto
+        autoconnect: yes
+      check_mode: true
+      when: create_dhcp_vlan | default(false) | bool
+      notify: Activate VLAN connection
+    
+    # ========== 存储网络 VLAN 配置 ==========
+    - name: 创建存储网络 VLAN - 高 MTU 支持
+      community.general.nmcli:
+        conn_name: "{{ storage_vlan_conn_name }}"
+        ifname: "{{ storage_vlan_ifname }}"
+        type: vlan
+        vlan_id: "{{ storage_vlan_id }}"
+        dev: "{{ storage_parent_interface }}"
+        state: present
+        method4: manual
+        ip4: "{{ storage_vlan_ip4 }}"
+        mtu: "{{ storage_vlan_mtu }}"
+        autoconnect: yes
+      check_mode: true
+      when: create_storage_vlan | default(false) | bool
+      notify: Restart storage services
+    
+    # ========== 管理网络 VLAN 配置 ==========
+    - name: 创建管理网络 VLAN - 受信任区域
+      community.general.nmcli:
+        conn_name: "{{ mgmt_vlan_conn_name }}"
+        ifname: "{{ mgmt_vlan_ifname }}"
+        type: vlan
+        vlan_id: "{{ mgmt_vlan_id }}"
+        dev: "{{ vlan_parent_interface }}"
+        state: present
+        method4: manual
+        ip4: "{{ mgmt_vlan_ip4 }}"
+        zone: "{{ mgmt_vlan_zone }}"
+        autoconnect: yes
+      check_mode: true
+      when: create_mgmt_vlan | default(false) | bool
+    
+    # ========== VLAN 配置验证 ==========
+    - name: 验证 VLAN 接口状态
+      ansible.builtin.shell: "ip link show {{ item }}"
+      register: vlan_status
+      changed_when: false
+      ignore_errors: yes
+      loop:
+        - "{{ vlan_100_ifname }}"
+        - "{{ vlan_200_ifname }}"
+        - "{{ vlan_300_ifname }}"
+      when: verify_vlans | default(false) | bool
+    
+    - name: 显示 VLAN 接口信息
+      ansible.builtin.debug:
+        msg: "VLAN 接口 {{ item.item }} 状态: {{ 'UP' if 'state UP' in item.stdout else 'DOWN' }}"
+      loop: "{{ vlan_status.results }}"
+      when: 
+        - verify_vlans | default(false) | bool
+        - item.rc == 0
+    
+    # ========== VLAN 连通性测试 ==========
+    - name: 测试 VLAN 网关连通性
+      ansible.builtin.shell: "ping -c 3 {{ item.gateway }}"
+      register: vlan_connectivity
+      changed_when: false
+      ignore_errors: yes
+      loop:
+        - { name: 'VLAN 100', gateway: "{{ vlan_100_gw4 }}" }
+        - { name: 'VLAN 200', gateway: "{{ vlan_200_gw4 }}" }
+        - { name: 'VLAN 300', gateway: "{{ vlan_300_gw4 }}" }
+      when: test_connectivity | default(false) | bool
+    
+    - name: 显示连通性测试结果
+      ansible.builtin.debug:
+        msg: "{{ item.item.name }} 网关连通性: {{ '正常' if item.rc == 0 else '异常' }}"
+      loop: "{{ vlan_connectivity.results }}"
+      when: test_connectivity | default(false) | bool
+    
+    # ========== VLAN 删除配置 ==========
+    - name: 删除指定的 VLAN 接口
+      community.general.nmcli:
+        conn_name: "{{ item }}"
+        state: absent
+      check_mode: true
+      loop: "{{ vlans_to_delete }}"
+      when: 
+        - delete_vlans | default(false) | bool
+        - vlans_to_delete is defined
+    
+    # ========== 配置备份 ==========
+    - name: 备份 VLAN 配置
+      ansible.builtin.shell: |
+        nmcli connection show | grep vlan > {{ vlan_backup_file }}
+        ip link show | grep vlan >> {{ vlan_backup_file }}
+      register: backup_result
+      changed_when: false
+      when: backup_vlan_config | default(false) | bool
+    
+    - name: 显示备份结果
+      ansible.builtin.debug:
+        msg: "VLAN 配置已备份到: {{ vlan_backup_file }}"
+      when: backup_vlan_config | default(false) | bool
+  
+  handlers:
+    - name: Activate VLAN connection
+      ansible.builtin.shell: "nmcli connection up {{ item.conn_name }}"
+      listen: "Activate VLAN connection"
+      when: item.changed | default(false)
+      ignore_errors: yes
+    
+    - name: Restart storage services
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: restarted
+      loop: "{{ storage_services | default([]) }}"
+      when: storage_services is defined
+      ignore_errors: yes

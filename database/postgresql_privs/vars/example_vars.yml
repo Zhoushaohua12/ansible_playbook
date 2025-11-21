@@ -1,0 +1,164 @@
+# ⚠️ 本文件仅为示例，占位符必须使用 Ansible Vault 或环境变量替换
+
+# ========== PostgreSQL 连接配置 ==========
+postgres_host: "localhost"
+postgres_port: 5432
+
+# ========== 管理员账号配置 ==========
+postgres_admin_user: "postgres"
+postgres_admin_password: "PLEASE_CHANGE_ADMIN_PASSWORD"
+
+# ========== 数据库和模式配置 ==========
+postgres_app_database: "app_db"
+postgres_schema: "public"
+
+# ========== 用户账号配置 ==========
+# 应用用户（读写权限）
+postgres_app_user: "app_user"
+
+# 只读用户
+postgres_readonly_user: "readonly_user"
+
+# 备份用户
+postgres_backup_user: "backup_user"
+
+# 审计用户
+postgres_audit_user: "audit_user"
+
+# ========== 表权限配置 ==========
+# 只读用户可访问的表
+postgres_readonly_tables:
+  - "users"
+  - "products"
+  - "categories"
+
+# 应用用户可读写的表
+postgres_app_tables:
+  - "users"
+  - "orders"
+  - "order_items"
+  - "products"
+
+# 受保护的表（撤销删除权限）
+postgres_protected_tables:
+  - "audit_logs"
+  - "system_config"
+
+# ========== 序列配置 ==========
+postgres_sequences:
+  - "users_id_seq"
+  - "orders_id_seq"
+  - "products_id_seq"
+
+# ========== 函数配置 ==========
+postgres_functions:
+  - "calculate_total"
+  - "update_timestamp"
+
+# ========== 数据库列表 ==========
+postgres_databases:
+  - "app_db"
+  - "reporting_db"
+
+# ========== 权限操作控制 ==========
+# 是否授予所有表权限
+grant_all_tables: false
+
+# 是否撤销删除权限
+revoke_delete_privs: false
+
+# 是否批量配置权限
+configure_batch_privs: false
+
+# 是否配置备份用户
+configure_backup_user: false
+
+# 是否配置审计用户
+configure_audit_user: false
+
+# 是否验证权限配置
+verify_privs: false
+
+# ========== 批量权限配置 ==========
+postgres_privileges:
+  - database: "app_db"
+    role: "app_user"
+    type: "table"
+    objs: "users"
+    schema: "public"
+    privs:
+      - "SELECT"
+      - "INSERT"
+      - "UPDATE"
+    state: "present"
+  
+  - database: "app_db"
+    role: "readonly_user"
+    type: "table"
+    objs: "users"
+    schema: "public"
+    privs: "SELECT"
+    state: "present"
+  
+  - database: "app_db"
+    role: "app_user"
+    type: "sequence"
+    objs: "users_id_seq"
+    schema: "public"
+    privs:
+      - "USAGE"
+      - "SELECT"
+    state: "present"
+
+# ========== 安全提示 ==========
+# ⚠️  特别注意：
+# 1. 所有密码必须使用 Ansible Vault 加密存储，禁止明文密码
+# 2. 遵循最小权限原则，仅授予必要的权限
+# 3. 生产环境必须：
+#    - 分离读写权限
+#    - 定期审计权限配置
+#    - 及时回收不需要的权限
+#    - 使用 SSL 加密连接
+# 4. 权限变更应经过审批流程并记录
+# 5. 生产环境部署前，一定要使用 --check 模式预览：
+#    ansible-playbook database/postgresql_privs/playbook.yml --check
+# 6. 撤销权限时要特别小心，确保不会影响正在运行的应用
+# 7. GRANT OPTION 权限应谨慎授予，避免权限失控
+
+# ========== 权限类型说明 ==========
+# PostgreSQL 权限类型：
+privilege_types:
+  database:
+    - "CREATE - 创建模式权限"
+    - "CONNECT - 连接数据库权限"
+    - "TEMPORARY - 创建临时表权限"
+  
+  table:
+    - "SELECT - 查询数据"
+    - "INSERT - 插入数据"
+    - "UPDATE - 更新数据"
+    - "DELETE - 删除数据"
+    - "TRUNCATE - 清空表"
+    - "REFERENCES - 创建外键"
+    - "TRIGGER - 创建触发器"
+  
+  sequence:
+    - "USAGE - 使用序列"
+    - "SELECT - 查询序列当前值"
+    - "UPDATE - 更新序列值"
+  
+  function:
+    - "EXECUTE - 执行函数"
+  
+  schema:
+    - "CREATE - 在模式中创建对象"
+    - "USAGE - 访问模式中的对象"
+
+# ========== 最佳实践建议 ==========
+best_practices:
+  - "使用角色管理权限，而不是直接授予用户"
+  - "为不同类型的操作创建不同的角色（只读、读写、管理）"
+  - "使用模式隔离不同租户或应用的数据"
+  - "定期审计权限配置，发现异常及时处理"
+  - "使用 GRANT OPTION 谨慎，避免权限传播失控"
+  - "撤销 PUBLIC 的默认权限，明确授予所需权限"

@@ -1,0 +1,167 @@
+# ⚠️ 本文件仅为示例，占位符必须根据实际环境替换
+
+# ========== 父接口配置 ==========
+# VLAN 所依赖的物理网络接口
+vlan_parent_interface: "eth0"
+parent_conn_name: "eth0-trunk"
+
+# 是否禁用父接口的 IP 配置（使用 VLAN 子接口时推荐）
+disable_parent_ip: false
+
+# ========== VLAN 100 配置 - Web 服务网络 ==========
+vlan_100_conn_name: "eth0.100"
+vlan_100_ifname: "eth0.100"
+vlan_100_id: 100
+vlan_100_ip4: "192.168.100.10/24"
+vlan_100_gw4: "192.168.100.1"
+vlan_100_dns4:
+  - "8.8.8.8"
+  - "8.8.4.4"
+
+# ========== VLAN 200 配置 - 应用服务网络 ==========
+vlan_200_conn_name: "eth0.200"
+vlan_200_ifname: "eth0.200"
+vlan_200_id: 200
+vlan_200_ip4: "192.168.200.10/24"
+vlan_200_gw4: "192.168.200.1"
+
+# ========== VLAN 300 配置 - 数据库服务网络 ==========
+vlan_300_conn_name: "eth0.300"
+vlan_300_ifname: "eth0.300"
+vlan_300_id: 300
+vlan_300_ip4: "192.168.300.10/24"
+vlan_300_gw4: "192.168.300.1"
+
+# ========== 批量 VLAN 配置 ==========
+# 是否批量创建 VLAN
+create_batch_vlans: false
+
+# VLAN 接口列表
+vlan_interfaces:
+  - conn_name: "eth0.100"
+    ifname: "eth0.100"
+    vlan_id: 100
+    dev: "eth0"
+    method4: "manual"
+    ip4: "192.168.100.10/24"
+    gw4: "192.168.100.1"
+    dns4:
+      - "8.8.8.8"
+  - conn_name: "eth0.200"
+    ifname: "eth0.200"
+    vlan_id: 200
+    dev: "eth0"
+    method4: "manual"
+    ip4: "192.168.200.10/24"
+    gw4: "192.168.200.1"
+  - conn_name: "eth0.300"
+    ifname: "eth0.300"
+    vlan_id: 300
+    dev: "eth0"
+    method4: "manual"
+    ip4: "192.168.300.10/24"
+    gw4: "192.168.300.1"
+
+# ========== DHCP 模式 VLAN 配置 ==========
+# 是否创建 DHCP 模式的 VLAN
+create_dhcp_vlan: false
+
+# DHCP VLAN 配置
+dhcp_vlan_conn_name: "vlan-dhcp"
+dhcp_vlan_ifname: "eth0.400"
+dhcp_vlan_id: 400
+
+# ========== 存储网络 VLAN 配置 ==========
+# 是否创建存储网络 VLAN
+create_storage_vlan: false
+
+# 存储 VLAN 配置（通常使用高 MTU）
+storage_vlan_conn_name: "storage-vlan"
+storage_vlan_ifname: "eth1.500"
+storage_vlan_id: 500
+storage_parent_interface: "eth1"
+storage_vlan_ip4: "10.0.500.10/24"
+storage_vlan_mtu: 9000
+
+# 存储服务列表（重启时使用）
+storage_services:
+  - "iscsid"
+  - "nfs-client"
+
+# ========== 管理网络 VLAN 配置 ==========
+# 是否创建管理网络 VLAN
+create_mgmt_vlan: false
+
+# 管理 VLAN 配置
+mgmt_vlan_conn_name: "mgmt-vlan"
+mgmt_vlan_ifname: "eth0.10"
+mgmt_vlan_id: 10
+mgmt_vlan_ip4: "172.16.10.10/24"
+mgmt_vlan_zone: "trusted"
+
+# ========== VLAN 验证配置 ==========
+# 是否验证 VLAN 接口
+verify_vlans: false
+
+# 是否测试连通性
+test_connectivity: false
+
+# ========== VLAN 删除配置 ==========
+# 是否删除 VLAN
+delete_vlans: false
+
+# 要删除的 VLAN 连接列表
+vlans_to_delete:
+  - "old-vlan-100"
+  - "test-vlan-200"
+
+# ========== 配置备份 ==========
+# 是否备份 VLAN 配置
+backup_vlan_config: false
+
+# 备份文件路径
+vlan_backup_file: "/tmp/vlan_backup_$(date +%Y%m%d_%H%M%S).txt"
+
+# ========== 安全提示 ==========
+# ⚠️  特别注意：
+# 1. VLAN 配置需要交换机端口支持 802.1Q VLAN 标签
+# 2. 修改网络配置可能导致远程连接中断，请在控制台或维护窗口期操作
+# 3. 生产环境修改 VLAN 配置前必须：
+#    - 确认交换机端口 VLAN 配置正确
+#    - 备份当前网络配置
+#    - 测试 VLAN 连通性和隔离性
+#    - 准备配置回滚方案
+#    - 确认有物理访问权限
+# 4. 确保目标主机已加载 8021q 内核模块：modprobe 8021q
+# 5. 生产环境部署前，一定要使用 --check 模式预览：
+#    ansible-playbook network/vlan/playbook.yml --check
+# 6. VLAN ID 范围为 1-4094，其中 1 和 4094 为保留 ID，建议避免使用
+# 7. 禁用父接口 IP 配置时，确保 VLAN 子接口配置正确，避免网络中断
+
+# ========== VLAN 最佳实践 ==========
+# VLAN 规划建议：
+vlan_planning_guide:
+  management: "VLAN 10-99 - 管理网络"
+  web: "VLAN 100-199 - Web 服务"
+  app: "VLAN 200-299 - 应用服务"
+  database: "VLAN 300-399 - 数据库服务"
+  storage: "VLAN 500-599 - 存储网络"
+  backup: "VLAN 600-699 - 备份网络"
+
+# VLAN 命名规范：
+vlan_naming_convention:
+  pattern: "{interface}.{vlan_id}"
+  examples:
+    - "eth0.100 - 物理接口 eth0 上的 VLAN 100"
+    - "eth1.500 - 物理接口 eth1 上的 VLAN 500"
+  alternative: "vlan{id}"
+  alternative_examples:
+    - "vlan100 - VLAN 100 接口"
+    - "vlan500 - VLAN 500 接口"
+
+# MTU 配置建议：
+mtu_recommendations:
+  standard: 1500  # 标准以太网 MTU
+  jumbo: 9000     # Jumbo Frame（存储网络推荐）
+  vxlan: 1450     # VXLAN overlay 网络
+  note: "VLAN 子接口的 MTU 不能大于父接口的 MTU"

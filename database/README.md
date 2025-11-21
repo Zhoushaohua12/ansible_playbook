@@ -1,7 +1,7 @@
 # 数据库模块实践指南
 
 ## 章节概述
-本目录提供主流数据库系统（MySQL、PostgreSQL、MongoDB）的 Ansible 自动化管理示例，涵盖用户管理、数据库创建、权限授予等常见运维场景。所有示例均通过 check_mode 或 delegate_to 方式运行，适合在本地环境学习和测试。
+本目录提供主流数据库系统（MySQL、PostgreSQL、MongoDB）的 Ansible 自动化管理示例，涵盖用户管理、数据库创建、权限授予、主从复制等常见运维场景。所有示例均通过 check_mode 或 delegate_to 方式运行，适合在本地环境学习和测试。
 
 ## 环境要求
 
@@ -68,6 +68,24 @@ pip install pymongo
 - **文档**: [mongodb_user/README.md](mongodb_user/README.md)
 - **示例**: [mongodb_user/playbook.yml](mongodb_user/playbook.yml)
 - **功能**: 创建/删除 MongoDB 用户，配置角色和权限
+
+### MongoDB 数据库管理
+- **模块**: `community.mongodb.mongodb_db`
+- **文档**: [mongodb_db/README.md](mongodb_db/README.md)
+- **示例**: [mongodb_db/playbook.yml](mongodb_db/playbook.yml)
+- **功能**: 创建/删除 MongoDB 数据库
+
+### MySQL 主从复制管理
+- **模块**: `community.mysql.mysql_replication`
+- **文档**: [mysql_replication/README.md](mysql_replication/README.md)
+- **示例**: [mysql_replication/playbook.yml](mysql_replication/playbook.yml)
+- **功能**: 配置和管理 MySQL 主从复制，获取复制状态，启动/停止复制
+
+### PostgreSQL 权限管理
+- **模块**: `community.postgresql.postgresql_privs`
+- **文档**: [postgresql_privs/README.md](postgresql_privs/README.md)
+- **示例**: [postgresql_privs/playbook.yml](postgresql_privs/playbook.yml)
+- **功能**: 管理 PostgreSQL 数据库对象权限（GRANT/REVOKE）
 
 ## 安全注意事项
 

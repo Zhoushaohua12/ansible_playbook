@@ -1,0 +1,265 @@
+# ⚠️ 本文件仅为示例，占位符必须使用 Ansible Vault 或环境变量替换
+
+# ========== MySQL 主库配置 ==========
+# 主库连接信息
+mysql_master_host: "192.168.1.100"
+mysql_master_port: 3306
+
+# ========== MySQL 从库配置 ==========
+# 从库连接信息
+mysql_slave_host: "192.168.1.101"
+mysql_slave_port: 3306
+
+# ========== 管理员账号配置 ==========
+# MySQL 管理员账号（用于执行复制管理命令）
+mysql_admin_user: "root"
+mysql_admin_password: "PLEASE_CHANGE_ADMIN_PASSWORD"
+
+# ========== 复制账号配置 ==========
+# MySQL 复制专用账号（需要 REPLICATION SLAVE 权限）
+mysql_repl_user: "repl_user"
+mysql_repl_password: "PLEASE_CHANGE_REPL_PASSWORD"
+
+# ========== Binlog 位置配置 ==========
+# 主库 binlog 文件和位置（从主库获取）
+mysql_binlog_file: "mysql-bin.000001"
+mysql_binlog_pos: 154
+
+# ========== GTID 模式配置 ==========
+# 是否使用 GTID 模式（推荐）
+use_gtid_mode: false
+
+# ========== 复制操作控制 ==========
+# 是否启动复制
+start_replication: false
+
+# 是否停止复制
+stop_replication: false
+
+# 是否重置复制配置
+reset_replication: false
+
+# ========== 复制健康检查 ==========
+# 是否检查复制健康状态
+check_replication_health: false
+
+# 复制延迟阈值（秒）
+replication_lag_threshold: 60
+
+# ========== 批量从库配置 ==========
+# 是否配置多个从库
+configure_multiple_slaves: false
+
+# 是否检查所有从库状态
+check_all_replicas: false
+
+# 从库列表
+mysql_slaves:
+  - host: "192.168.1.101"
+    port: 3306
+  - host: "192.168.1.102"
+    port: 3306
+  - host: "192.168.1.103"
+    port: 3306
+
+# ========== SSL 加密复制 ==========
+# 是否使用 SSL 加密复制
+use_ssl_replication: false
+
+# SSL 证书路径
+mysql_ssl_ca_path: "/etc/mysql/ca-cert.pem"
+mysql_ssl_cert_path: "/etc/mysql/client-cert.pem"
+mysql_ssl_key_path: "/etc/mysql/client-key.pem"
+
+# ========== 安全提示 ==========
+# ⚠️  特别注意：
+# 1. 所有密码必须使用 Ansible Vault 加密存储，禁止明文密码
+# 2. 复制账号仅需要 REPLICATION SLAVE 权限，不应授予其他权限
+# 3. 生产环境必须：
+#    - 使用 SSL 加密复制流量
+#    - 限制复制账号的来源 IP
+#    - 定期监控复制状态和延迟
+#    - 配置复制告警机制
+# 4. binlog 位置必须从主库实时获取，不能使用过期的位置
+# 5. 配置复制前，确保从库数据与主库一致（可使用 mysqldump 初始化）
+# 6. 生产环境部署前，一定要使用 --check 模式预览：
+#    ansible-playbook database/mysql_replication/playbook.yml --check
+# 7. 推荐使用 GTID 模式，简化复制管理和故障恢复
+
+# ========== 复制架构说明 ==========
+# MySQL 复制架构类型：
+replication_architectures:
+  master_slave:
+    description: "一主一从 - 最简单的复制架构"
+    use_case: "小型应用、读写分离、数据备份"
+    configuration: "1 master, 1 slave"
+  
+  master_multi_slave:
+    description: "一主多从 - 水平扩展读性能"
+    use_case: "读多写少、负载均衡、高可用"
+    configuration: "1 master, N slaves"
+  
+  chain_replication:
+    description: "链式复制 - 级联复制架构"
+    use_case: "减轻主库复制压力、跨机房同步"
+    configuration: "master -> slave1 -> slave2"
+  
+  dual_master:
+    description: "双主复制 - 互为主从"
+    use_case: "双活架构、高可用"
+    configuration: "master1 <-> master2"
+    warning: "需要注意自增主键冲突和双写问题"
+
+# ========== 复制模式说明 ==========
+# MySQL 复制模式：
+replication_modes:
+  asynchronous:
+    name: "异步复制"
+    description: "主库不等待从库确认，写入性能最高"
+    features: "默认模式，性能最好"
+    risk: "可能丢失数据"
+  
+  semi_synchronous:
+    name: "半同步复制"
+    description: "主库等待至少一个从库确认"
+    features: "平衡性能和可靠性"
+    risk: "性能略有下降"
+    plugin: "rpl_semi_sync_master, rpl_semi_sync_slave"
+  
+  group_replication:
+    name: "组复制"
+    description: "MySQL 8.0 原生高可用方案"
+    features: "自动故障转移，多写支持"
+    requirement: "MySQL 8.0+"
+
+# ========== Binlog 格式说明 ==========
+# MySQL Binlog 格式：
+binlog_formats:
+  statement:
+    description: "记录 SQL 语句"
+    pros: "binlog 文件小"
+    cons: "某些函数可能导致主从不一致"
+    use_case: "简单应用"
+  
+  row:
+    description: "记录行变更"
+    pros: "数据一致性最好"
+    cons: "binlog 文件较大"
+    use_case: "推荐使用，数据一致性要求高"
+  
+  mixed:
+    description: "混合模式，自动选择"
+    pros: "平衡文件大小和一致性"
+    cons: "某些场景难以预测"
+    use_case: "特殊需求场景"
+
+# ========== 复制账号权限 ==========
+# 创建复制账号的 SQL 示例：
+replication_user_setup: |
+  -- 在主库创建复制账号
+  CREATE USER 'repl_user'@'%' IDENTIFIED BY 'strong_password';
+  GRANT REPLICATION SLAVE ON *.* TO 'repl_user'@'%';
+  
+  -- 限制来源 IP（推荐）
+  CREATE USER 'repl_user'@'192.168.1.%' IDENTIFIED BY 'strong_password';
+  GRANT REPLICATION SLAVE ON *.* TO 'repl_user'@'192.168.1.%';
+  
+  -- 使用 SSL（推荐）
+  CREATE USER 'repl_user'@'%' IDENTIFIED BY 'strong_password' REQUIRE SSL;
+  GRANT REPLICATION SLAVE ON *.* TO 'repl_user'@'%';
+  
+  FLUSH PRIVILEGES;
+
+# ========== 主库配置要求 ==========
+# 主库 my.cnf 配置示例：
+master_config_example: |
+  [mysqld]
+  # 服务器 ID（必须唯一）
+  server-id = 1
+  
+  # 启用 binlog
+  log-bin = mysql-bin
+  
+  # binlog 格式（推荐 ROW）
+  binlog-format = ROW
+  
+  # GTID 模式（推荐）
+  gtid-mode = ON
+  enforce-gtid-consistency = ON
+  
+  # binlog 过期时间（天）
+  expire-logs-days = 7
+  
+  # 半同步复制（可选）
+  rpl_semi_sync_master_enabled = 1
+  rpl_semi_sync_master_timeout = 1000
+
+# ========== 从库配置要求 ==========
+# 从库 my.cnf 配置示例：
+slave_config_example: |
+  [mysqld]
+  # 服务器 ID（必须唯一且不同于主库）
+  server-id = 2
+  
+  # 只读模式（推荐）
+  read-only = 1
+  
+  # 中继日志
+  relay-log = relay-bin
+  relay-log-index = relay-bin.index
+  
+  # GTID 模式（与主库一致）
+  gtid-mode = ON
+  enforce-gtid-consistency = ON
+  
+  # 半同步复制（可选）
+  rpl_semi_sync_slave_enabled = 1
+  
+  # 从库类型标记（MySQL 8.0.23+）
+  replica-type-conversions = ALL_LOSSY,ALL_NON_LOSSY
+
+# ========== 复制监控指标 ==========
+# 关键监控指标：
+replication_monitoring_metrics:
+  io_thread_status:
+    metric: "Slave_IO_Running"
+    expected: "Yes"
+    alert: "IO 线程停止"
+  
+  sql_thread_status:
+    metric: "Slave_SQL_Running"
+    expected: "Yes"
+    alert: "SQL 线程停止"
+  
+  replication_lag:
+    metric: "Seconds_Behind_Master"
+    threshold: 60
+    alert: "复制延迟超过阈值"
+  
+  last_error:
+    metric: "Last_Error"
+    expected: "empty"
+    alert: "复制错误"
+  
+  master_log_file:
+    metric: "Master_Log_File"
+    alert: "主库 binlog 文件异常"
+  
+  read_master_log_pos:
+    metric: "Read_Master_Log_Pos"
+    alert: "读取主库日志位置异常"
+
+# ========== 故障排查命令 ==========
+# 常用故障排查命令：
+troubleshooting_commands:
+  check_master_status: "SHOW MASTER STATUS;"
+  check_slave_status: "SHOW SLAVE STATUS\\G"
+  check_binlogs: "SHOW BINARY LOGS;"
+  check_processlist: "SHOW PROCESSLIST;"
+  
+  start_slave: "START SLAVE;"
+  stop_slave: "STOP SLAVE;"
+  reset_slave: "RESET SLAVE ALL;"
+  
+  skip_error: "SET GLOBAL sql_slave_skip_counter = 1; START SLAVE;"
+  change_master: "CHANGE MASTER TO MASTER_HOST='...', MASTER_USER='...', MASTER_PASSWORD='...', MASTER_LOG_FILE='...', MASTER_LOG_POS=...;"

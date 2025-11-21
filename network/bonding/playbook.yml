@@ -1,0 +1,311 @@
+---
+- name: 网络接口绑定（Bonding）配置示例演示
+  hosts: localhost
+  gather_facts: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 环境检查 ==========
+    - name: 检查 NetworkManager 服务状态
+      ansible.builtin.shell: systemctl is-active NetworkManager
+      register: nm_status
+      changed_when: false
+      ignore_errors: yes
+    
+    - name: 显示 NetworkManager 服务状态
+      ansible.builtin.debug:
+        msg: "NetworkManager 服务状态: {{ '运行中' if nm_status.rc == 0 else '未运行' }}"
+    
+    - name: 检查 bonding 模块是否加载
+      ansible.builtin.shell: lsmod | grep bonding
+      register: bonding_module
+      changed_when: false
+      ignore_errors: yes
+    
+    - name: 显示 bonding 模块状态
+      ansible.builtin.debug:
+        msg: "bonding 模块状态: {{ '已加载' if bonding_module.rc == 0 else '未加载' }}"
+    
+    - name: 检查可用网络接口
+      ansible.builtin.shell: nmcli device status
+      register: network_devices
+      changed_when: false
+    
+    - name: 显示可用网络接口
+      ansible.builtin.debug:
+        msg: |
+          可用网络接口：
+          {{ network_devices.stdout_lines }}
+    
+    # ========== 主备模式绑定配置 ==========
+    - name: 创建绑定接口 - 主备模式（active-backup）
+      community.general.nmcli:
+        conn_name: "{{ bond_primary_conn_name }}"
+        ifname: "{{ bond_primary_ifname }}"
+        type: bond
+        mode: "{{ bond_primary_mode }}"
+        state: present
+        method4: manual
+        ip4: "{{ bond_primary_ip4 }}"
+        gw4: "{{ bond_primary_gw4 }}"
+        dns4: "{{ bond_primary_dns4 }}"
+        autoconnect: yes
+      check_mode: true
+      notify: Activate bonding connection
+    
+    - name: 添加从属接口到主备绑定 - 主接口
+      community.general.nmcli:
+        conn_name: "{{ bond_primary_slave1_conn }}"
+        ifname: "{{ bond_primary_slave1_if }}"
+        type: ethernet
+        master: "{{ bond_primary_ifname }}"
+        slave_type: bond
+        state: present
+        autoconnect: yes
+      check_mode: true
+      notify: Activate bonding connection
+    
+    - name: 添加从属接口到主备绑定 - 备用接口
+      community.general.nmcli:
+        conn_name: "{{ bond_primary_slave2_conn }}"
+        ifname: "{{ bond_primary_slave2_if }}"
+        type: ethernet
+        master: "{{ bond_primary_ifname }}"
+        slave_type: bond
+        state: present
+        autoconnect: yes
+      check_mode: true
+      notify: Activate bonding connection
+    
+    # ========== LACP 模式绑定配置 ==========
+    - name: 创建绑定接口 - LACP 模式（802.3ad）
+      community.general.nmcli:
+        conn_name: "{{ bond_lacp_conn_name }}"
+        ifname: "{{ bond_lacp_ifname }}"
+        type: bond
+        mode: "{{ bond_lacp_mode }}"
+        state: present
+        method4: manual
+        ip4: "{{ bond_lacp_ip4 }}"
+        gw4: "{{ bond_lacp_gw4 }}"
+        autoconnect: yes
+      check_mode: true
+      when: create_lacp_bond | default(false) | bool
+      notify: Activate bonding connection
+    
+    - name: 批量添加从属接口到 LACP 绑定
+      community.general.nmcli:
+        conn_name: "{{ item.conn_name }}"
+        ifname: "{{ item.ifname }}"
+        type: ethernet
+        master: "{{ bond_lacp_ifname }}"
+        slave_type: bond
+        state: present
+        autoconnect: yes
+      check_mode: true
+      loop: "{{ bond_lacp_slaves }}"
+      when: create_lacp_bond | default(false) | bool
+      notify: Activate bonding connection
+    
+    # ========== 负载均衡模式绑定配置 ==========
+    - name: 创建绑定接口 - TLB 负载均衡模式
+      community.general.nmcli:
+        conn_name: "{{ bond_tlb_conn_name }}"
+        ifname: "{{ bond_tlb_ifname }}"
+        type: bond
+        mode: "{{ bond_tlb_mode }}"
+        state: present
+        method4: manual
+        ip4: "{{ bond_tlb_ip4 }}"
+        autoconnect: yes
+      check_mode: true
+      when: create_tlb_bond | default(false) | bool
+      notify: Activate bonding connection
+    
+    - name: 添加多个从属接口到负载均衡绑定
+      community.general.nmcli:
+        conn_name: "bond-tlb-slave-{{ item }}"
+        ifname: "{{ item }}"
+        type: ethernet
+        master: "{{ bond_tlb_ifname }}"
+        slave_type: bond
+        state: present
+        autoconnect: yes
+      check_mode: true
+      loop: "{{ bond_tlb_slave_interfaces }}"
+      when: create_tlb_bond | default(false) | bool
+      notify: Activate bonding connection
+    
+    # ========== DHCP 模式绑定配置 ==========
+    - name: 创建绑定接口使用 DHCP
+      community.general.nmcli:
+        conn_name: "{{ bond_dhcp_conn_name }}"
+        ifname: "{{ bond_dhcp_ifname }}"
+        type: bond
+        mode: "{{ bond_dhcp_mode }}"
+        state: present
+        method4: auto
+        autoconnect: yes
+      check_mode: true
+      when: create_dhcp_bond | default(false) | bool
+      notify: Activate bonding connection
+    
+    - name: 添加从属接口到 DHCP 绑定
+      community.general.nmcli:
+        conn_name: "{{ item.conn_name }}"
+        ifname: "{{ item.ifname }}"
+        type: ethernet
+        master: "{{ bond_dhcp_ifname }}"
+        slave_type: bond
+        state: present
+        autoconnect: yes
+      check_mode: true
+      loop: "{{ bond_dhcp_slaves }}"
+      when: create_dhcp_bond | default(false) | bool
+      notify: Activate bonding connection
+    
+    # ========== 批量绑定部署 ==========
+    - name: 批量创建绑定接口
+      community.general.nmcli:
+        conn_name: "{{ item.conn_name }}"
+        ifname: "{{ item.ifname }}"
+        type: bond
+        mode: "{{ item.mode }}"
+        state: present
+        method4: "{{ item.method4 }}"
+        ip4: "{{ item.ip4 | default(omit) }}"
+        gw4: "{{ item.gw4 | default(omit) }}"
+        dns4: "{{ item.dns4 | default(omit) }}"
+        autoconnect: yes
+      check_mode: true
+      loop: "{{ bond_interfaces }}"
+      loop_control:
+        label: "{{ item.conn_name }}"
+      when: create_batch_bonds | default(false) | bool
+      notify: Activate bonding connection
+    
+    # ========== 绑定状态验证 ==========
+    - name: 检查绑定接口状态
+      ansible.builtin.shell: "cat /proc/net/bonding/{{ bond_primary_ifname }}"
+      register: bond_status
+      changed_when: false
+      ignore_errors: yes
+      when: verify_bonding | default(false) | bool
+    
+    - name: 显示绑定状态详情
+      ansible.builtin.debug:
+        msg: "{{ bond_status.stdout_lines }}"
+      when: 
+        - verify_bonding | default(false) | bool
+        - bond_status.rc == 0
+    
+    - name: 检查活动从属接口
+      ansible.builtin.shell: "cat /sys/class/net/{{ bond_primary_ifname }}/bonding/active_slave"
+      register: active_slave
+      changed_when: false
+      ignore_errors: yes
+      when: verify_bonding | default(false) | bool
+    
+    - name: 显示当前活动接口
+      ansible.builtin.debug:
+        msg: "当前活动接口: {{ active_slave.stdout }}"
+      when: 
+        - verify_bonding | default(false) | bool
+        - active_slave.rc == 0
+    
+    # ========== 故障切换测试 ==========
+    - name: 测试绑定故障切换
+      block:
+        - name: 检查当前活动接口
+          ansible.builtin.shell: "cat /sys/class/net/{{ bond_primary_ifname }}/bonding/active_slave"
+          register: active_before
+          changed_when: false
+        
+        - name: 显示测试前活动接口
+          ansible.builtin.debug:
+            msg: "测试前活动接口: {{ active_before.stdout }}"
+        
+        - name: 模拟接口故障
+          ansible.builtin.shell: "ip link set {{ active_before.stdout }} down"
+          when: active_before.stdout != ""
+        
+        - name: 等待故障切换完成
+          ansible.builtin.pause:
+            seconds: 5
+        
+        - name: 检查切换后活动接口
+          ansible.builtin.shell: "cat /sys/class/net/{{ bond_primary_ifname }}/bonding/active_slave"
+          register: active_after
+          changed_when: false
+        
+        - name: 显示故障切换结果
+          ansible.builtin.debug:
+            msg: "故障切换成功: {{ active_before.stdout }} -> {{ active_after.stdout }}"
+        
+        - name: 恢复接口状态
+          ansible.builtin.shell: "ip link set {{ active_before.stdout }} up"
+          when: active_before.stdout != ""
+      when: test_failover | default(false) | bool
+      ignore_errors: yes
+    
+    # ========== 绑定连通性测试 ==========
+    - name: 测试绑定网关连通性
+      ansible.builtin.shell: "ping -c 3 {{ bond_primary_gw4 }}"
+      register: bond_connectivity
+      changed_when: false
+      ignore_errors: yes
+      when: test_connectivity | default(false) | bool
+    
+    - name: 显示连通性测试结果
+      ansible.builtin.debug:
+        msg: "绑定网关连通性: {{ '正常' if bond_connectivity.rc == 0 else '异常' }}"
+      when: test_connectivity | default(false) | bool
+    
+    # ========== 绑定配置删除 ==========
+    - name: 删除从属接口连接
+      community.general.nmcli:
+        conn_name: "{{ item }}"
+        state: absent
+      check_mode: true
+      loop: "{{ bond_slaves_to_delete }}"
+      when: 
+        - delete_bonding | default(false) | bool
+        - bond_slaves_to_delete is defined
+    
+    - name: 删除绑定接口
+      community.general.nmcli:
+        conn_name: "{{ item }}"
+        state: absent
+      check_mode: true
+      loop: "{{ bonds_to_delete }}"
+      when: 
+        - delete_bonding | default(false) | bool
+        - bonds_to_delete is defined
+    
+    # ========== 配置备份 ==========
+    - name: 备份绑定配置
+      ansible.builtin.shell: |
+        nmcli connection show | grep bond > {{ bond_backup_file }}
+        cat /proc/net/bonding/* >> {{ bond_backup_file }} 2>/dev/null || true
+      register: backup_result
+      changed_when: false
+      when: backup_bond_config | default(false) | bool
+    
+    - name: 显示备份结果
+      ansible.builtin.debug:
+        msg: "绑定配置已备份到: {{ bond_backup_file }}"
+      when: backup_bond_config | default(false) | bool
+  
+  handlers:
+    - name: Activate bonding connection
+      ansible.builtin.shell: "nmcli connection up {{ item.conn_name }}"
+      listen: "Activate bonding connection"
+      when: item.changed | default(false)
+      ignore_errors: yes
+    
+    - name: Reload NetworkManager
+      ansible.builtin.service:
+        name: NetworkManager
+        state: reloaded
+      ignore_errors: yes

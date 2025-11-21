@@ -1,0 +1,163 @@
+---
+- name: MongoDB 数据库管理示例演示
+  hosts: localhost
+  gather_facts: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 创建单个数据库 ==========
+    - name: 创建应用数据库
+      community.mongodb.mongodb_db:
+        name: "{{ mongodb_app_database }}"
+        state: present
+        login_host: "{{ mongodb_host }}"
+        login_port: "{{ mongodb_port }}"
+        login_user: "{{ mongodb_admin_user }}"
+        login_password: "{{ mongodb_admin_password }}"
+        login_database: "{{ mongodb_admin_database }}"
+      check_mode: true
+      no_log: true
+      delegate_to: "{{ mongodb_host }}"
+    
+    # ========== 批量创建数据库 ==========
+    - name: 批量创建应用数据库
+      community.mongodb.mongodb_db:
+        name: "{{ item }}"
+        state: present
+        login_host: "{{ mongodb_host }}"
+        login_port: "{{ mongodb_port }}"
+        login_user: "{{ mongodb_admin_user }}"
+        login_password: "{{ mongodb_admin_password }}"
+        login_database: "{{ mongodb_admin_database }}"
+      check_mode: true
+      no_log: true
+      loop: "{{ mongodb_databases }}"
+      when: create_multiple_databases | default(false) | bool
+      delegate_to: "{{ mongodb_host }}"
+    
+    # ========== 创建测试环境数据库 ==========
+    - name: 创建测试环境数据库
+      community.mongodb.mongodb_db:
+        name: "{{ item }}"
+        state: present
+        login_host: "{{ mongodb_host }}"
+        login_port: "{{ mongodb_port }}"
+        login_user: "{{ mongodb_admin_user }}"
+        login_password: "{{ mongodb_admin_password }}"
+        login_database: "{{ mongodb_admin_database }}"
+      check_mode: true
+      no_log: true
+      loop: "{{ mongodb_test_databases }}"
+      when: create_test_databases | default(false) | bool
+      delegate_to: "{{ mongodb_host }}"
+    
+    # ========== 副本集环境创建数据库 ==========
+    - name: 在副本集环境创建数据库
+      community.mongodb.mongodb_db:
+        name: "{{ mongodb_app_database }}"
+        state: present
+        login_host: "{{ mongodb_host }}"
+        login_port: "{{ mongodb_port }}"
+        login_user: "{{ mongodb_admin_user }}"
+        login_password: "{{ mongodb_admin_password }}"
+        login_database: "{{ mongodb_admin_database }}"
+        replica_set: "{{ mongodb_replica_set }}"
+      check_mode: true
+      no_log: true
+      when: use_replica_set | default(false) | bool
+      delegate_to: "{{ mongodb_host }}"
+    
+    # ========== SSL 连接创建数据库 ==========
+    - name: 使用 SSL 连接创建数据库
+      community.mongodb.mongodb_db:
+        name: "{{ mongodb_app_database }}"
+        state: present
+        login_host: "{{ mongodb_host }}"
+        login_port: "{{ mongodb_port }}"
+        login_user: "{{ mongodb_admin_user }}"
+        login_password: "{{ mongodb_admin_password }}"
+        login_database: "{{ mongodb_admin_database }}"
+        ssl: yes
+        ssl_cert_reqs: "{{ mongodb_ssl_cert_reqs }}"
+      check_mode: true
+      no_log: true
+      when: use_ssl | default(false) | bool
+      delegate_to: "{{ mongodb_host }}"
+    
+    # ========== 使用特定认证机制 ==========
+    - name: 使用 SCRAM-SHA-256 认证创建数据库
+      community.mongodb.mongodb_db:
+        name: "{{ mongodb_app_database }}"
+        state: present
+        login_host: "{{ mongodb_host }}"
+        login_port: "{{ mongodb_port }}"
+        login_user: "{{ mongodb_admin_user }}"
+        login_password: "{{ mongodb_admin_password }}"
+        login_database: "{{ mongodb_admin_database }}"
+        auth_mechanism: "{{ mongodb_auth_mechanism }}"
+      check_mode: true
+      no_log: true
+      when: use_custom_auth | default(false) | bool
+      delegate_to: "{{ mongodb_host }}"
+    
+    # ========== 删除废弃数据库 ==========
+    - name: 删除废弃的测试数据库
+      community.mongodb.mongodb_db:
+        name: "{{ item }}"
+        state: absent
+        login_host: "{{ mongodb_host }}"
+        login_port: "{{ mongodb_port }}"
+        login_user: "{{ mongodb_admin_user }}"
+        login_password: "{{ mongodb_admin_password }}"
+        login_database: "{{ mongodb_admin_database }}"
+      check_mode: true
+      no_log: true
+      loop: "{{ mongodb_databases_to_delete }}"
+      when: 
+        - delete_databases | default(false) | bool
+        - mongodb_databases_to_delete is defined
+      delegate_to: "{{ mongodb_host }}"
+    
+    # ========== 条件创建数据库 ==========
+    - name: 检查数据库是否存在
+      ansible.builtin.shell: |
+        mongo {{ mongodb_admin_database }} -u {{ mongodb_admin_user }} -p {{ mongodb_admin_password }} --quiet --eval "db.getMongo().getDBNames().indexOf('{{ mongodb_app_database }}')"
+      register: db_exists
+      changed_when: false
+      no_log: true
+      when: check_before_create | default(false) | bool
+      environment:
+        MONGO_HOST: "{{ mongodb_host }}"
+    
+    - name: 创建数据库（如果不存在）
+      community.mongodb.mongodb_db:
+        name: "{{ mongodb_app_database }}"
+        state: present
+        login_host: "{{ mongodb_host }}"
+        login_port: "{{ mongodb_port }}"
+        login_user: "{{ mongodb_admin_user }}"
+        login_password: "{{ mongodb_admin_password }}"
+        login_database: "{{ mongodb_admin_database }}"
+      check_mode: true
+      no_log: true
+      when: 
+        - check_before_create | default(false) | bool
+        - db_exists.stdout | int == -1
+      delegate_to: "{{ mongodb_host }}"
+    
+    # ========== 验证数据库创建 ==========
+    - name: 列出所有数据库
+      ansible.builtin.shell: |
+        mongo {{ mongodb_admin_database }} -u {{ mongodb_admin_user }} -p {{ mongodb_admin_password }} --quiet --eval "db.getMongo().getDBNames()"
+      register: all_databases
+      changed_when: false
+      no_log: true
+      when: verify_databases | default(false) | bool
+    
+    - name: 显示数据库列表
+      ansible.builtin.debug:
+        msg: "数据库列表: {{ all_databases.stdout }}"
+      when: 
+        - verify_databases | default(false) | bool
+        - all_databases is defined
