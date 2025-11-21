@@ -42,6 +42,21 @@
 - `metadata/modules.yaml`：用于索引特性与文档的元数据。
 - `tests/`：确保示例结构完整的 pytest 测试。
 
+## 模块索引与学习路径自动化
+
+为了避免手动维护几十个章节的元数据，仓库提供 `tools/module_index.py` 作为统一的自动化入口：
+
+- **生成索引**：优先使用虚拟环境中的 Python 运行 `venv/bin/python tools/module_index.py --generate --comparison-report`。命令会同步产出：
+  - `metadata/modules.yaml`：结构化索引文件，供测试与外部工具加载；
+  - `docs/MODULE_INDEX.md`：可搜索的 Markdown 索引，包含每个模块的摘要、示例位置与覆盖状态；
+  - `reports/module_index.json`：机器可读的索引快照，方便在 CI 或后续自动化中消费；
+  - `reports/module_comparison.md`：Stage 4 自动化所需的 Markdown 对比报告，用于展示 ansible-doc 与项目实践之间的缺口。
+- **查询模式**：`python tools/module_index.py --query copy` 会输出匹配模块的分类、文档路径、示例路径以及解析到的依赖模块，便于在命令行快速定位素材。
+- **学习路径**：`python tools/module_index.py --learning-path` 会分组打印学习路线，按照 priority（high/medium/low）指示下一个应补充的模块。建议优先处理 high 项，medium 项作为规划 backlog，low 项留给长期演进。
+- **差异数据**：`metadata/ansible_doc_diff.json` 保存 ansible-doc 与现有目录的 diff。更新该文件后重新运行 `--generate` 即可让新的缺口出现在学习路径与 Stage 4 报告中。
+
+`docs/MODULE_INDEX.md` 中的表格可直接在编辑器/浏览器中搜索（`Cmd/Ctrl + F`），也可以依赖 `reports/module_index.json` 在自定义脚本里实现更复杂的检索逻辑。
+
 ## 进阶章节
 - [高级特性总览](advanced/README.md)
 - [应用管理指南](applications/README.md)
