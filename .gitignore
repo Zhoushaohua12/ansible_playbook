@@ -6,3 +6,25 @@ __pycache__/
 .env.*
 .DS_Store
 .cache/
+
+# Audit tool backups
+.audit_backup_*/
+
+# Vault password files (never commit these!)
+.vault_pass
+.vault_password
+vault_pass.txt
+
+# Temporary files
+*.tmp
+*.bak
+*~
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+Thumbs.db

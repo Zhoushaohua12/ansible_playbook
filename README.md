@@ -17,13 +17,105 @@
 本项目遵循统一的代码风格和最佳实践规范：
 
 - **[`AUDIT_REPORT.md`](AUDIT_REPORT.md)**：详细的项目审计报告，包含规范检查结果、问题清单（按优先级分类）和改进建议。涵盖 playbook 规范、安全处理、变量文件警示、handler 中文化等重要规范。
+- **[`COMPREHENSIVE_AUDIT_SUMMARY.md`](COMPREHENSIVE_AUDIT_SUMMARY.md)**：全面审计总结报告，提供优化建议清单、实施计划和最佳实践指南。
+- **[`docs/BEST_PRACTICES.md`](docs/BEST_PRACTICES.md)**：Ansible Playbook 最佳实践指南，包含代码规范、安全实践、测试规范和常见陷阱解决方案。
 
 ### 运行自动化审计工具
 
-使用 `tools/audit_report.py` 扫描所有 playbook、README 和变量文件，检查代码风格、安全性和文档覆盖情况：
+本项目提供多个审计和优化工具：
+
+#### 1. 全面审计工具（推荐）
+
+使用 `tools/comprehensive_audit.py` 进行全方位项目检查，涵盖结构、内容、安全、测试、元数据、文档和依赖：
 
 ```bash
-# 生成审计报告（默认输出到 reports/phase1_audit.md）
+# 运行全面审计
+venv/bin/python tools/comprehensive_audit.py
+
+# 自定义输出路径
+venv/bin/python tools/comprehensive_audit.py --output reports/my_audit.md --json reports/my_audit.json
+
+# 查看审计报告
+cat reports/comprehensive_audit.md
+less reports/comprehensive_audit.json
+```
+
+全面审计工具检查内容：
+- **项目结构完整性**：模块目录、必需文件、测试覆盖
+- **文件内容质量**：YAML 语法、FQCN 使用、gather_facts 声明、中文命名
+- **安全性检查**：硬编码密钥、no_log 使用、变量文件警告头
+- **元数据一致性**：metadata/modules.yaml 与实际模块同步
+- **文档导航**：README 完整性、分类导航、交叉引用
+- **依赖管理**：requirements.txt、collections/requirements.yml
+- **冗余和矛盾**：重复模块名、重复 handler 定义
+
+#### 2. 快速修复工具
+
+使用 `tools/quick_fix.sh` 自动修复常见问题：
+
+```bash
+# 运行快速修复（会自动备份）
+./tools/quick_fix.sh
+
+# 查看修复报告
+cat reports/quick_fix_report.txt
+```
+
+快速修复功能：
+- 自动修复 YAML 变量引用格式错误
+- 批量添加变量文件警告头
+- 检查并报告缺少 gather_facts 的 playbook
+- 扫描潜在的硬编码密码
+
+#### 3. 审计监控工具
+
+使用 `tools/audit_monitor.sh` 定期监控代码质量趋势：
+
+```bash
+# 运行审计监控
+./tools/audit_monitor.sh
+
+# 查看趋势数据
+cat reports/audit_history/audit_trend.csv
+
+# 查看每日摘要
+cat reports/audit_history/daily_summary_*.md
+```
+
+监控功能：
+- 自动运行审计并记录历史
+- 生成质量趋势图表数据
+- 计算质量评分（0-100）
+- 触发告警（Critical 问题、大量 High 问题等）
+- 与上次审计对比，显示改进或退步
+
+#### 4. Pre-commit Hook
+
+安装 pre-commit hook 在提交前自动检查：
+
+```bash
+# 安装 hook
+cp tools/pre-commit-hook.sh .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+
+# 之后每次 git commit 都会自动检查
+git add .
+git commit -m "your message"
+```
+
+Pre-commit 检查：
+- YAML 语法验证
+- 硬编码密码检测
+- 变量文件警告头检查
+- no_log 使用建议
+- FQCN 使用建议
+
+#### 5. 原有审计工具
+
+使用 `tools/audit_report.py` 进行基础审计：
+
+```bash
+# 生成基础审计报告
 venv/bin/python tools/audit_report.py
 
 # 指定自定义输出路径
@@ -36,17 +128,19 @@ venv/bin/python tools/audit_report.py --output reports/phase1_audit.md --json re
 venv/bin/python tools/audit_report.py --skip-tests
 ```
 
-审计工具会检查以下内容：
-- **代码风格**：`gather_facts`、`check_mode`、FQCN 模块调用
-- **安全性**：`no_log` 保护、`vault_` 前缀使用、敏感数据处理
-- **文档规范**：中文任务名称、变量文件警示头 (⚠️)、README 完整性
-- **测试覆盖**：运行 pytest 并收集覆盖率数据
+### 代码规范
 
 所有 Playbook 示例均遵循以下规范：
 - 统一使用中文任务名、handler 名称和注释
+- 明确声明 `gather_facts: true/false`
+- 使用 FQCN 格式的模块名（如 `ansible.builtin.copy`）
 - 变量文件 (`vars/example_vars.yml`) 文件头必须包含 `⚠️ 本文件仅为示例，占位符必须使用 Ansible Vault 或环境变量替换` 警示
 - 敏感信息使用 `vault_*` 前缀，配合 Ansible Vault 加密
+- 敏感操作必须使用 `no_log: true` 防止日志泄露
 - 所有涉及系统变更的 playbook 均提供 `--check` 模式示例
+- 支持幂等性，可重复执行
+
+详细规范请参考 **[最佳实践指南](docs/BEST_PRACTICES.md)**
 
 ## 仓库结构
 - `advanced/`：高级特性讲解与示例 Playbook。
