@@ -1,0 +1,119 @@
+# ⚠️ 警告：该文件包含数据库服务器组的敏感参数示例，请使用 ansible-vault 加密所有 vault_* 前缀变量。
+
+# ========================================
+# 通用数据库配置
+# ========================================
+
+database_engine: "mysql"  # 可选: mysql, postgresql, mariadb
+
+# 监听配置
+db_bind_address: "0.0.0.0"
+db_port: 3306
+
+# 备份配置
+backup_enabled: true
+backup_window: "02:00-04:00"
+backup_retention_days: 7
+backup_dir: "/backup/database"
+backup_method: "mysqldump"  # 可选: mysqldump, xtrabackup, physical
+backup_upload_to_cloud: false
+backup_cloud_provider: "oss"
+backup_cloud_bucket: "{{ vault_db_backup_bucket | default('my-db-backup') }}"
+
+# 监控配置
+monitoring_enabled: true
+mysql_exporter_enabled: true
+mysql_exporter_port: 9104
+postgres_exporter_enabled: false
+
+# ========================================
+# MySQL 配置
+# ========================================
+
+mysql_version: "8.0"
+mysql_service_name: "mysqld"
+mysql_datadir: "/var/lib/mysql"
+mysql_root_user: "root"
+mysql_root_password: "{{ vault_mysql_root_password | default('请使用 ansible-vault 加密') }}"
+mysql_replication_user: "replicator"
+mysql_replication_password: "{{ vault_mysql_repl_password | default('请使用 ansible-vault 加密') }}"
+
+mysql_config:
+  innodb_buffer_pool_size: "1G"
+  innodb_log_file_size: "256M"
+  innodb_flush_log_at_trx_commit: 1
+  sync_binlog: 1
+  max_connections: 400
+  sql_mode: "STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION"
+  character_set_server: "utf8mb4"
+  collation_server: "utf8mb4_general_ci"
+
+mysql_replication:
+  enabled: true
+  mode: "semisync"
+  master_host: "10.30.0.32"
+  replica_hosts:
+    - "10.30.0.33"
+  auto_failover: true
+
+mysql_users:
+  - name: "app_user"
+    host: "%"
+    password: "{{ vault_app_db_password | default('请使用 ansible-vault 加密') }}"
+    priv: "app_db.*:ALL"
+    state: "present"
+
+mysql_databases:
+  - name: "app_db"
+    encoding: "utf8mb4"
+    collation: "utf8mb4_general_ci"
+
+# ========================================
+# PostgreSQL 配置
+# ========================================
+
+postgresql_enabled: false
+postgresql_version: "14"
+postgresql_port: 5432
+postgresql_data_dir: "/var/lib/pgsql/14/data"
+postgresql_superuser: "postgres"
+postgresql_superuser_password: "{{ vault_pg_superuser_password | default('请使用 ansible-vault 加密') }}"
+
+postgresql_replication:
+  enabled: false
+  user: "repl"
+  password: "{{ vault_pg_repl_password | default('请使用 ansible-vault 加密') }}"
+  standby_mode: "hot"
+
+postgresql_databases:
+  - name: "analytics"
+    owner: "analytics"
+    encoding: "UTF8"
+    lc_collate: "zh_CN.UTF-8"
+    lc_ctype: "zh_CN.UTF-8"
+
+# ========================================
+# 安全配置
+# ========================================
+
+db_firewall_rules:
+  - { port: 3306, source: "10.40.0.0/24", description: "应用服务器访问 MySQL" }
+  - { port: 3306, source: "10.50.0.0/24", description: "监控服务器访问 MySQL" }
+
+db_tls_enabled: true
+db_tls_ca_file: "/etc/mysql/certs/ca.pem"
+db_tls_cert_file: "/etc/mysql/certs/server.pem"
+db_tls_key_file: "/etc/mysql/certs/server-key.pem"
+db_tls_key_content: "{{ vault_mysql_tls_key | default('请使用 ansible-vault 加密') }}"
+
+# ========================================
+# Vault 占位符
+# ========================================
+
+vault_mysql_root_password: "请使用 ansible-vault 加密"
+vault_mysql_repl_password: "请使用 ansible-vault 加密"
+vault_app_db_password: "请使用 ansible-vault 加密"
+vault_pg_superuser_password: "请使用 ansible-vault 加密"
+vault_pg_repl_password: "请使用 ansible-vault 加密"
+vault_db_backup_bucket: "请使用 ansible-vault 加密"
+vault_mysql_tls_key: "请使用 ansible-vault 加密"

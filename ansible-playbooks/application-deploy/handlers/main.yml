@@ -1,0 +1,32 @@
+---
+# application-deploy handlers
+
+- name: 重启 Docker 服务
+  ansible.builtin.service:
+    name: docker
+    state: restarted
+  listen: "restart docker"
+
+- name: 重新加载 systemd 配置
+  ansible.builtin.systemd:
+    daemon_reload: true
+  listen: "reload systemd"
+
+- name: 重启 PHP-FPM 服务
+  ansible.builtin.service:
+    name: "{{ php_fpm_service_name | default('php-fpm') }}"
+    state: restarted
+  listen: "restart php-fpm"
+
+- name: 重启 Apache 服务
+  ansible.builtin.service:
+    name: "{{ apache_service_name | default('apache2') }}"
+    state: restarted
+  listen: "restart apache"
+
+- name: 重启 Node.js 应用
+  ansible.builtin.systemd:
+    name: "{{ nodejs_app_name }}.service"
+    state: restarted
+  when: nodejs_app_name is defined
+  listen: "restart nodejs app"

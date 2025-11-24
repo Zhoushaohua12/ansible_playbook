@@ -1,0 +1,86 @@
+# ⚠️ 警告：该文件包含 Nginx Web 服务器组的敏感参数示例，务必用 ansible-vault 加密所有 vault_* 前缀变量。
+
+# ========================================
+# Nginx 配置
+# ========================================
+
+nginx_version: "latest"
+nginx_worker_processes: "auto"
+nginx_worker_connections: 2048
+nginx_multi_accept: "on"
+nginx_use_epoll: true
+
+# 日志配置
+nginx_access_log: "/var/log/nginx/access.log"
+nginx_error_log: "/var/log/nginx/error.log"
+nginx_log_level: "warn"
+
+# SSL/TLS 配置
+nginx_ssl_enabled: true
+nginx_ssl_protocols: "TLSv1.2 TLSv1.3"
+nginx_ssl_ciphers: "HIGH:!aNULL:!MD5"
+nginx_ssl_prefer_server_ciphers: "on"
+nginx_ssl_session_cache: "shared:SSL:10m"
+nginx_ssl_session_timeout: "10m"
+
+# 证书路径（⚠️ 生产环境需要使用实际证书）
+nginx_ssl_certificate: "/etc/nginx/ssl/server.crt"
+nginx_ssl_certificate_key: "/etc/nginx/ssl/server.key"
+# 从 vault 中读取证书内容（可选）
+nginx_ssl_cert_content: "{{ vault_nginx_ssl_cert | default('') }}"
+nginx_ssl_key_content: "{{ vault_nginx_ssl_key | default('') }}"
+
+# 虚拟主机配置
+nginx_vhosts:
+  - server_name: "example.com www.example.com"
+    root: "/var/www/html"
+    index: "index.html index.htm"
+    access_log: "/var/log/nginx/example.com-access.log"
+    error_log: "/var/log/nginx/example.com-error.log"
+    enable_ssl: true
+    ssl_certificate: "/etc/nginx/ssl/example.com.crt"
+    ssl_certificate_key: "/etc/nginx/ssl/example.com.key"
+    locations:
+      - path: "/"
+        proxy_pass: "http://backend_servers"
+      - path: "/static/"
+        alias: "/var/www/static/"
+        expires: "30d"
+
+# 上游服务器配置
+nginx_upstreams:
+  - name: "backend_servers"
+    strategy: "least_conn"  # 可选: round_robin, least_conn, ip_hash
+    servers:
+      - "10.40.0.41:8080 weight=1"
+      - "10.40.0.42:8080 weight=1"
+      - "10.40.0.43:8080 backup"
+    health_check:
+      interval: "3s"
+      fails: 3
+      passes: 2
+
+# 性能调优
+nginx_client_max_body_size: "100M"
+nginx_keepalive_timeout: 65
+nginx_gzip_enabled: true
+nginx_gzip_types:
+  - "text/plain"
+  - "text/css"
+  - "application/json"
+  - "application/javascript"
+  - "text/xml"
+  - "application/xml"
+
+# 安全配置
+nginx_hide_version: true
+nginx_server_tokens: "off"
+nginx_add_headers:
+  X-Frame-Options: "SAMEORIGIN"
+  X-Content-Type-Options: "nosniff"
+  X-XSS-Protection: "1; mode=block"
+  Strict-Transport-Security: "max-age=31536000; includeSubDomains"
+
+# Vault 占位符
+vault_nginx_basic_auth_user: "admin"
+vault_nginx_basic_auth_password: "请使用 ansible-vault 加密此值"

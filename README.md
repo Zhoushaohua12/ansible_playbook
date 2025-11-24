@@ -50,6 +50,7 @@ venv/bin/python tools/audit_report.py --skip-tests
 
 ## 仓库结构
 - `advanced/`：高级特性讲解与示例 Playbook。
+- `ansible-playbooks/`：Playbook Hub 工作区，收录系统初始化、Web、数据库、应用部署、监控、维护等完整示例，配套 [`QUICK_START.md`](ansible-playbooks/QUICK_START.md)、统一 Inventory (`inventory/hosts`) 与共享 `roles/` 命名空间。
 - `applications/`：应用管理模块（软件包/容器/源码部署）的实践指南。
 - `cloud/`：多云算力编排示例（AWS、Azure、GCP、OpenStack、阿里云），强调 Dry Run、认证与 Vault。
 - `commands/`：命令执行模块（shell、command、raw、script）的使用指南与安全实践。

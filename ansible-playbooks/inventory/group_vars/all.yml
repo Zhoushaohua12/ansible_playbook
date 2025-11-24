@@ -1,0 +1,190 @@
+# ===========================================
+# ⚠️ 重要安全警示 / Security Warning
+# ===========================================
+# 本文件仅为示例配置，包含默认值和占位符。
+# 生产环境使用前必须：
+# 1. 将所有 vault_* 前缀的变量替换为实际值并使用 ansible-vault 加密
+# 2. 审查并调整所有配置参数以符合安全基线
+# 3. 不要将敏感信息明文提交到版本控制系统
+# 
+# This is an EXAMPLE configuration file with placeholders.
+# Before production use:
+# 1. Replace all vault_* variables with actual values and encrypt with ansible-vault
+# 2. Review and adjust all configuration parameters to meet security baseline
+# 3. Never commit sensitive information in plaintext to version control
+# ===========================================
+
+# 全局通用配置
+# ========================================
+
+# Python 解释器路径
+ansible_python_interpreter: /usr/bin/python3
+
+# 超时配置
+ansible_command_timeout: 300
+ansible_connect_timeout: 30
+
+# SSH 连接配置
+ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+ansible_ssh_pipelining: true
+
+# 全局操作系统配置
+# ========================================
+
+# 时区配置
+timezone: "Asia/Shanghai"
+
+# 语言和区域设置
+locale: "zh_CN.UTF-8"
+
+# NTP 时间服务器
+ntp_servers:
+  - "ntp.aliyun.com"
+  - "ntp1.aliyun.com"
+  - "time.pool.aliyun.com"
+
+# DNS 服务器
+dns_nameservers:
+  - "223.5.5.5"      # 阿里云 DNS
+  - "223.6.6.6"      # 阿里云 DNS
+  - "114.114.114.114" # 114 DNS
+  - "8.8.8.8"        # Google DNS
+
+# 全局安全配置
+# ========================================
+
+# 是否启用防火墙（建议生产环境启用）
+firewall_enabled: true
+firewall_type: "firewalld"  # 可选: firewalld, ufw, iptables
+
+# 是否启用 SELinux（RHEL/CentOS）
+selinux_enabled: false
+selinux_state: "permissive"  # 可选: enforcing, permissive, disabled
+
+# SSH 安全加固配置
+ssh_port: 22
+ssh_password_authentication: false
+ssh_permit_root_login: false
+ssh_max_auth_tries: 3
+ssh_client_alive_interval: 300
+ssh_client_alive_count_max: 2
+
+# 全局用户和权限配置
+# ========================================
+
+# 管理员用户（用于运维操作）
+admin_users:
+  - name: "admin"
+    uid: 2000
+    groups: ["wheel", "sudo"]
+    shell: "/bin/bash"
+    # ⚠️ 生产环境必须使用 vault 加密
+    password: "{{ vault_admin_password | default('PLACEHOLDER_USE_VAULT') }}"
+    ssh_public_key: "{{ vault_admin_ssh_key | default('ssh-rsa AAAA...PLACEHOLDER') }}"
+
+# 全局软件包配置
+# ========================================
+
+# 基础软件包列表
+base_packages:
+  - vim
+  - curl
+  - wget
+  - git
+  - htop
+  - net-tools
+  - lsof
+  - strace
+  - tcpdump
+  - rsync
+
+# 是否自动更新系统软件包
+auto_update_enabled: false
+auto_update_time: "02:00"
+
+# 全局日志配置
+# ========================================
+
+# 日志保留天数
+log_retention_days: 30
+
+# 系统日志级别
+syslog_level: "info"  # 可选: debug, info, notice, warning, error
+
+# 日志转发配置（可选）
+log_forwarding_enabled: false
+log_forwarding_server: "{{ vault_log_server | default('log.example.com') }}"
+log_forwarding_port: 514
+log_forwarding_protocol: "tcp"  # 可选: tcp, udp
+
+# 全局备份配置
+# ========================================
+
+# 备份根目录
+backup_root_dir: "/backup"
+
+# 备份保留策略
+backup_retention_days: 30
+backup_compression: "gzip"  # 可选: gzip, bzip2, xz
+
+# 云存储同步配置（可选）
+cloud_sync_enabled: false
+cloud_sync_provider: "s3"  # 可选: s3, oss, azure_blob
+cloud_sync_bucket: "{{ vault_backup_bucket | default('my-backup-bucket') }}"
+cloud_sync_access_key: "{{ vault_cloud_access_key | default('PLACEHOLDER_USE_VAULT') }}"
+cloud_sync_secret_key: "{{ vault_cloud_secret_key | default('PLACEHOLDER_USE_VAULT') }}"
+
+# 全局监控配置
+# ========================================
+
+# 是否启用监控
+monitoring_enabled: true
+
+# Node Exporter 配置
+node_exporter_enabled: true
+node_exporter_port: 9100
+
+# 监控数据保留天数
+monitoring_retention_days: 15
+
+# 告警通知配置
+alerting_enabled: false
+alert_receivers:
+  - type: "email"
+    address: "{{ vault_alert_email | default('admin@example.com') }}"
+  - type: "webhook"
+    url: "{{ vault_alert_webhook | default('https://example.com/webhook') }}"
+
+# 全局应用配置
+# ========================================
+
+# 应用部署根目录
+app_root_dir: "/opt/apps"
+
+# 应用日志目录
+app_log_dir: "/var/log/apps"
+
+# 应用数据目录
+app_data_dir: "/data/apps"
+
+# 全局代理配置（可选）
+# ========================================
+
+# HTTP 代理配置
+http_proxy_enabled: false
+http_proxy: "{{ vault_http_proxy | default('http://proxy.example.com:8080') }}"
+https_proxy: "{{ vault_https_proxy | default('http://proxy.example.com:8080') }}"
+no_proxy: "localhost,127.0.0.1,.example.com"
+
+# ===========================================
+# 特性开关 (Feature Flags)
+# ===========================================
+
+# 各模块功能开关
+features:
+  system_hardening: true
+  automatic_backup: true
+  monitoring_integration: true
+  log_aggregation: false
+  container_runtime: true
+  database_replication: false
