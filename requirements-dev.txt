@@ -1,0 +1,21 @@
+# 开发和测试依赖库
+# Development and testing dependencies
+# 安装方式: pip install -r requirements-dev.txt
+
+# 测试框架
+pytest>=7.0.0
+pytest-cov>=4.0.0
+
+# Linting 工具
+ansible-lint>=6.0.0
+yamllint>=1.26.0
+
+# 代码格式化
+black>=22.0.0
+isort>=5.0.0
+
+# 类型检查
+mypy>=0.990
+
+# 文档生成
+sphinx>=5.0.0
