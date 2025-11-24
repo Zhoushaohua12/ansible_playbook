@@ -1,0 +1,251 @@
+---
+# ⚠️ 教学声明：本 playbook 主要用于学习 Ubuntu/Debian 系统初始化，请在测试环境验证后再应用于生产。
+- name: Ubuntu/Debian 系统初始化配置
+  hosts: ubuntu_debian_hosts
+  gather_facts: true
+  become: yes
+  vars_files:
+    - vars/default.yml
+
+  handlers:
+    - import_tasks: handlers/main.yml
+
+  tasks:
+    - name: 显示系统信息
+      ansible.builtin.debug:
+        msg:
+          - "开始 Ubuntu/Debian 系统初始化"
+          - "操作系统: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "内核版本: {{ ansible_kernel }}"
+          - "主机名: {{ ansible_hostname }}"
+      tags: [system, info]
+
+    - name: 更新 APT 包缓存
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: not ansible_check_mode
+      tags: [system, packages]
+
+    - name: 安装基础系统包
+      block:
+        - name: 安装 Ubuntu/Debian 基础包
+          ansible.builtin.apt:
+            name: "{{ baseline_packages }}"
+            state: present
+          when: not ansible_check_mode
+      rescue:
+        - name: 基础包安装失败处理
+          ansible.builtin.debug:
+            msg: "基础包安装失败，请检查网络连接和仓库配置"
+      tags: [system, packages]
+
+    - name: 配置系统时间和语言
+      block:
+        - name: 设置系统时区
+          ansible.builtin.timezone:
+            name: "{{ system_timezone }}"
+          when: not ansible_check_mode
+          notify: 重启 chronyd 时间同步服务
+
+        - name: 配置系统语言环境
+          ansible.builtin.lineinfile:
+            path: /etc/default/locale
+            regexp: '^LANG='
+            line: 'LANG={{ system_locale }}'
+            create: yes
+            backup: yes
+          when: not ansible_check_mode
+
+        - name: 生成语言环境
+          ansible.builtin.command: locale-gen {{ system_locale }}
+          when: not ansible_check_mode
+          changed_when: false
+      rescue:
+        - name: 时区配置失败处理
+          ansible.builtin.debug:
+            msg: "时区配置失败，使用默认设置"
+      tags: [system, locale]
+
+    - name: 配置网络接口
+      block:
+        - name: 配置网络接口 (Ubuntu 18.04+)
+          ansible.builtin.template:
+            src: templates/netplan-config.j2
+            dest: "/etc/netplan/{{ item.config_file }}"
+            owner: root
+            group: root
+            mode: '0644'
+            backup: yes
+          loop: "{{ network_interfaces }}"
+          when: 
+            - network_configure 
+            - ansible_distribution_version is version('18.04', '>=')
+            - not ansible_check_mode
+          notify: 应用网络配置
+
+        - name: 配置网络接口 (传统方式)
+          ansible.builtin.template:
+            src: templates/network-interfaces.j2
+            dest: /etc/network/interfaces
+            owner: root
+            group: root
+            mode: '0644'
+            backup: yes
+          when: 
+            - network_configure 
+            - ansible_distribution_version is version('18.04', '<')
+            - not ansible_check_mode
+          notify: 重新加载网络配置
+      rescue:
+        - name: 网络配置失败处理
+          ansible.builtin.debug:
+            msg: "网络配置失败，请检查网络接口名称和配置参数"
+      tags: [system, network]
+
+    - name: 配置防火墙规则
+      block:
+        - name: 确保 UFW 防火墙服务运行
+          community.general.ufw:
+            state: enabled
+          when: firewall_enabled and not ansible_check_mode
+
+        - name: 配置 UFW 防火墙规则
+          community.general.ufw:
+            rule: allow
+            port: "{{ item }}"
+            proto: tcp
+          loop: "{{ firewall_ports }}"
+          when: firewall_enabled and not ansible_check_mode
+
+        - name: 配置 UFW 默认策略
+          community.general.ufw:
+            direction: "{{ item.direction }}"
+            policy: "{{ item.policy }}"
+          loop:
+            - { direction: 'incoming', policy: 'deny' }
+            - { direction: 'outgoing', policy: 'allow' }
+          when: firewall_enabled and not ansible_check_mode
+      rescue:
+        - name: 防火墙配置失败处理
+          ansible.builtin.debug:
+            msg: "防火墙配置失败，请检查 UFW 服务状态"
+      tags: [system, firewall]
+
+    - name: SSH 安全加固
+      block:
+        - name: 配置 SSH 安全设置
+          ansible.builtin.template:
+            src: templates/sshd_config.j2
+            dest: /etc/ssh/sshd_config
+            owner: root
+            group: root
+            mode: '0600'
+            backup: yes
+          when: ssh_hardening_enabled and not ansible_check_mode
+          notify: 重启 SSH 服务
+      rescue:
+        - name: SSH 配置失败处理
+          ansible.builtin.debug:
+            msg: "SSH 配置失败，请检查配置参数语法"
+      tags: [system, ssh]
+
+    - name: 配置系统审计
+      block:
+        - name: 安装 auditd 服务
+          ansible.builtin.apt:
+            name: auditd
+            state: present
+          when: audit_enabled and not ansible_check_mode
+
+        - name: 确保审计服务运行
+          ansible.builtin.service:
+            name: auditd
+            state: started
+            enabled: yes
+          when: audit_enabled and not ansible_check_mode
+
+        - name: 配置审计规则
+          ansible.builtin.lineinfile:
+            path: /etc/audit/rules.d/audit.rules
+            line: "{{ item }}"
+            create: yes
+          loop: "{{ audit_rules }}"
+          when: audit_enabled and not ansible_check_mode
+      rescue:
+        - name: 审计配置失败处理
+          ansible.builtin.debug:
+            msg: "审计配置失败，请检查审计规则语法"
+      tags: [system, audit]
+
+    - name: 创建系统用户
+      block:
+        - name: 创建基础用户
+          ansible.builtin.user:
+            name: "{{ item.name }}"
+            comment: "{{ item.comment | default('') }}"
+            shell: "{{ item.shell | default('/bin/bash') }}"
+            groups: "{{ item.groups | default([]) }}"
+            append: yes
+            state: present
+          loop: "{{ baseline_users }}"
+          when: not ansible_check_mode
+
+        - name: 配置用户 sudo 权限
+          ansible.builtin.lineinfile:
+            path: /etc/sudoers.d/{{ item.name }}
+            line: "{{ item.name }} ALL=(ALL) NOPASSWD: ALL"
+            create: yes
+            mode: '0440'
+          loop: "{{ baseline_users }}"
+          when: item.sudo_access | default(false) and not ansible_check_mode
+      rescue:
+        - name: 用户创建失败处理
+          ansible.builtin.debug:
+            msg: "用户创建失败，请检查用户名和权限设置"
+      tags: [system, users]
+
+    - name: 配置系统限制
+      block:
+        - name: 配置系统资源限制
+          ansible.builtin.template:
+            src: templates/limits.conf.j2
+            dest: /etc/security/limits.d/custom-limits.conf
+            owner: root
+            group: root
+            mode: '0644'
+            backup: yes
+          when: not ansible_check_mode
+      rescue:
+        - name: 系统限制配置失败处理
+          ansible.builtin.debug:
+            msg: "系统限制配置失败，请检查限制参数"
+      tags: [system, limits]
+
+    - name: 配置登录横幅
+      block:
+        - name: 设置系统登录横幅
+          ansible.builtin.template:
+            src: templates/motd.j2
+            dest: /etc/motd
+            owner: root
+            group: root
+            mode: '0644'
+            backup: yes
+          when: not ansible_check_mode
+      rescue:
+        - name: 登录横幅配置失败处理
+          ansible.builtin.debug:
+            msg: "登录横幅配置失败，请检查模板内容"
+      tags: [system, motd]
+
+    - name: 系统初始化完成信息
+      ansible.builtin.debug:
+        msg:
+          - "Ubuntu/Debian 系统初始化完成！"
+          - "时区设置: {{ system_timezone }}"
+          - "语言环境: {{ system_locale }}"
+          - "防火墙状态: {{ '已启用' if firewall_enabled else '已禁用' }}"
+          - "SSH 加固: {{ '已启用' if ssh_hardening_enabled else '已禁用' }}"
+          - "审计功能: {{ '已启用' if audit_enabled else '已禁用' }}"
+      tags: [system, info]

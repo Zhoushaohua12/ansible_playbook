@@ -1,0 +1,149 @@
+# 安全日志轮转配置
+# 此文件由 Ansible 自动生成，请勿手动修改
+# 配置时间: {{ ansible_date_time.iso8601 }}
+
+# ============================================================================
+# 系统安全日志轮转配置
+# ============================================================================
+
+# 认证日志
+/var/log/auth.log {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 0640 syslog adm
+    postrotate
+        /usr/lib/rsyslog/rsyslog-rotate
+    endscript
+}
+
+# 安全日志
+/var/log/secure {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 0640 root adm
+    postrotate
+        /usr/bin/systemctl restart rsyslog 2>/dev/null || true
+    endscript
+}
+
+# 审计日志
+/var/log/audit/audit.log {
+    daily
+    missingok
+    rotate 90
+    compress
+    delaycompress
+    notifempty
+    create 0600 root root
+    postrotate
+        /usr/sbin/service auditd restart 2>/dev/null || true
+    endscript
+}
+
+# 防火墙日志
+/var/log/firewall.log {
+    weekly
+    missingok
+    rotate 12
+    compress
+    delaycompress
+    notifempty
+    create 0640 root adm
+}
+
+# Fail2ban 日志
+/var/log/fail2ban.log {
+    weekly
+    missingok
+    rotate 12
+    compress
+    delaycompress
+    notifempty
+    create 0640 root adm
+    postrotate
+        /usr/bin/systemctl restart fail2ban 2>/dev/null || true
+    endscript
+}
+
+# SSH 登录日志
+/var/log/sshd.log {
+    weekly
+    missingok
+    rotate 8
+    compress
+    delaycompress
+    notifempty
+    create 0640 root adm
+}
+
+# 系统消息日志
+/var/log/messages {
+    weekly
+    missingok
+    rotate 4
+    compress
+    delaycompress
+    notifempty
+    create 0640 root adm
+    postrotate
+        /usr/bin/systemctl restart rsyslog 2>/dev/null || true
+    endscript
+}
+
+# 内核日志
+/var/log/kern.log {
+    weekly
+    missingok
+    rotate 4
+    compress
+    delaycompress
+    notifempty
+    create 0640 root adm
+    postrotate
+        /usr/bin/systemctl restart rsyslog 2>/dev/null || true
+    endscript
+}
+
+# 应用程序安全日志
+/var/log/app-security.log {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 0640 root adm
+}
+
+# 定时任务日志
+/var/log/cron.log {
+    weekly
+    missingok
+    rotate 4
+    compress
+    delaycompress
+    notifempty
+    create 0640 root adm
+    postrotate
+        /usr/bin/systemctl restart rsyslog 2>/dev/null || true
+    endscript
+}
+
+# 系统引导日志
+/var/log/boot.log {
+    monthly
+    missingok
+    rotate 3
+    compress
+    delaycompress
+    notifempty
+    create 0640 root adm
+}

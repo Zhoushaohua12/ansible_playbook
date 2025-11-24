@@ -1,0 +1,268 @@
+---
+# 防火墙配置角色任务
+# 根据操作系统类型配置相应的防火墙规则
+
+- name: 显示防火墙配置信息
+  ansible.builtin.debug:
+    msg:
+      - "开始配置防火墙"
+      - "目标系统: {{ ansible_distribution }}"
+      - "防火墙类型: {{ 'firewalld' if ansible_os_family == 'RedHat' else 'UFW' }}"
+      - "配置模式: {{ '检查模式' if ansible_check_mode else '实际配置' }}"
+  tags: [firewall, info]
+
+- name: 配置 RHEL/CentOS firewalld 防火墙
+  block:
+    - name: 确保 firewalld 服务已安装
+      ansible.builtin.package:
+        name: firewalld
+        state: present
+      when: not ansible_check_mode
+
+    - name: 启动并启用 firewalld 服务
+      ansible.builtin.service:
+        name: firewalld
+        state: started
+        enabled: yes
+      when: firewall_enabled and not ansible_check_mode
+
+    - name: 设置默认防火墙区域
+      ansible.posix.firewalld:
+        zone: public
+        state: present
+        permanent: yes
+        immediate: yes
+      when: firewall_enabled and not ansible_check_mode
+
+    - name: 配置防火墙端口规则
+      ansible.posix.firewalld:
+        zone: public
+        port: "{{ item }}/tcp"
+        permanent: yes
+        immediate: yes
+        state: enabled
+      loop: "{{ firewall_ports }}"
+      when: firewall_enabled and not ansible_check_mode
+
+    - name: 配置防火墙服务规则
+      ansible.posix.firewalld:
+        zone: public
+        service: "{{ item }}"
+        permanent: yes
+        immediate: yes
+        state: enabled
+      loop: "{{ firewall_services }}"
+      when: firewall_enabled and not ansible_check_mode
+
+    - name: 配置防火墙富规则
+      ansible.posix.firewalld:
+        zone: public
+        rich_rule: "{{ item }}"
+        permanent: yes
+        immediate: yes
+        state: enabled
+      loop: "{{ firewall_rich_rules }}"
+      when: firewall_enabled and not ansible_check_mode
+
+    - name: 重新加载 firewalld 配置
+      ansible.builtin.service:
+        name: firewalld
+        state: reloaded
+      when: firewall_enabled and not ansible_check_mode
+  when: ansible_os_family == "RedHat"
+  rescue:
+    - name: firewalld 配置失败处理
+      ansible.builtin.debug:
+        msg: "firewalld 配置失败，请检查服务状态和规则语法"
+  tags: [firewall, firewalld]
+
+- name: 配置 Ubuntu/Debian UFW 防火墙
+  block:
+    - name: 确保 UFW 服务已安装
+      ansible.builtin.package:
+        name: ufw
+        state: present
+      when: not ansible_check_mode
+
+    - name: 重置 UFW 防火墙规则
+      community.general.ufw:
+        state: reset
+      when: firewall_enabled and not ansible_check_mode
+
+    - name: 配置 UFW 默认策略
+      community.general.ufw:
+        direction: "{{ item.direction }}"
+        policy: "{{ item.policy }}"
+      loop:
+        - { direction: 'incoming', policy: 'deny' }
+        - { direction: 'outgoing', policy: 'allow' }
+        - { direction: 'routed', policy: 'deny' }
+      when: firewall_enabled and not ansible_check_mode
+
+    - name: 配置 UFW 端口规则
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop: "{{ firewall_ports }}"
+      when: firewall_enabled and not ansible_check_mode
+
+    - name: 配置 UFW 服务规则
+      community.general.ufw:
+        rule: allow
+        name: "{{ item }}"
+      loop: "{{ firewall_services }}"
+      when: firewall_enabled and not ansible_check_mode
+
+    - name: 启用 UFW 防火墙
+      community.general.ufw:
+        state: enabled
+      when: firewall_enabled and not ansible_check_mode
+  when: ansible_os_family == "Debian"
+  rescue:
+    - name: UFW 配置失败处理
+      ansible.builtin.debug:
+        msg: "UFW 配置失败，请检查服务状态和规则语法"
+  tags: [firewall, ufw]
+
+- name: 配置 iptables 规则 (备用方案)
+  block:
+    - name: 确保 iptables 服务已安装
+      ansible.builtin.package:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - iptables
+        - iptables-persistent
+      when: 
+        - ansible_os_family == "Debian"
+        - firewall_fallback_enabled
+        - not ansible_check_mode
+
+    - name: 配置 iptables 基础规则
+      ansible.builtin.iptables:
+        chain: "{{ item.chain }}"
+        rule: "{{ item.rule }}"
+        action: "{{ item.action }}"
+      loop: "{{ iptables_rules }}"
+      when: firewall_fallback_enabled and not ansible_check_mode
+
+    - name: 保存 iptables 规则
+      ansible.builtin.command: "{{ item }}"
+      loop:
+        - "iptables-save > /etc/iptables/rules.v4"
+        - "ip6tables-save > /etc/iptables/rules.v6"
+      when: 
+        - ansible_os_family == "Debian"
+        - firewall_fallback_enabled
+        - not ansible_check_mode
+      ignore_errors: yes
+  when: firewall_fallback_enabled
+  rescue:
+    - name: iptables 配置失败处理
+      ansible.builtin.debug:
+        msg: "iptables 配置失败，请检查规则语法和权限"
+  tags: [firewall, iptables]
+
+- name: 配置防火墙日志
+  block:
+    - name: 配置 firewalld 日志 (RHEL/CentOS)
+      ansible.posix.firewalld:
+        zone: public
+        state: present
+        log_prefix: "{{ item.log_prefix }}"
+        log_level: "{{ item.log_level }}"
+        permanent: yes
+        immediate: yes
+      loop: "{{ firewall_log_rules }}"
+      when: 
+        - ansible_os_family == "RedHat"
+        - firewall_logging_enabled
+        - not ansible_check_mode
+
+    - name: 配置 UFW 日志 (Ubuntu/Debian)
+      community.general.ufw:
+        logging: "{{ firewall_log_level }}"
+      when: 
+        - ansible_os_family == "Debian"
+        - firewall_logging_enabled
+        - not ansible_check_mode
+  rescue:
+    - name: 防火墙日志配置失败处理
+      ansible.builtin.debug:
+        msg: "防火墙日志配置失败，请检查日志参数"
+  tags: [firewall, logging]
+
+- name: 配置防火墙监控
+  block:
+    - name: 创建防火墙监控脚本
+      ansible.builtin.copy:
+        content: |
+          #!/bin/bash
+          # 防火墙状态监控脚本
+          LOG_FILE="/var/log/firewall-monitor.log"
+          DATE=$(date '+%Y-%m-%d %H:%M:%S')
+          
+          if command -v firewall-cmd >/dev/null 2>&1; then
+              STATUS=$(firewall-cmd --state)
+              echo "[$DATE] firewalld status: $STATUS" >> $LOG_FILE
+          elif command -v ufw >/dev/null 2>&1; then
+              STATUS=$(ufw status | head -1)
+              echo "[$DATE] UFW status: $STATUS" >> $LOG_FILE
+          fi
+        dest: /usr/local/bin/firewall-monitor.sh
+        mode: '0755'
+        owner: root
+        group: root
+      when: firewall_monitoring_enabled and not ansible_check_mode
+
+    - name: 配置防火墙监控定时任务
+      ansible.builtin.cron:
+        name: "防火墙状态监控"
+        job: "/usr/local/bin/firewall-monitor.sh"
+        minute: "*/5"
+        user: root
+        cron_file: firewall-monitor
+      when: firewall_monitoring_enabled and not ansible_check_mode
+  rescue:
+    - name: 防火墙监控配置失败处理
+      ansible.builtin.debug:
+        msg: "防火墙监控配置失败，请检查脚本和定时任务"
+  tags: [firewall, monitoring]
+
+- name: 防火墙配置验证
+  block:
+    - name: 验证 firewalld 状态
+      ansible.builtin.systemd:
+        name: firewalld
+      register: firewalld_status
+      when: ansible_os_family == "RedHat"
+      failed_when: false
+
+    - name: 验证 UFW 状态
+      community.general.ufw:
+        state: enabled
+      register: ufw_status
+      when: ansible_os_family == "Debian"
+      failed_when: false
+
+    - name: 显示防火墙验证结果
+      ansible.builtin.debug:
+        msg:
+          - "防火墙配置验证结果:"
+          - "firewalld: {{ '已启用' if firewalld_status is defined and firewalld_status.status.ActiveState == 'active' else 'N/A' if ansible_os_family == 'RedHat' else 'N/A' }}"
+          - "UFW: {{ '已启用' if ufw_status is defined and ufw_status.changed == false else '未启用' if ansible_os_family == 'Debian' else 'N/A' }}"
+          - "配置端口数: {{ firewall_ports | length }}"
+          - "配置服务数: {{ firewall_services | length }}"
+  tags: [firewall, verify]
+
+- name: 防火墙配置完成信息
+  ansible.builtin.debug:
+    msg:
+      - "防火墙配置完成！"
+      - "防火墙类型: {{ 'firewalld' if ansible_os_family == 'RedHat' else 'UFW' }}"
+      - "状态: {{ '已启用' if firewall_enabled else '已禁用' }}"
+      - "开放端口: {{ firewall_ports | join(', ') }}"
+      - "允许服务: {{ firewall_services | join(', ') }}"
+      - "状态监控: {{ '已启用' if firewall_monitoring_enabled else '已禁用' }}"
+  tags: [firewall, info]

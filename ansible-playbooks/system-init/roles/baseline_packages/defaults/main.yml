@@ -1,0 +1,21 @@
+---
+# 基础软件包角色默认变量
+# 提供基础软件包安装的默认配置
+
+# 基础软件包安装开关
+baseline_packages_enabled: true
+
+# 包管理器配置开关
+package_manager_auto_update: true
+
+# 软件包验证开关
+package_verification_enabled: true
+
+# 软件包安装超时时间 (秒)
+package_install_timeout: 600
+
+# 软件包重试次数
+package_install_retries: 3
+
+# 软件包安装重试间隔 (秒)
+package_install_retry_delay: 10

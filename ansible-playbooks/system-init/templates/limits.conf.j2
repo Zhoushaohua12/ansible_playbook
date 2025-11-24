@@ -1,0 +1,170 @@
+# 系统资源限制配置文件
+# 此文件由 Ansible 自动生成，请勿手动修改
+# 配置时间: {{ ansible_date_time.iso8601 }}
+
+# ============================================================================
+# 通用用户限制
+# ============================================================================
+
+# 进程数限制
+*               soft    nproc           4096
+*               hard    nproc           8192
+
+# 文件描述符限制
+*               soft    nofile          65536
+*               hard    nofile          131072
+
+# 内存锁定限制
+*               soft    memlock         unlimited
+*               hard    memlock         unlimited
+
+# 栈大小限制
+*               soft    stack           8192
+*               hard    stack           16384
+
+# CPU 时间限制
+*               soft    cpu             unlimited
+*               hard    cpu             unlimited
+
+# 文件大小限制
+*               soft    fsize           unlimited
+*               hard    fsize           unlimited
+
+# ============================================================================
+# 管理员用户限制
+# ============================================================================
+
+# root 用户限制
+root            soft    nproc           unlimited
+root            hard    nproc           unlimited
+root            soft    nofile          unlimited
+root            hard    nofile          unlimited
+root            soft    memlock         unlimited
+root            hard    memlock         unlimited
+
+# 管理员组限制
+@sudo           soft    nproc           8192
+@sudo           hard    nproc           16384
+@sudo           soft    nofile          131072
+@sudo           hard    nofile          262144
+@sudo           soft    memlock         unlimited
+@sudo           hard    memlock         unlimited
+
+# ============================================================================
+# 服务用户限制
+# ============================================================================
+
+# 数据库服务用户限制
+mysql           soft    nproc           32768
+mysql           hard    nproc           65536
+mysql           soft    nofile          65536
+mysql           hard    nofile          65536
+mysql           soft    memlock         unlimited
+mysql           hard    memlock         unlimited
+
+postgresql      soft    nproc           32768
+postgresql      hard    nproc           65536
+postgresql      soft    nofile          65536
+postgresql      hard    nofile          65536
+postgresql      soft    memlock         unlimited
+postgresql      hard    memlock         unlimited
+
+# Web 服务用户限制
+www-data        soft    nproc           16384
+www-data        hard    nproc           32768
+www-data        soft    nofile          32768
+www-data        hard    nofile          65536
+www-data        soft    memlock         unlimited
+www-data        hard    memlock         unlimited
+
+apache          soft    nproc           16384
+apache          hard    nproc           32768
+apache          soft    nofile          32768
+apache          hard    nofile          65536
+apache          soft    memlock         unlimited
+apache          hard    memlock         unlimited
+
+nginx           soft    nproc           16384
+nginx           hard    nproc           32768
+nginx           soft    nofile          32768
+nginx           hard    nofile          65536
+nginx           soft    memlock         unlimited
+nginx           hard    memlock         unlimited
+
+# ============================================================================
+# 应用程序用户限制
+# ============================================================================
+
+{% for user in baseline_users %}
+# {{ user.comment | default(user.name) }} 用户限制
+{{ user.name }}   soft    nproc           4096
+{{ user.name }}   hard    nproc           8192
+{{ user.name }}   soft    nofile          65536
+{{ user.name }}   hard    nofile          131072
+{{ user.name }}   soft    memlock         unlimited
+{{ user.name }}   hard    memlock         unlimited
+{% endfor %}
+
+# 监控用户限制
+monitor         soft    nproc           2048
+monitor         hard    nproc           4096
+monitor         soft    nofile          32768
+monitor         hard    nofile          65536
+monitor         soft    memlock         unlimited
+monitor         hard    memlock         unlimited
+
+# ============================================================================
+# 安全限制配置
+# ============================================================================
+
+# 防止核心转储
+*               soft    core            0
+*               hard    core            0
+
+# 限制数据段大小
+*               soft    data            unlimited
+*               hard    data            unlimited
+
+# 限制虚拟内存大小
+*               soft    as              unlimited
+*               hard    as              unlimited
+
+# 限制最大登录用户数
+*               soft    maxlogins       10
+*               hard    maxlogins       20
+
+# 限制最大进程数 (按用户)
+*               soft    maxsyslogins    100
+*               hard    maxsyslogins    200
+
+# ============================================================================
+# 特殊应用限制
+# ============================================================================
+
+# Java 应用限制
+*               soft    nproc           8192
+*               hard    nproc           16384
+*               soft    nofile          65536
+*               hard    nofile          131072
+*               soft    memlock         unlimited
+*               hard    memlock         unlimited
+
+# 备份用户限制
+backup          soft    nproc           4096
+backup          hard    nproc           8192
+backup          soft    nofile          65536
+backup          hard    nofile          131072
+backup          soft    memlock         unlimited
+backup          hard    memlock         unlimited
+
+# ============================================================================
+# End of configuration
+# ============================================================================
+
+# 注意：
+# 1. soft 限制：用户可以超过的限制，但会收到警告
+# 2. hard 限制：用户不能超过的硬性限制
+# 3. unlimited：表示无限制
+# 4. * 表示所有用户，@ 表示用户组
+# 5. 修改后需要重新登录才能生效
+# 6. 过高的限制可能影响系统稳定性，请根据实际情况调整

@@ -11,6 +11,7 @@ APPLICATION_DEPLOY = "application-deploy"
 MONITORING = "monitoring"
 MAINTENANCE = "maintenance"
 DATABASE = "database"
+SYSTEM_INIT = "system-init"
 
 APPLICATION_PLAYBOOKS = [
     "docker-install.yml",
@@ -36,11 +37,18 @@ DATABASE_PLAYBOOKS = [
     "postgresql-backup.yml"
 ]
 
+SYSTEM_INIT_PLAYBOOKS = [
+    "rhel-centos-init.yml",
+    "ubuntu-debian-init.yml", 
+    "common-security-hardening.yml"
+]
+
 REQUIRED_COLLECTIONS = [
     "community.docker",
     "community.mysql", 
     "community.general",
-    "community.postgresql"
+    "community.postgresql",
+    "ansible.posix"
 ]
 
 
@@ -68,6 +76,10 @@ class TestAnsiblePlaybooksFixtures:
         return playbooks_root / DATABASE
 
     @pytest.fixture(scope="class")
+    def system_init_dir(self, playbooks_root: Path) -> Path:
+        return playbooks_root / SYSTEM_INIT
+
+    @pytest.fixture(scope="class")
     def application_playbooks(self, application_deploy_dir: Path) -> List[Path]:
         return [application_deploy_dir / pb for pb in APPLICATION_PLAYBOOKS]
 
@@ -83,6 +95,10 @@ class TestAnsiblePlaybooksFixtures:
     def database_playbooks(self, database_dir: Path) -> List[Path]:
         return [database_dir / pb for pb in DATABASE_PLAYBOOKS]
 
+    @pytest.fixture(scope="class")
+    def system_init_playbooks(self, system_init_dir: Path) -> List[Path]:
+        return [system_init_dir / pb for pb in SYSTEM_INIT_PLAYBOOKS]
+
 
 class TestAnsiblePlaybooksStructure(TestAnsiblePlaybooksFixtures):
     """校验 ansible-playbooks 目录结构"""
@@ -91,7 +107,7 @@ class TestAnsiblePlaybooksStructure(TestAnsiblePlaybooksFixtures):
         assert playbooks_root.exists(), "ansible-playbooks 目录不存在"
 
     def test_main_categories_exist(self, playbooks_root: Path) -> None:
-        for category in [APPLICATION_DEPLOY, MONITORING, MAINTENANCE, DATABASE]:
+        for category in [APPLICATION_DEPLOY, MONITORING, MAINTENANCE, DATABASE, SYSTEM_INIT]:
             category_dir = playbooks_root / category
             assert category_dir.exists(), f"缺少 {category} 目录"
             assert category_dir.is_dir(), f"{category} 不是目录"
@@ -142,6 +158,27 @@ class TestAnsiblePlaybooksStructure(TestAnsiblePlaybooksFixtures):
             for subdir in ["tasks", "templates", "handlers", "vars", "defaults", "meta"]:
                 subpath = role_dir / subdir
                 assert subpath.exists(), f"maintenance/roles/{role} 缺少 {subdir} 目录"
+
+    def test_system_init_structure(self, system_init_dir: Path) -> None:
+        required_subdirs = ["vars", "templates", "roles", "handlers"]
+        for subdir in required_subdirs:
+            subpath = system_init_dir / subdir
+            assert subpath.exists(), f"system-init 缺少 {subdir} 目录"
+            assert subpath.is_dir(), f"system-init/{subdir} 不是目录"
+
+    def test_system_init_roles_structure(self, system_init_dir: Path) -> None:
+        roles_dir = system_init_dir / "roles"
+        required_roles = ["baseline_packages", "users_hardening", "firewall", "security_baseline"]
+        for role in required_roles:
+            role_dir = roles_dir / role
+            assert role_dir.exists(), f"system-init/roles 缺少 {role} 角色"
+            assert role_dir.is_dir(), f"system-init/roles/{role} 不是目录"
+            
+            # 检查角色子目录
+            for subdir in ["tasks", "defaults"]:
+                subpath = role_dir / subdir
+                assert subpath.exists(), f"system-init/roles/{role} 缺少 {subdir} 目录"
+                assert (subpath / "main.yml").exists(), f"system-init/roles/{role}/{subdir}/main.yml 不存在"
 
 
 class TestApplicationDeployPlaybooks(TestAnsiblePlaybooksFixtures):
@@ -864,3 +901,143 @@ class TestDatabaseCollections(TestAnsiblePlaybooksFixtures):
             content = playbook.read_text(encoding="utf-8")
             assert "community.postgresql" in content, \
                 f"{playbook_name} 应引用 community.postgresql collection"
+
+
+class TestSystemInitPlaybooks(TestAnsiblePlaybooksFixtures):
+    """校验系统初始化 playbooks"""
+
+    def test_all_system_init_playbooks_exist(self, system_init_playbooks: List[Path]) -> None:
+        for playbook in system_init_playbooks:
+            assert playbook.exists(), f"缺少系统初始化 playbook: {playbook.name}"
+
+    def test_rhel_centos_init_content(self, system_init_dir: Path) -> None:
+        playbook = system_init_dir / "rhel-centos-init.yml"
+        content = playbook.read_text(encoding="utf-8")
+        
+        # 检查关键组件
+        assert "ansible.builtin.yum" in content, "rhel-centos-init.yml 应使用 ansible.builtin.yum 模块"
+        assert "ansible.posix.firewalld" in content, "rhel-centos-init.yml 应使用 ansible.posix.firewalld 模块"
+        assert "selinux" in content, "rhel-centos-init.yml 应包含 SELinux 配置"
+        
+        # 检查中文注释
+        assert "教学声明" in content, "rhel-centos-init.yml 应包含中文教学声明"
+        assert "系统初始化" in content, "rhel-centos-init.yml 应包含系统初始化相关中文"
+
+    def test_ubuntu_debian_init_content(self, system_init_dir: Path) -> None:
+        playbook = system_init_dir / "ubuntu-debian-init.yml"
+        content = playbook.read_text(encoding="utf-8")
+        
+        # 检查关键组件
+        assert "ansible.builtin.apt" in content, "ubuntu-debian-init.yml 应使用 ansible.builtin.apt 模块"
+        assert "community.general.ufw" in content, "ubuntu-debian-init.yml 应使用 community.general.ufw 模块"
+        assert "netplan" in content, "ubuntu-debian-init.yml 应支持 Netplan 网络配置"
+        
+        # 检查中文注释
+        assert "教学声明" in content, "ubuntu-debian-init.yml 应包含中文教学声明"
+        assert "系统初始化" in content, "ubuntu-debian-init.yml 应包含系统初始化相关中文"
+
+    def test_common_security_hardening_content(self, system_init_dir: Path) -> None:
+        playbook = system_init_dir / "common-security-hardening.yml"
+        content = playbook.read_text(encoding="utf-8")
+        
+        # 检查关键组件
+        assert "security_baseline" in content, "common-security-hardening.yml 应包含 security_baseline 角色"
+        assert "users_hardening" in content, "common-security-hardening.yml 应包含 users_hardening 角色"
+        assert "firewall" in content, "common-security-hardening.yml 应包含 firewall 角色"
+        
+        # 检查中文注释
+        assert "教学声明" in content, "common-security-hardening.yml 应包含中文教学声明"
+        assert "安全加固" in content, "common-security-hardening.yml 应包含安全加固相关中文"
+
+    def test_system_init_vars_file_exists(self, system_init_dir: Path) -> None:
+        vars_file = system_init_dir / "vars" / "default.yml"
+        assert vars_file.exists(), "system-init 缺少 vars/default.yml 文件"
+        
+        content = vars_file.read_text(encoding="utf-8")
+        
+        # 检查关键变量
+        assert "system_timezone" in content, "vars/default.yml 应包含 system_timezone 变量"
+        assert "baseline_packages" in content, "vars/default.yml 应包含 baseline_packages 变量"
+        assert "firewall_ports" in content, "vars/default.yml 应包含 firewall_ports 变量"
+        assert "baseline_users" in content, "vars/default.yml 应包含 baseline_users 变量"
+        
+        # 检查中文注释
+        assert "系统初始化变量配置" in content, "vars/default.yml 应包含中文注释"
+        assert "重要提示" in content, "vars/default.yml 应包含安全提示"
+
+    def test_system_init_handlers_file_exists(self, system_init_dir: Path) -> None:
+        handlers_file = system_init_dir / "handlers" / "main.yml"
+        assert handlers_file.exists(), "system-init 缺少 handlers/main.yml 文件"
+        
+        content = handlers_file.read_text(encoding="utf-8")
+        
+        # 检查关键处理器
+        assert "重启 SSH 服务" in content, "handlers/main.yml 应包含 SSH 服务重启处理器"
+        assert "重新加载防火墙" in content, "handlers/main.yml 应包含防火墙重载处理器"
+        assert "重启 chronyd" in content, "handlers/main.yml 应包含时间同步服务重启处理器"
+
+    def test_system_init_templates_exist(self, system_init_dir: Path) -> None:
+        templates_dir = system_init_dir / "templates"
+        required_templates = [
+            "sshd_config.j2",
+            "chrony.conf.j2", 
+            "limits.conf.j2",
+            "motd.j2",
+            "network-ifcfg.j2",
+            "netplan-config.j2",
+            "network-interfaces.j2"
+        ]
+        
+        for template in required_templates:
+            template_file = templates_dir / template
+            assert template_file.exists(), f"system-init 缺少模板文件: {template}"
+            
+            content = template_file.read_text(encoding="utf-8")
+            # 检查模板包含中文注释
+            assert "中文" in content or "配置" in content, f"{template} 应包含中文注释"
+
+    def test_system_init_playbooks_yaml_valid(self, system_init_playbooks: List[Path]) -> None:
+        """验证系统初始化 playbook 的 YAML 语法正确性"""
+        for playbook in system_init_playbooks:
+            try:
+                yaml.safe_load(playbook.read_text(encoding="utf-8"))
+            except yaml.YAMLError as e:
+                assert False, f"{playbook.name} YAML 语法错误: {e}"
+
+    def test_system_init_vars_yaml_valid(self, system_init_dir: Path) -> None:
+        """验证系统初始化变量文件的 YAML 语法正确性"""
+        vars_file = system_init_dir / "vars" / "default.yml"
+        try:
+            yaml.safe_load(vars_file.read_text(encoding="utf-8"))
+        except yaml.YAMLError as e:
+            assert False, f"vars/default.yml YAML 语法错误: {e}"
+
+    def test_system_init_handlers_yaml_valid(self, system_init_dir: Path) -> None:
+        """验证系统初始化处理器文件的 YAML 语法正确性"""
+        handlers_file = system_init_dir / "handlers" / "main.yml"
+        try:
+            yaml.safe_load(handlers_file.read_text(encoding="utf-8"))
+        except yaml.YAMLError as e:
+            assert False, f"handlers/main.yml YAML 语法错误: {e}"
+
+    def test_system_init_roles_yaml_valid(self, system_init_dir: Path) -> None:
+        """验证系统初始化角色文件的 YAML 语法正确性"""
+        roles_dir = system_init_dir / "roles"
+        required_roles = ["baseline_packages", "users_hardening", "firewall", "security_baseline"]
+        
+        for role in required_roles:
+            role_dir = roles_dir / role
+            
+            # 检查 tasks/main.yml
+            tasks_file = role_dir / "tasks" / "main.yml"
+            try:
+                yaml.safe_load(tasks_file.read_text(encoding="utf-8"))
+            except yaml.YAMLError as e:
+                assert False, f"roles/{role}/tasks/main.yml YAML 语法错误: {e}"
+            
+            # 检查 defaults/main.yml
+            defaults_file = role_dir / "defaults" / "main.yml"
+            try:
+                yaml.safe_load(defaults_file.read_text(encoding="utf-8"))
+            except yaml.YAMLError as e:
+                assert False, f"roles/{role}/defaults/main.yml YAML 语法错误: {e}"

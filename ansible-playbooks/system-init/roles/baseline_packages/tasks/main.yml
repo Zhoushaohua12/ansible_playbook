@@ -1,0 +1,135 @@
+---
+# 基础软件包安装角色任务
+# 根据操作系统类型安装相应的基础软件包
+
+- name: 显示基础包安装信息
+  ansible.builtin.debug:
+    msg:
+      - "开始安装基础系统软件包"
+      - "目标操作系统: {{ ansible_distribution }}"
+      - "安装模式: {{ '检查模式' if ansible_check_mode else '实际安装' }}"
+  tags: [packages, info]
+
+- name: 安装 RHEL/CentOS 基础软件包
+  block:
+    - name: 更新 YUM 包缓存
+      ansible.builtin.yum:
+        update_cache: yes
+      when: not ansible_check_mode
+
+    - name: 安装 RHEL/CentOS 基础包
+      ansible.builtin.yum:
+        name: "{{ baseline_packages.rhel_centos }}"
+        state: present
+      when: not ansible_check_mode
+      register: rhel_package_result
+
+    - name: 显示 RHEL/CentOS 包安装结果
+      ansible.builtin.debug:
+        msg:
+          - "RHEL/CentOS 基础包安装完成"
+          - "安装状态: {{ '成功' if rhel_package_result.changed else '无变更' }}"
+          - "已安装包数量: {{ baseline_packages.rhel_centos | length }}"
+      when: rhel_package_result is defined
+  when: ansible_os_family == "RedHat"
+  rescue:
+    - name: RHEL/CentOS 包安装失败处理
+      ansible.builtin.debug:
+        msg: "RHEL/CentOS 基础包安装失败，请检查网络连接和仓库配置"
+  tags: [packages, rhel]
+
+- name: 安装 Ubuntu/Debian 基础软件包
+  block:
+    - name: 更新 APT 包缓存
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: not ansible_check_mode
+
+    - name: 安装 Ubuntu/Debian 基础包
+      ansible.builtin.apt:
+        name: "{{ baseline_packages.ubuntu_debian }}"
+        state: present
+      when: not ansible_check_mode
+      register: ubuntu_package_result
+
+    - name: 显示 Ubuntu/Debian 包安装结果
+      ansible.builtin.debug:
+        msg:
+          - "Ubuntu/Debian 基础包安装完成"
+          - "安装状态: {{ '成功' if ubuntu_package_result.changed else '无变更' }}"
+          - "已安装包数量: {{ baseline_packages.ubuntu_debian | length }}"
+      when: ubuntu_package_result is defined
+  when: ansible_os_family == "Debian"
+  rescue:
+    - name: Ubuntu/Debian 包安装失败处理
+      ansible.builtin.debug:
+        msg: "Ubuntu/Debian 基础包安装失败，请检查网络连接和仓库配置"
+  tags: [packages, ubuntu]
+
+- name: 验证关键软件包安装状态
+  ansible.builtin.command: "{{ item }}"
+  loop:
+    - "which vim"
+    - "which git"
+    - "which curl"
+    - "which wget"
+  register: package_verification
+  failed_when: false
+  changed_when: false
+  tags: [packages, verify]
+
+- name: 显示包验证结果
+  ansible.builtin.debug:
+    msg:
+      - "关键软件包验证结果:"
+      - "vim: {{ '已安装' if package_verification.results[0].rc == 0 else '未安装' }}"
+      - "git: {{ '已安装' if package_verification.results[1].rc == 0 else '未安装' }}"
+      - "curl: {{ '已安装' if package_verification.results[2].rc == 0 else '未安装' }}"
+      - "wget: {{ '已安装' if package_verification.results[3].rc == 0 else '未安装' }}"
+  tags: [packages, verify]
+
+- name: 配置软件包管理器
+  block:
+    - name: 配置 YUM 自动更新 (RHEL/CentOS)
+      ansible.builtin.lineinfile:
+        path: /etc/yum/yum-cron.conf
+        regexp: '^apply_updates = '
+        line: 'apply_updates = yes'
+        backup: yes
+      when: ansible_os_family == "RedHat" and not ansible_check_mode
+
+    - name: 启用 YUM 自动更新服务
+      ansible.builtin.service:
+        name: yum-cron
+        state: started
+        enabled: yes
+      when: ansible_os_family == "RedHat" and not ansible_check_mode
+
+    - name: 配置 APT 自动更新 (Ubuntu/Debian)
+      ansible.builtin.lineinfile:
+        path: /etc/apt/apt.conf.d/50unattended-upgrades
+        regexp: '^//\s*"\${distro_id}:\${distro_codename}-updates";'
+        line: '"${distro_id}:${distro_codename}-updates";'
+        backup: yes
+      when: ansible_os_family == "Debian" and not ansible_check_mode
+
+    - name: 启用 APT 自动更新服务
+      ansible.builtin.service:
+        name: unattended-upgrades
+        state: started
+        enabled: yes
+      when: ansible_os_family == "Debian" and not ansible_check_mode
+  rescue:
+    - name: 包管理器配置失败处理
+      ansible.builtin.debug:
+        msg: "包管理器自动更新配置失败，请手动配置"
+  tags: [packages, config]
+
+- name: 基础包安装完成信息
+  ansible.builtin.debug:
+    msg:
+      - "基础系统软件包安装完成！"
+      - "安装包类型: {{ 'RHEL/CentOS' if ansible_os_family == 'RedHat' else 'Ubuntu/Debian' }}"
+      - "自动更新: {{ '已启用' if ansible_check_mode else '配置完成' }}"
+  tags: [packages, info]

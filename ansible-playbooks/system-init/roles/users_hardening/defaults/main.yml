@@ -1,0 +1,122 @@
+---
+# 用户安全加固角色默认变量
+# 提供用户安全加固的默认配置
+
+# 用户加固功能开关
+users_hardening_enabled: true
+
+# 禁用的系统账户列表
+disabled_system_accounts:
+  - games
+  - news
+  - gopher
+  - ftp
+  - uucp
+  - proxy
+  - www-data
+  - backup
+  - list
+  - irc
+  - gnats
+
+# 密码策略配置
+password_policies:
+  - path: /etc/pam.d/common-password
+    regexp: '^password.*pam_unix.so'
+    line: 'password [success=1 default=ignore] pam_unix.so obscure sha512 round=5000 minlen=8 remember=5'
+  - path: /etc/pam.d/common-password
+    regexp: '^password.*pam_cracklib.so'
+    line: 'password requisite pam_cracklib.so retry=3 minlen=8 difok=3 ucredit=-1 lcredit=-1 dcredit=-1 ocredit=-1'
+
+# 密码过期策略
+password_expiry_policies:
+  - regexp: '^PASS_MAX_DAYS'
+    line: 'PASS_MAX_DAYS 90'
+  - regexp: '^PASS_MIN_DAYS'
+    line: 'PASS_MIN_DAYS 7'
+  - regexp: '^PASS_WARN_AGE'
+    line: 'PASS_WARN_AGE 14'
+  - regexp: '^LOGIN_RETRIES'
+    line: 'LOGIN_RETRIES 3'
+  - regexp: '^LOGIN_TIMEOUT'
+    line: 'LOGIN_TIMEOUT 60'
+
+# 会话超时配置
+session_timeout_config:
+  - 'export TMOUT=600  # 10分钟超时'
+  - 'readonly TMOUT'
+  - 'export HISTTIMEFORMAT="%F %T "'
+  - 'export HISTSIZE=10000'
+  - 'export HISTFILESIZE=20000'
+
+# 自定义用户组
+custom_groups:
+  - name: monitoring
+    system: false
+  - name: developers
+    system: false
+  - name: operators
+    system: false
+
+# 用户组分配
+user_group_assignments:
+  - user: monitor
+    group: monitoring
+  - user: admin
+    group: operators
+
+# 登录横幅配置
+login_banner_pre: |
+  *************************************************************
+  *                                                           *
+  *           未经授权访问系统是违法行为                      *
+  *           所有操作都会被记录和审计                        *
+  *                                                           *
+  *************************************************************
+
+# 用户组权限配置
+user_group_permissions:
+  monitoring:
+    - /var/log
+    - /proc
+  developers:
+    - /opt/apps
+    - /tmp/dev
+  operators:
+    - /etc
+    - /var/log
+
+# SSH 配置强化
+ssh_user_hardening:
+  max_sessions: 3
+  max_auth_tries: 3
+  login_grace_time: 60
+  client_alive_interval: 300
+  client_alive_count_max: 2
+
+# 用户审计配置
+user_audit_rules:
+  - "-w /home -p rwxa -k user_home"
+  - "-w /var/log -p wa -k var_log"
+  - "-w /etc/passwd -p wa -k identity"
+  - "-w /etc/shadow -p wa -k identity"
+  - "-w /etc/sudoers -p wa -k sudo"
+
+# 用户限制配置
+user_limits:
+  - domain: "*"
+    type: soft
+    item: nproc
+    value: 1024
+  - domain: "*"
+    type: hard
+    item: nproc
+    value: 2048
+  - domain: "*"
+    type: soft
+    item: nofile
+    value: 4096
+  - domain: "*"
+    type: hard
+    item: nofile
+    value: 8192
