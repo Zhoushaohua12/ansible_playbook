@@ -1,0 +1,70 @@
+# Ansible Playbooks Hub - 主机清单示例
+# ⚠️ 本文件仅为示例，请根据实际环境调整主机地址、连接方式和变量配置
+
+# ========================================
+# 系统初始化 (init)
+# ========================================
+[init_servers]
+init01 ansible_host=10.10.0.11 ansible_port=22 ansible_user=root
+init02 ansible_host=10.10.0.12 ansible_port=22 ansible_user=root
+
+# ========================================
+# Web / Nginx 服务 (nginx)
+# ========================================
+[nginx_servers]
+nginx01 ansible_host=10.20.0.21 ansible_user=ubuntu ansible_python_interpreter=/usr/bin/python3
+nginx02 ansible_host=10.20.0.22 ansible_user=ubuntu ansible_python_interpreter=/usr/bin/python3
+
+# 可选：将 Nginx 与其他 Web 服务器聚合
+[web_servers:children]
+nginx_servers
+
+# ========================================
+# 数据库服务 (database)
+# ========================================
+[database_servers]
+db01 ansible_host=10.30.0.31 ansible_user=dbadmin ansible_python_interpreter=/usr/bin/python3
+
+[mysql_servers]
+mysql-master ansible_host=10.30.0.32 ansible_user=dbadmin repl_role=primary
+mysql-replica ansible_host=10.30.0.33 ansible_user=dbadmin repl_role=replica
+
+[database_servers:children]
+mysql_servers
+
+# ========================================
+# 应用部署 (app)
+# ========================================
+[app_servers]
+app01 ansible_host=10.40.0.41 ansible_user=deployer release_channel=stable
+app02 ansible_host=10.40.0.42 ansible_user=deployer release_channel=canary
+
+[docker_hosts]
+docker01 ansible_host=10.40.0.43 ansible_user=deployer
+
+[app_servers:children]
+docker_hosts
+
+# ========================================
+# 监控系统 (monitoring)
+# ========================================
+[monitoring_servers]
+monitor01 ansible_host=10.50.0.51 ansible_user=monitor
+prom01 ansible_host=10.50.0.52 ansible_user=monitor component=prometheus
+
+# ========================================
+# 备份与运维维护 (backup)
+# ========================================
+[backup_servers]
+backup01 ansible_host=10.60.0.61 ansible_user=backup
+backup02 ansible_host=10.60.0.62 ansible_user=backup role=dr
+
+# ========================================
+# 全局变量配置示例
+# ========================================
+[all:vars]
+ansible_port=22
+ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+ansible_python_interpreter=/usr/bin/python3
+ansible_command_timeout=300
+ansible_connect_timeout=30

@@ -1,0 +1,50 @@
+# ⚠️ 警告：该文件包含系统初始化阶段的敏感参数示例，务必用 ansible-vault 加密所有 vault_* 前缀变量。
+# 请根据企业安全基线审核全部默认值并在不同环境（Dev/Staging/Prod）中维护独立副本。
+
+# ========================================
+# 系统初始化任务推荐参数
+# ========================================
+
+baseline_packages_extra:
+  - bash-completion
+  - python3-pip
+  - chrony
+  - policycoreutils-python-utils
+
+# Hostname 与时间同步
+set_hostname_prefix: "init"
+time_sync_enabled: true
+chrony_servers:
+  - ntp.aliyun.com
+  - ntp1.aliyun.com
+
+# 账户与权限
+init_users:
+  - name: "ops"
+    shell: "/bin/bash"
+    groups: ["wheel"]
+    ssh_public_key: "{{ vault_init_ops_pubkey | default('ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB...') }}"
+  - name: "cicd"
+    shell: "/bin/bash"
+    groups: ["devops"]
+    ssh_public_key: "{{ vault_init_cicd_pubkey | default('ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB...') }}"
+
+sudo_policy:
+  require_password: false
+  wheel_group: "wheel"
+
+# 安全基线
+sysctl_tuning:
+  net.ipv4.ip_forward: 0
+  net.ipv4.conf.all.rp_filter: 1
+  vm.swappiness: 10
+
+# 防火墙默认策略
+firewall_default_zone: "public"
+firewall_open_ports:
+  - { port: 22, protocol: "tcp", description: "SSH" }
+  - { port: 9100, protocol: "tcp", description: "Node Exporter" }
+
+# Vault 占位符
+vault_init_luks_passphrase: "请使用 ansible-vault 加密此值"
+vault_init_default_password: "请使用 ansible-vault 加密此值"

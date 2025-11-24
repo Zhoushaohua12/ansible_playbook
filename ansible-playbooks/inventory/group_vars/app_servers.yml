@@ -1,0 +1,162 @@
+# ⚠️ 警告：该文件包含应用部署服务器组的敏感参数示例，请使用 ansible-vault 加密所有 vault_* 前缀变量。
+
+# ========================================
+# 应用部署通用配置
+# ========================================
+
+app_user: "deployer"
+app_group: "apps"
+app_home_dir: "/opt/apps"
+app_log_dir: "/var/log/apps"
+app_data_dir: "/data/apps"
+app_releases_dir: "{{ app_home_dir }}/releases"
+app_shared_dir: "{{ app_home_dir }}/shared"
+app_current_symlink: "{{ app_home_dir }}/current"
+
+# 应用发布策略
+deployment_strategy: "rolling"  # 可选: rolling, blue_green, canary
+rollback_on_failure: true
+health_check_enabled: true
+health_check_url: "http://localhost:{{ app_port }}/health"
+health_check_retries: 5
+health_check_interval: 10
+
+# 版本管理
+app_releases_keep: 5
+app_version: "{{ vault_app_version | default('latest') }}"
+app_git_repo: "{{ vault_app_git_repo | default('https://github.com/example/app.git') }}"
+app_git_branch: "{{ app_release_channel | default('main') }}"
+
+# ========================================
+# Docker 应用配置
+# ========================================
+
+docker_enabled: true
+docker_version: "24.0"
+docker_compose_version: "2.20.2"
+docker_registry: "{{ vault_docker_registry | default('docker.io') }}"
+docker_registry_username: "{{ vault_docker_username | default('') }}"
+docker_registry_password: "{{ vault_docker_password | default('') }}"
+
+docker_daemon_config:
+  log-driver: "json-file"
+  log-opts:
+    max-size: "100m"
+    max-file: "3"
+  storage-driver: "overlay2"
+  live-restore: true
+  userns-remap: "default"
+
+docker_networks:
+  - name: "app_network"
+    driver: "bridge"
+    subnet: "172.20.0.0/16"
+
+docker_volumes:
+  - name: "app_data"
+  - name: "app_logs"
+
+# ========================================
+# LAMP / LNMP 栈配置
+# ========================================
+
+web_stack: "lnmp"  # 可选: lamp, lnmp
+php_version: "8.1"
+php_fpm_enabled: true
+php_fpm_pm: "dynamic"
+php_fpm_max_children: 50
+php_fpm_start_servers: 5
+php_fpm_min_spare_servers: 5
+php_fpm_max_spare_servers: 35
+
+php_modules:
+  - php-fpm
+  - php-mysql
+  - php-gd
+  - php-xml
+  - php-mbstring
+  - php-json
+  - php-curl
+  - php-zip
+
+php_config:
+  memory_limit: "256M"
+  upload_max_filesize: "50M"
+  post_max_size: "50M"
+  max_execution_time: 300
+  date_timezone: "Asia/Shanghai"
+  expose_php: "Off"
+
+# ========================================
+# Node.js 应用配置
+# ========================================
+
+nodejs_enabled: false
+nodejs_version: "18"
+nodejs_app_dir: "{{ app_home_dir }}/nodejs"
+nodejs_app_port: 3000
+nodejs_app_instances: 4
+nodejs_pm2_enabled: true
+nodejs_env_file: "{{ app_shared_dir }}/.env"
+
+nodejs_env:
+  NODE_ENV: "production"
+  PORT: "{{ nodejs_app_port }}"
+  DB_HOST: "10.30.0.32"
+  DB_PORT: 3306
+  DB_NAME: "app_db"
+  DB_USER: "app_user"
+  DB_PASSWORD: "{{ vault_app_db_password | default('请使用 ansible-vault 加密') }}"
+  REDIS_HOST: "{{ vault_redis_host | default('redis.example.com') }}"
+  REDIS_PORT: 6379
+  API_KEY: "{{ vault_nodejs_api_key | default('请使用 ansible-vault 加密') }}"
+  SECRET_KEY: "{{ vault_nodejs_secret_key | default('请使用 ansible-vault 加密') }}"
+
+# ========================================
+# 应用监控与日志
+# ========================================
+
+app_monitoring_enabled: true
+app_log_format: "json"
+app_log_level: "info"
+app_log_rotation:
+  size: "100M"
+  keep: 7
+  compress: true
+
+apm_enabled: false
+apm_service_name: "my-app"
+apm_server_url: "{{ vault_apm_server_url | default('http://apm.example.com:8200') }}"
+
+# ========================================
+# 应用安全配置
+# ========================================
+
+app_firewall_rules:
+  - { port: 80, protocol: "tcp", source: "10.20.0.0/24", description: "Nginx to App" }
+  - { port: 443, protocol: "tcp", source: "10.20.0.0/24", description: "Nginx to App (SSL)" }
+  - { port: "{{ app_port }}", protocol: "tcp", source: "10.20.0.0/24", description: "App Port" }
+
+app_rate_limiting:
+  enabled: true
+  requests_per_minute: 100
+
+app_cors_enabled: true
+app_cors_origins:
+  - "https://example.com"
+  - "https://www.example.com"
+
+# ========================================
+# Vault 占位符
+# ========================================
+
+vault_app_version: "请使用 ansible-vault 加密"
+vault_app_git_repo: "请使用 ansible-vault 加密"
+vault_docker_registry: "请使用 ansible-vault 加密"
+vault_docker_username: "请使用 ansible-vault 加密"
+vault_docker_password: "请使用 ansible-vault 加密"
+vault_app_db_password: "请使用 ansible-vault 加密"
+vault_redis_host: "请使用 ansible-vault 加密"
+vault_nodejs_api_key: "请使用 ansible-vault 加密"
+vault_nodejs_secret_key: "请使用 ansible-vault 加密"
+vault_apm_server_url: "请使用 ansible-vault 加密"

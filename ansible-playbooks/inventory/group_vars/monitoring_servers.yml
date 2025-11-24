@@ -1,0 +1,127 @@
+# ⚠️ 警告：该文件包含监控服务器组的敏感参数示例，务必使用 ansible-vault 加密 vault_* 前缀变量。
+
+# ========================================
+# Prometheus 配置
+# ========================================
+
+prometheus_version: "2.48.0"
+prometheus_storage_retention: "15d"
+prometheus_storage_path: "/var/lib/prometheus"
+prometheus_external_labels:
+  environment: "production"
+  region: "cn-north-1"
+
+prometheus_scrape_configs:
+  - job_name: "node"
+    metrics_path: "/metrics"
+    scrape_interval: "30s"
+    static_configs:
+      - targets:
+          - "10.40.0.41:9100"
+          - "10.40.0.42:9100"
+        labels:
+          role: "app"
+  - job_name: "mysql"
+    metrics_path: "/metrics"
+    scrape_interval: "1m"
+    static_configs:
+      - targets:
+          - "10.30.0.32:9104"
+        labels:
+          role: "database"
+
+prometheus_alertmanager_config:
+  route_group_by:
+    - alertname
+    - severity
+  receivers:
+    - name: "default"
+      email_configs:
+        - to: "{{ vault_monitor_email | default('oncall@example.com') }}"
+          send_resolved: true
+      webhook_configs:
+        - url: "{{ vault_alert_webhook | default('https://hooks.example.com/alert') }}"
+
+# ========================================
+# Alertmanager 告警策略
+# ========================================
+
+alert_rules:
+  - name: "InstanceDown"
+    expr: "up == 0"
+    for: "1m"
+    labels:
+      severity: "critical"
+    annotations:
+      summary: "实例 {{ $labels.instance }} 无响应"
+      description: "{{ $labels.job }} 任务检测到 {{ $labels.instance }} 无法访问"
+  - name: "HighLoad"
+    expr: "node_load1 > 4"
+    for: "5m"
+    labels:
+      severity: "warning"
+    annotations:
+      summary: "节点 {{ $labels.instance }} 负载过高"
+      description: "1 分钟平均负载超过 4，当前值 {{ $value }}"
+
+# ========================================
+# Loki / ELK 配置
+# ========================================
+
+logging_backend: "elk"  # 可选: elk, loki, splunk
+
+# ELK 配置
+elk_stack:
+  elasticsearch_version: "8.10"
+  elasticsearch_heap_size: "4g"
+  logstash_version: "8.10"
+  kibana_version: "8.10"
+  ingest_pipeline_enabled: true
+  lifecycle_policy_enabled: true
+
+# Loki 配置（可选）
+loki_enabled: false
+loki_version: "2.9"
+
+# ========================================
+# 监控 Agent 配置
+# ========================================
+
+node_exporter_enabled: true
+node_exporter_version: "1.6.1"
+node_exporter_listen_port: 9100
+node_exporter_textfile_dir: "/var/lib/node_exporter/textfile_collector"
+
+blackbox_exporter_enabled: true
+blackbox_exporter_modules:
+  - name: "http_2xx"
+    prober: "http"
+    timeout: "5s"
+    http:
+      preferred_ip_protocol: "ip4"
+      valid_status_codes: [200, 301, 302]
+
+# ========================================
+# Grafana 配置
+# ========================================
+
+grafana_enabled: true
+grafana_version: "10.1"
+grafana_admin_user: "admin"
+grafana_admin_password: "{{ vault_grafana_admin_password | default('请使用 ansible-vault 加密') }}"
+grafana_datasources:
+  - name: "Prometheus"
+    type: "prometheus"
+    url: "http://localhost:9090"
+    access: "proxy"
+    isDefault: true
+
+# ========================================
+# Vault 占位符
+# ========================================
+
+vault_monitor_email: "请使用 ansible-vault 加密"
+vault_alert_webhook: "请使用 ansible-vault 加密"
+vault_grafana_admin_password: "请使用 ansible-vault 加密"
+vault_loki_s3_access_key: "请使用 ansible-vault 加密"
+vault_loki_s3_secret_key: "请使用 ansible-vault 加密"

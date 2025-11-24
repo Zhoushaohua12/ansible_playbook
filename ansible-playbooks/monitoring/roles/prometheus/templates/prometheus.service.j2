@@ -1,0 +1,25 @@
+# Prometheus systemd service template
+[Unit]
+Description=Prometheus Monitoring System
+Documentation=https://prometheus.io/docs/introduction/overview/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ prometheus_user | default('prometheus') }}
+Group={{ prometheus_group | default('prometheus') }}
+ExecStart={{ prometheus_bin_dir | default('/usr/local/bin') }}/prometheus \
+  --config.file={{ prometheus_config_dir | default('/etc/prometheus') }}/prometheus.yml \
+  --storage.tsdb.path={{ prometheus_storage_path | default('/var/lib/prometheus') }} \
+  --storage.tsdb.retention.time={{ prometheus_storage_retention | default('15d') }} \
+  --web.console.templates={{ prometheus_console_templates | default('/etc/prometheus/consoles') }} \
+  --web.console.libraries={{ prometheus_console_libraries | default('/etc/prometheus/console_libraries') }} \
+  --web.listen-address={{ prometheus_listen_address | default('0.0.0.0:9090') }}
+
+Restart=always
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
