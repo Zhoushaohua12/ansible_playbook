@@ -1,6 +1,120 @@
 # Ansible 中文实践指南
 
+[![CI Pipeline](https://github.com/ansible-playbooks/ansible-practices-guide/actions/workflows/ci.yml/badge.svg)](https://github.com/ansible-playbooks/ansible-practices-guide/actions/workflows/ci.yml)
+
 本仓库收录了面向中文读者的 Ansible 示例与知识卡片，帮助你在日常运维和自动化项目中迅速定位所需特性。所有示例均可直接运行或作为模板套用到现有 Playbook 中。
+
+## 验证流程
+
+本项目通过自动化 CI/CD 流程保证代码质量。每次提交和 Pull Request 都会自动触发以下检查：
+
+### CI 流程概览
+
+GitHub Actions 工作流（`.github/workflows/ci.yml`）在以下场景自动运行：
+- 📤 推送到 `main` 或 `develop` 分支
+- 🔄 创建或更新 Pull Request
+
+### 流程检查项
+
+工作流依次执行以下检查：
+
+1. **环境配置**
+   - 支持 Python 3.9、3.10、3.11 多版本测试
+   - 安装 `requirements.txt` 和 `requirements-dev.txt` 的所有依赖
+   - 配置 pip 依赖缓存以加速构建
+
+2. **单元测试**
+   - 运行 `pytest tests/` 执行所有测试用例
+   - 生成代码覆盖率报告 (`--cov=.`)
+   - 验证所有测试通过
+
+3. **全面审计**
+   - 执行 `tools/comprehensive_audit.py`
+   - 检查项目结构、文件内容、安全性、测试覆盖、元数据一致性
+   - **流程要求**：High 级别及以上问题会导致 CI 失败（通过 module_health.json 检查）
+
+4. **模块索引再生成**
+   - 运行 `tools/module_index.py --generate`
+   - 确保模块文档与元数据保持同步
+   - 验证模块索引的有效性
+
+5. **YAML 林检查**
+   - 使用 `ansible-lint` 验证所有 YAML 文件的 Ansible 规范
+   - 使用 `yamllint` 验证 YAML 格式和缩进
+
+### 工件导出
+
+成功或失败的构建都会生成以下工件（保留 30 天）：
+- 📊 `reports/module_health.json`：模块健康度报告
+- 📋 `reports/module_index.json`：模块索引
+- 📝 `reports/comprehensive_audit.md`：完整审计报告
+- ✅ `reports/yamllint_report.txt`：YAML 检查结果
+- 📈 `.coverage`：代码覆盖率数据
+
+### 本地开发指引
+
+#### 前提条件
+
+确保已安装项目依赖：
+
+```bash
+# 安装运行时依赖
+pip install -r requirements.txt
+
+# 安装开发依赖（测试、审计、linting）
+pip install -r requirements-dev.txt
+```
+
+#### 本地验证
+
+在提交前，可运行以下命令进行本地验证（模拟 CI 流程）：
+
+```bash
+# 1. 运行单元测试
+pytest tests/ -v --cov=. --cov-report=term
+
+# 2. 运行全面审计
+python tools/comprehensive_audit.py --json reports/module_health.json
+
+# 3. 检查审计结果（High 及以上问题会导致失败）
+python << 'EOF'
+import json
+with open('reports/module_health.json') as f:
+    data = json.load(f)
+    summary = data.get('summary', {})
+    critical = summary.get('critical_issues', 0)
+    high = summary.get('high_issues', 0)
+    if critical > 0 or high > 0:
+        print(f'❌ Found {critical} Critical, {high} High issues')
+        exit(1)
+    else:
+        print('✅ No critical or high issues')
+EOF
+
+# 4. 再生成模块索引
+python tools/module_index.py --generate
+
+# 5. 运行 ansible-lint
+ansible-lint ansible-playbooks/ advanced/ applications/ cloud/ \
+  commands/ database/ files/ message_queue/ monitoring/ network/ \
+  network_protocols/ storage/ system/ version_control/ virtualization/ web/
+
+# 6. 运行 yamllint
+yamllint -d relaxed ansible-playbooks/ advanced/ applications/ cloud/ \
+  commands/ database/ files/ message_queue/ monitoring/ network/ \
+  network_protocols/ storage/ system/ version_control/ virtualization/ web/
+```
+
+#### 常见问题
+
+- **模块索引过期**：运行 `python tools/module_index.py --generate` 更新
+- **Ansible 规范违反**：参考 [`docs/BEST_PRACTICES.md`](docs/BEST_PRACTICES.md) 修复
+- **高优先级审计问题**：查看 [`COMPREHENSIVE_AUDIT_SUMMARY.md`](COMPREHENSIVE_AUDIT_SUMMARY.md) 获取优化建议
+
+关于代码规范和最佳实践的详细信息，请参考：
+- 🎯 **[最佳实践指南](docs/BEST_PRACTICES.md)**：代码规范、安全实践、测试规范
+- 📋 **[综合审计总结](COMPREHENSIVE_AUDIT_SUMMARY.md)**：优化建议和实施计划
+- ⚠️ **[审计报告](AUDIT_REPORT.md)**：详细的问题清单和解决方案
 
 ## 依赖管理
 
@@ -10,7 +124,11 @@
   - **安装方式**：`ansible-galaxy collection install -r collections/requirements.yml`
 
 - **[`requirements.txt`](requirements.txt)**：所有示例所需的 Python 依赖库，包括各云平台 SDK、虚拟化库、数据库库、监控库等。
-  - **安装方式**：`pip install -r requirements.txt`
+   - **安装方式**：`pip install -r requirements.txt`
+
+- **[`requirements-dev.txt`](requirements-dev.txt)**：开发和测试依赖库，包括 pytest、ansible-lint、yamllint、black 等检查和格式化工具。
+   - **安装方式**：`pip install -r requirements-dev.txt`
+   - **说明**：仅在开发环境和 CI 流程中使用，不需要在生产环境安装
 
 ## 审计与规范
 

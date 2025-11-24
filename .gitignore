@@ -2,10 +2,18 @@ __pycache__/
 *.py[cod]
 *.retry
 .pytest_cache/
+.mypy_cache/
 .env
 .env.*
 .DS_Store
 .cache/
+
+# Coverage reports
+.coverage
+.coverage.*
+coverage.xml
+coverage.json
+htmlcov/
 
 # Audit tool backups
 .audit_backup_*/

@@ -1,0 +1,135 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  audit-lint-test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11']
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/pip
+            venv
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ matrix.python-version }}-
+            ${{ runner.os }}-pip-
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+      
+      - name: Run pytest
+        run: |
+          pytest tests/ -v --tb=short --cov=. --cov-report=json --cov-report=term
+      
+      - name: Run comprehensive audit
+        run: |
+          python tools/comprehensive_audit.py \
+            --output reports/comprehensive_audit.md \
+            --json reports/module_health.json
+      
+      - name: Check audit results - fail on Critical/High issues
+        run: |
+          python -c "
+          import json
+          with open('reports/module_health.json') as f:
+              data = json.load(f)
+              summary = data.get('summary', {})
+              critical = summary.get('critical_issues', 0)
+              high = summary.get('high_issues', 0)
+              if critical > 0 or high > 0:
+                  print(f'❌ Audit failed: {critical} Critical, {high} High issues')
+                  exit(1)
+              else:
+                  print('✅ Audit passed: No critical or high issues')
+          "
+      
+      - name: Regenerate module index
+        run: |
+          python tools/module_index.py --generate
+      
+      - name: Run ansible-lint
+        run: |
+          # Find all playbooks and run ansible-lint
+          find . -type f \( -name "*.yml" -o -name "*.yaml" \) \
+            ! -path "./venv/*" \
+            ! -path "./.git/*" \
+            ! -path "./reports/*" \
+            -print0 | xargs -0 ansible-lint -v || true
+      
+      - name: Run yamllint
+        run: |
+          yamllint -d relaxed \
+            ansible-playbooks/ \
+            advanced/ \
+            applications/ \
+            cloud/ \
+            commands/ \
+            database/ \
+            files/ \
+            message_queue/ \
+            monitoring/ \
+            network/ \
+            network_protocols/ \
+            storage/ \
+            system/ \
+            version_control/ \
+            virtualization/ \
+            web/ \
+            2>&1 | tee reports/yamllint_report.txt || true
+      
+      - name: Upload audit artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: audit-reports-py${{ matrix.python-version }}
+          path: |
+            reports/module_health.json
+            reports/module_index.json
+            reports/comprehensive_audit.md
+            reports/yamllint_report.txt
+            .coverage
+          retention-days: 30
+      
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-reports-py${{ matrix.python-version }}
+          path: |
+            .coverage
+            coverage.json
+          retention-days: 30
+      
+      - name: Check audit results
+        run: |
+          if [ -f reports/module_health.json ]; then
+            echo "✓ Module health report generated"
+            cat reports/module_health.json | python -m json.tool | head -50
+          fi
+          
+          if [ -f reports/comprehensive_audit.md ]; then
+            echo "✓ Comprehensive audit report generated"
+            head -100 reports/comprehensive_audit.md
+          fi
