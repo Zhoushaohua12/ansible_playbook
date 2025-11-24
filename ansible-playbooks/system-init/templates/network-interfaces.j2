@@ -1,0 +1,99 @@
+# Ubuntu/Debian 传统网络接口配置文件
+# 此文件由 Ansible 自动生成，请勿手动修改
+# 配置时间: {{ ansible_date_time.iso8601 }}
+
+# 本地回环接口
+auto lo
+iface lo inet loopback
+
+# 主网络接口
+{% for interface in network_interfaces %}
+auto {{ interface.name }}
+iface {{ interface.name }} inet {{ interface.method | default('dhcp') }}
+
+{% if interface.method == 'static' %}
+# 静态 IP 配置
+    address {{ interface.address }}
+    netmask {{ interface.netmask }}
+{% if interface.gateway is defined %}
+    gateway {{ interface.gateway }}
+{% endif %}
+{% if interface.dns_servers is defined %}
+# DNS 配置
+{% for dns in interface.dns_servers %}
+    dns-nameservers {{ dns }}
+{% endfor %}
+{% endif %}
+{% endif %}
+
+{% if interface.mtu is defined %}
+# MTU 配置
+    mtu {{ interface.mtu }}
+{% endif %}
+
+{% if interface.mac_address is defined %}
+# MAC 地址配置
+    hwaddress ether {{ interface.mac_address }}
+{% endif %}
+
+# 网络接口描述
+    # {{ interface.name | upper }} - System Network Interface
+
+# 网络接口配置
+    pre-up ip link set dev {{ interface.name }} up
+    post-down ip link set dev {{ interface.name }} down
+
+{% if interface.routes is defined %}
+# 路由配置
+{% for route in interface.routes %}
+    up ip route add {{ route.destination }} via {{ route.gateway }} dev {{ interface.name }}
+    down ip route del {{ route.destination }} via {{ route.gateway }} dev {{ interface.name }}
+{% endfor %}
+{% endif %}
+
+{% if interface.bridge is defined %}
+# 桥接配置
+    bridge_ports {{ interface.bridge.ports | join(' ') }}
+    bridge_stp {{ interface.bridge.stp | default('off') }}
+    bridge_fd {{ interface.bridge.forward_delay | default('0') }}
+    bridge_maxwait {{ interface.bridge.max_wait | default('0') }}
+{% endif %}
+
+{% if interface.vlan_id is defined %}
+# VLAN 配置
+    vlan-raw-device {{ interface.link }}
+{% endif %}
+
+{% endfor %}
+
+# ============================================================================
+# 全局网络配置
+# ============================================================================
+
+# DNS 搜索域
+{% if dns_search_domains is defined %}
+{% for domain in dns_search_domains %}
+dns-search {{ domain }}
+{% endfor %}
+{% endif %}
+
+# DNS 服务器
+{% if global_dns_servers is defined %}
+{% for dns in global_dns_servers %}
+dns-nameservers {{ dns }}
+{% endfor %}
+{% endif %}
+
+# 网络接口启动顺序
+mapping hotplug
+  script grep
+  map {{ network_interfaces | map(attribute='name') | join(' ') }}
+
+# ============================================================================
+# 配置说明
+# ============================================================================
+
+# 本配置文件包含系统的网络接口配置
+# 支持静态 IP 和 DHCP 配置方式
+# 支持桥接、VLAN 等高级网络功能
+# 修改后需要重启网络服务或重启系统生效

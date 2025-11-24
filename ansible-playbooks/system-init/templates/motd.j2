@@ -1,0 +1,67 @@
+# 系统登录横幅模板 (中文版本)
+# 此文件由 Ansible 自动生成，请勿手动修改
+# 配置时间: {{ ansible_date_time.iso8601 }}
+
+{{ motd_content | default('') }}
+
+{% if motd_content is not defined %}
+================================================================
+                        系统登录横幅
+================================================================
+
+欢迎使用 {{ ansible_distribution }} {{ ansible_distribution_version }} 系统
+
+系统信息：
+  主机名    : {{ ansible_hostname }}
+  内核版本  : {{ ansible_kernel }}
+  系统架构  : {{ ansible_architecture }}
+  系统时间  : {{ ansible_date_time.iso8601 }}
+  运行时间  : {{ ansible_uptime_seconds | int // 86400 }} 天 {{ (ansible_uptime_seconds | int % 86400) // 3600 }} 小时
+
+安全提醒：
+  - 所有操作都会被记录和审计
+  - 请勿泄露系统认证信息
+  - 发现异常请立即联系管理员
+  - 遵守公司信息安全政策
+
+资源使用情况：
+{% if ansible_memtotal_mb is defined %}
+  内存总量  : {{ ansible_memtotal_mb }} MB
+{% endif %}
+{% if ansible_processor_vcpus is defined %}
+  CPU 核心数 : {{ ansible_processor_vcpus }}
+{% endif %}
+{% if ansible_mounts is defined %}
+  磁盘空间  :
+{% for mount in ansible_mounts %}
+    {{ mount.mount }}: {{ mount.size_available | default('未知') }}
+{% endfor %}
+{% endif %}
+
+维护联系：
+  系统管理员  : admin@company.com
+  技术支持    : support@company.com
+  紧急联系    : emergency@company.com
+
+================================================================
+{% endif %}
+
+{% if security_hardening_level is defined %}
+安全加固级别：{{ security_hardening_level }}
+{% endif %}
+
+{% if firewall_enabled is defined %}
+防火墙状态：{{ '已启用' if firewall_enabled else '已禁用' }}
+{% endif %}
+
+{% if ssh_hardening_enabled is defined %}
+SSH 加固：{{ '已启用' if ssh_hardening_enabled else '已禁用' }}
+{% endif %}
+
+{% if audit_enabled is defined %}
+系统审计：{{ '已启用' if audit_enabled else '已禁用' }}
+{% endif %}
+
+{% if last_updated is defined %}
+最后更新时间：{{ last_updated }}
+{% endif %}

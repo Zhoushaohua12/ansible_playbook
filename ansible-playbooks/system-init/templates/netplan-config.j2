@@ -1,0 +1,90 @@
+# Ubuntu/Debian Netplan 网络配置文件
+# 此文件由 Ansible 自动生成，请勿手动修改
+# 配置时间: {{ ansible_date_time.iso8601 }}
+
+network:
+  version: 2
+  ethernets:
+    {{ item.name }}:
+      dhcp4: {{ 'true' if item.method == 'dhcp' else 'false' }}
+      dhcp6: no
+      optional: false
+      accept-ra: no
+      
+{% if item.method == 'static' %}
+      # 静态 IP 配置
+      addresses:
+        - {{ item.address }}/{{ item.netmask | ipaddr('prefix') }}
+{% if item.gateway is defined %}
+      gateway4: {{ item.gateway }}
+{% endif %}
+{% if item.dns_servers is defined %}
+      nameservers:
+        addresses:
+{% for dns in item.dns_servers %}
+          - {{ dns }}
+{% endfor %}
+{% endif %}
+{% endif %}
+
+{% if item.mtu is defined %}
+      # MTU 配置
+      mtu: {{ item.mtu }}
+{% endif %}
+
+{% if item.mac_address is defined %}
+      # MAC 地址配置
+      macaddress: {{ item.mac_address }}
+{% endif %}
+
+      # 网络接口描述
+      description: "{{ item.name | upper }} - System Network Interface"
+
+      # 网络接口配置
+      renderer: networkd
+
+{% if item.routes is defined %}
+      # 路由配置
+      routes:
+{% for route in item.routes %}
+        - to: {{ route.destination }}
+          via: {{ route.gateway }}
+          metric: {{ route.metric | default(100) }}
+{% endfor %}
+{% endif %}
+
+{% if item.bonding is defined %}
+      # 绑定配置
+      interfaces: {{ item.bonding.interfaces | to_json }}
+      parameters:
+        mode: {{ item.bonding.mode }}
+        lacp-rate: {{ item.bonding.lacp_rate | default('slow') }}
+        mii-monitor-interval: {{ item.bonding.mii_interval | default(100) }}
+{% endif %}
+
+{% if item.vlan_id is defined %}
+      # VLAN 配置
+      vlan-id: {{ item.vlan_id }}
+      link: {{ item.link }}
+{% endif %}
+
+{% if item.bridge is defined %}
+      # 桥接配置
+      bridges: {{ item.bridge }}
+{% endif %}
+
+  # 全局配置
+  renderer: networkd
+  
+  # DNS 配置
+{% if global_dns_servers is defined %}
+  nameservers:
+    addresses:
+{% for dns in global_dns_servers %}
+      - {{ dns }}
+{% endfor %}
+    search:
+{% for domain in dns_search_domains %}
+      - {{ domain }}
+{% endfor %}
+{% endif %}

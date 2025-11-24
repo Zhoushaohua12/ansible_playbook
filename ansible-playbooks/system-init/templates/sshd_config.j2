@@ -1,0 +1,168 @@
+# SSH 服务安全配置文件
+# 此文件由 Ansible 自动生成，请勿手动修改
+# 配置时间: {{ ansible_date_time.iso8601 }}
+
+# ============================================================================
+# 基础配置
+# ============================================================================
+
+# SSH 服务端口
+Port {{ ssh_config.Port | default(22) }}
+
+# SSH 协议版本
+Protocol {{ ssh_config.Protocol | default(2) }}
+
+# 监听地址
+AddressFamily any
+ListenAddress 0.0.0.0
+ListenAddress ::
+
+# ============================================================================
+# 认证配置
+# ============================================================================
+
+# 登录相关设置
+LoginGraceTime {{ ssh_config.LoginGraceTime | default(60) }}
+PermitRootLogin {{ ssh_config.PermitRootLogin | default('no') }}
+StrictModes yes
+
+# 公钥认证
+PubkeyAuthentication {{ ssh_config.PubkeyAuthentication | default('yes') }}
+AuthorizedKeysFile .ssh/authorized_keys
+
+# 密码认证
+PasswordAuthentication {{ ssh_config.PasswordAuthentication | default('no') }}
+PermitEmptyPasswords {{ ssh_config.PermitEmptyPasswords | default('no') }}
+
+# 其他认证方式
+ChallengeResponseAuthentication no
+KerberosAuthentication no
+GSSAPIAuthentication no
+
+# 认证尝试限制
+MaxAuthTries {{ ssh_config.MaxAuthTries | default(3) }}
+MaxSessions 10
+
+# ============================================================================
+# 连接配置
+# ============================================================================
+
+# 客户端存活检查
+ClientAliveInterval {{ ssh_config.ClientAliveInterval | default(300) }}
+ClientAliveCountMax {{ ssh_config.ClientAliveCountMax | default(2) }}
+
+# TCP KeepAlive
+TCPKeepAlive yes
+
+# 连接超时
+UsePrivilegeSeparation yes
+
+# ============================================================================
+# 安全配置
+# ============================================================================
+
+# X11 转发
+X11Forwarding {{ ssh_config.X11Forwarding | default('no') }}
+X11UseLocalhost yes
+
+# 端口转发
+AllowTcpForwarding {{ ssh_config.AllowTcpForwarding | default('no') }}
+GatewayPorts no
+PermitTunnel no
+
+# Agent 转发
+AllowAgentForwarding no
+
+# ============================================================================
+# 环境配置
+# ============================================================================
+
+# 打印信息
+PrintMotd yes
+PrintLastLog yes
+
+# Banner 文件
+Banner /etc/issue.net
+
+# 接受环境变量
+AcceptEnv LANG LC_*
+AcceptEnv TERM
+
+# ============================================================================
+# 子系统配置
+# ============================================================================
+
+# SFTP 子系统
+Subsystem sftp /usr/lib/openssh/sftp-server
+
+# ============================================================================
+# 日志配置
+# ============================================================================
+
+# 日志级别
+SyslogFacility AUTH
+LogLevel INFO
+
+# ============================================================================
+# 加密配置
+# ============================================================================
+
+# 密钥算法
+HostKey /etc/ssh/ssh_host_rsa_key
+HostKey /etc/ssh/ssh_host_ecdsa_key
+HostKey /etc/ssh/ssh_host_ed25519_key
+
+# 允许的加密算法
+Ciphers chacha20-poly1305@openssl.com,aes256-gcm@openssl.com,aes128-gcm@openssl.com,aes256-ctr,aes192-ctr,aes128-ctr
+
+# MAC 算法
+MACs umac-128-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256,hmac-sha2-512
+
+# 密钥交换算法
+KexAlgorithms curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group14-sha256
+
+# ============================================================================
+# 限制配置
+# ============================================================================
+
+# 用户限制
+AllowUsers {% for user in baseline_users %}{{ user.name }}{% if not loop.last %} {% endif %}{% endfor %}
+
+# 组限制
+AllowGroups ssh-users sudo admin
+
+# 拒绝用户
+DenyUsers guest nobody
+
+# 拒绝组
+DenyGroups nogroup
+
+# ============================================================================
+# 其他配置
+# ============================================================================
+
+# 使用 PAM
+UsePAM yes
+
+# 压缩
+Compression no
+
+# DNS 反向解析
+UseDNS yes
+
+# PID 文件
+PidFile /var/run/sshd.pid
+
+# Chroot 目录
+ChrootDirectory none
+
+# ============================================================================
+# 安全提示
+# ============================================================================
+
+# 此配置文件包含 SSH 服务的安全加固设置
+# 请根据实际需求调整相关参数
+# 修改后需要重启 SSH 服务使配置生效
+
+# 警告：错误的配置可能导致无法通过 SSH 登录系统
+# 建议在测试环境验证后再应用到生产环境

@@ -1,0 +1,181 @@
+---
+# 系统初始化处理器定义
+# 用于在各种配置变更后重启或重新加载相关服务
+
+# ============================================================================
+# 网络服务处理器
+# ============================================================================
+
+- name: 重新加载网络配置
+  ansible.builtin.service:
+    name: networking
+    state: reloaded
+  listen: "重新加载网络配置"
+  when: ansible_os_family == "Debian"
+
+- name: 重新加载网络配置 (RHEL/CentOS)
+  ansible.builtin.service:
+    name: NetworkManager
+    state: reloaded
+  listen: "重新加载网络配置"
+  when: ansible_os_family == "RedHat"
+
+- name: 应用网络配置 (Netplan)
+  ansible.builtin.command: netplan apply
+  listen: "应用网络配置"
+  when: ansible_os_family == "Debian" and ansible_distribution_version is version('18.04', '>=')
+
+# ============================================================================
+# 时间同步服务处理器
+# ============================================================================
+
+- name: 重启 chronyd 时间同步服务
+  ansible.builtin.service:
+    name: chronyd
+    state: restarted
+  listen: "重启 chronyd 时间同步服务"
+
+- name: 重新加载 chronyd 配置
+  ansible.builtin.service:
+    name: chronyd
+    state: reloaded
+  listen: "重新加载 chronyd 配置"
+
+# ============================================================================
+# SSH 服务处理器
+# ============================================================================
+
+- name: 重启 SSH 服务
+  ansible.builtin.service:
+    name: sshd
+    state: restarted
+  listen: "重启 SSH 服务"
+
+- name: 重新加载 SSH 配置
+  ansible.builtin.service:
+    name: sshd
+    state: reloaded
+  listen: "重新加载 SSH 配置"
+
+# ============================================================================
+# 防火墙服务处理器
+# ============================================================================
+
+- name: 重新加载 firewalld 防火墙
+  ansible.builtin.service:
+    name: firewalld
+    state: reloaded
+  listen: "重新加载 firewalld 防火墙"
+  when: ansible_os_family == "RedHat"
+
+- name: 重新加载 UFW 防火墙
+  community.general.ufw:
+    state: reloaded
+  listen: "重新加载 UFW 防火墙"
+  when: ansible_os_family == "Debian"
+
+- name: 重新加载防火墙
+  ansible.builtin.debug:
+    msg: "防火墙配置已重新加载"
+  listen: "重新加载防火墙"
+
+# ============================================================================
+# 日志服务处理器
+# ============================================================================
+
+- name: 重启 rsyslog 服务
+  ansible.builtin.service:
+    name: rsyslog
+    state: restarted
+  listen: "重启 rsyslog 服务"
+
+- name: 重新加载 rsyslog 配置
+  ansible.builtin.service:
+    name: rsyslog
+    state: reloaded
+  listen: "重新加载 rsyslog 配置"
+
+# ============================================================================
+# 审计服务处理器
+# ============================================================================
+
+- name: 重启 auditd 审计服务
+  ansible.builtin.service:
+    name: auditd
+    state: restarted
+  listen: "重启 auditd 审计服务"
+
+- name: 重新加载审计规则
+  ansible.builtin.command: auditctl -R /etc/audit/rules.d/audit.rules
+  listen: "重新加载审计规则"
+
+# ============================================================================
+# 安全服务处理器
+# ============================================================================
+
+- name: 重启 fail2ban 入侵防护服务
+  ansible.builtin.service:
+    name: fail2ban
+    state: restarted
+  listen: "重启 fail2ban 入侵防护服务"
+
+- name: 重新加载 fail2ban 配置
+  ansible.builtin.service:
+    name: fail2ban
+    state: reloaded
+  listen: "重新加载 fail2ban 配置"
+
+# ============================================================================
+# 系统服务处理器
+# ============================================================================
+
+- name: 重新加载 systemd 守护进程
+  ansible.builtin.systemd:
+    daemon_reload: yes
+  listen: "重新加载 systemd 守护进程"
+
+- name: 重新加载系统限制配置
+  ansible.builtin.command: sysctl -p /etc/sysctl.d/99-security.conf
+  listen: "重新加载系统限制配置"
+
+# ============================================================================
+# 应用服务处理器
+# ============================================================================
+
+- name: 重启数据库服务
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: restarted
+  loop:
+    - mysql
+    - postgresql
+  listen: "重启数据库服务"
+  ignore_errors: yes
+
+- name: 重启 Web 服务
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: restarted
+  loop:
+    - nginx
+    - apache2
+    - httpd
+  listen: "重启 Web 服务"
+  ignore_errors: yes
+
+# ============================================================================
+# 通用处理器
+# ============================================================================
+
+- name: 清理系统缓存
+  ansible.builtin.command: "{{ item }}"
+  loop:
+    - "sync"
+    - "echo 3 > /proc/sys/vm/drop_caches"
+  listen: "清理系统缓存"
+  ignore_errors: yes
+
+- name: 更新系统信息数据库
+  ansible.builtin.command: updatedb
+  listen: "更新系统信息数据库"
+  ignore_errors: yes

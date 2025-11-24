@@ -1,0 +1,86 @@
+# RHEL/CentOS 网络接口配置文件
+# 此文件由 Ansible 自动生成，请勿手动修改
+# 配置时间: {{ ansible_date_time.iso8601 }}
+
+# 网络接口基本信息
+DEVICE={{ item.name }}
+BOOTPROTO={{ item.method | default('dhcp') }}
+ONBOOT=yes
+TYPE=Ethernet
+USERCTL=no
+PEERDNS=yes
+IPV6INIT=no
+IPV6_AUTOCONF=no
+
+{% if item.method == 'static' %}
+# 静态 IP 配置
+IPADDR={{ item.address }}
+NETMASK={{ item.netmask }}
+{% if item.gateway is defined %}
+GATEWAY={{ item.gateway }}
+{% endif %}
+{% endif %}
+
+{% if item.dns_servers is defined %}
+# DNS 配置
+{% for dns in item.dns_servers %}
+DNS{{ loop.index }}={{ dns }}
+{% endfor %}
+{% endif %}
+
+{% if item.mtu is defined %}
+# MTU 配置
+MTU={{ item.mtu }}
+{% endif %}
+
+{% if item.mac_address is defined %}
+# MAC 地址配置
+HWADDR={{ item.mac_address }}
+{% endif %}
+
+# 网络接口描述
+NAME="{{ item.name | upper }} - System Network Interface"
+# 网络接口优先级
+DEFROUTE=yes
+# 延迟启动
+DELAY=0
+
+# 安全配置
+PEERROUTES=yes
+IPV4_FAILURE_FATAL=no
+IPV6_FAILURE_FATAL=no
+
+# 网络接口别名
+{% if item.alias is defined %}
+ALIAS={{ item.alias }}
+{% endif %}
+
+# 网络接口标签
+{% if item.label is defined %}
+LABEL={{ item.label }}
+{% endif %}
+
+# 网络接口区域 (防火墙)
+ZONE={{ item.zone | default('public') }}
+
+# 网络接口主从关系
+{% if item.master is defined %}
+MASTER={{ item.master }}
+SLAVE=yes
+{% endif %}
+
+# 网络接口绑定配置
+{% if item.bonding is defined %}
+BONDING_OPTS="{{ item.bonding }}"
+{% endif %}
+
+# VLAN 配置
+{% if item.vlan_id is defined %}
+VLAN=yes
+VLAN_ID={{ item.vlan_id }}
+{% endif %}
+
+# 桥接配置
+{% if item.bridge is defined %}
+BRIDGE={{ item.bridge }}
+{% endif %}

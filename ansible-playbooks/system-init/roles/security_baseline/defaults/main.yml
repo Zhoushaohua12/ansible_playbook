@@ -1,0 +1,217 @@
+---
+# 安全基线角色默认变量
+# 提供系统安全基线的默认配置
+
+# 安全加固级别
+security_hardening_level: "standard"
+
+# 各类加固功能开关
+kernel_hardening_enabled: true
+system_hardening_enabled: true
+filesystem_hardening_enabled: true
+service_hardening_enabled: true
+network_hardening_enabled: true
+application_hardening_enabled: true
+logging_enabled: true
+log_rotation_enabled: true
+security_cron_enabled: true
+hosts_file_hardening: true
+
+# 网络安全参数
+network_security_params:
+  - name: "net.ipv4.ip_forward"
+    value: "0"
+  - name: "net.ipv4.conf.all.send_redirects"
+    value: "0"
+  - name: "net.ipv4.conf.default.send_redirects"
+    value: "0"
+  - name: "net.ipv4.conf.all.accept_source_route"
+    value: "0"
+  - name: "net.ipv4.conf.default.accept_source_route"
+    value: "0"
+  - name: "net.ipv4.conf.all.accept_redirects"
+    value: "0"
+  - name: "net.ipv4.conf.default.accept_redirects"
+    value: "0"
+  - name: "net.ipv4.icmp_echo_ignore_broadcasts"
+    value: "1"
+  - name: "net.ipv4.tcp_syncookies"
+    value: "1"
+  - name: "net.ipv4.tcp_max_syn_backlog"
+    value: "2048"
+  - name: "net.ipv4.tcp_synack_retries"
+    value: "2"
+
+# 系统安全参数
+system_security_params:
+  - name: "kernel.dmesg_restrict"
+    value: "1"
+  - name: "kernel.kptr_restrict"
+    value: "2"
+  - name: "kernel.perf_event_paranoid"
+    value: "2"
+  - name: "fs.suid_dumpable"
+    value: "0"
+  - name: "kernel.randomize_va_space"
+    value: "2"
+
+# 文件系统安全参数
+filesystem_security_params:
+  - name: "fs.protected_regular"
+    value: "1"
+  - name: "fs.protected_fifos"
+    value: "1"
+  - name: "fs.protected_hardlinks"
+    value: "1"
+  - name: "fs.protected_symlinks"
+    value: "1"
+
+# ARP 安全参数
+arp_security_params:
+  - name: "net.ipv4.conf.all.arp_ignore"
+    value: "1"
+  - name: "net.ipv4.conf.all.arp_announce"
+    value: "2"
+
+# 安全挂载选项
+secure_mount_options:
+  - path: /tmp
+    src: tmpfs
+    fstype: tmpfs
+    opts: "nosuid,nodev,noexec,mode=1777"
+  - path: /var/tmp
+    src: tmpfs
+    fstype: tmpfs
+    opts: "nosuid,nodev,noexec,mode=1777"
+  - path: /dev/shm
+    src: tmpfs
+    fstype: tmpfs
+    opts: "nosuid,nodev,noexec,mode=1777"
+
+# Sticky 位保护目录
+sticky_bit_directories:
+  - /tmp
+  - /var/tmp
+  - /dev/shm
+
+# 安全日志规则
+security_log_rules:
+  - "auth,authpriv.* /var/log/auth.log"
+  - "*.emerg :omusrmsg:*"
+  - "mail.* -/var/log/mail.log"
+  - "kern.* /var/log/kern.log"
+  - "daemon.* /var/log/daemon.log"
+
+# 审计日志规则
+audit_log_rules:
+  - "-w /etc/passwd -p wa -k identity"
+  - "-w /etc/shadow -p wa -k identity"
+  - "-w /etc/sudoers -p wa -k sudo"
+  - "-w /var/log/audit/ -p wa -k audit"
+  - "-a always,exit -F arch=b64 -S execve -k process_creation"
+  - "-w /home -p rwxa -k user_home"
+
+# 安全定时任务
+security_cron_jobs:
+  - name: "每日安全扫描"
+    job: "/usr/local/bin/security-scan.sh"
+    hour: "3"
+    minute: "0"
+  - name: "每周日志清理"
+    job: "/usr/local/bin/log-cleanup.sh"
+    weekday: "0"
+    hour: "2"
+    minute: "0"
+  - name: "每月安全更新检查"
+    job: "/usr/local/bin/security-update-check.sh"
+    day: "1"
+    hour: "4"
+    minute: "0"
+
+# Cron 访问控制
+cron_access_control:
+  - file: cron.allow
+    content: |
+      root
+      admin
+  - file: cron.deny
+    content: |
+      guest
+      nobody
+
+# 应用程序安全配置
+application_security_configs:
+  - template: limits.conf.j2
+    dest: /etc/security/limits.d/security-limits.conf
+  - template: profile-security.j2
+    dest: /etc/profile.d/security.sh
+
+# 应用启动安全参数
+application_startup_params:
+  - path: /etc/default/ssh
+    regexp: '^SSHD_OPTS='
+    line: 'SSHD_OPTS="-u0"'
+  - path: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX='
+    line: 'GRUB_CMDLINE_LINUX="apparmor=1 security=apparmor"'
+
+# 日志目录配置
+log_directories:
+  - path: /var/log/security
+    mode: "0750"
+  - path: /var/log/audit
+    mode: "0750"
+  - path: /var/log/secure
+    mode: "0750"
+
+# 安全网络接口配置
+secure_network_interfaces:
+  - name: "eth0"
+    security_options:
+      - "IPV6INIT=no"
+      - "USERCTL=no"
+
+# 服务安全配置
+service_security_config:
+  - name: "bluetooth"
+    enabled: false
+    masked: true
+  - name: "cups"
+    enabled: false
+    masked: false
+  - name: "fail2ban"
+    enabled: true
+    masked: false
+
+# 高级安全配置
+advanced_security_config:
+  enable_apparmor: true
+  enable_selinux: true  # RHEL/CentOS
+  enable_auditd: true
+  enable_fail2ban: true
+  enable_rkhunter: true
+  enable_chroot_kits: true
+
+# 挂载安全开关
+mount_security_enabled: true
+
+# Sticky 位保护开关
+sticky_bit_protection: true
+
+# ARP 安全开关
+arp_security_enabled: true
+
+# Cron 访问控制开关
+cron_access_control_enabled: true
+
+# 应用启动安全开关
+application_startup_security: true
+
+# 服务安全开关
+service_security_enabled: true
+
+# 审计日志开关
+audit_logging_enabled: true
+
+# 网络接口安全开关
+network_interface_security: true

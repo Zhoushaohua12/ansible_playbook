@@ -1,0 +1,308 @@
+---
+# 安全基线配置角色任务
+# 实施系统安全基线和加固策略
+
+- name: 显示安全基线配置信息
+  ansible.builtin.debug:
+    msg:
+      - "开始配置安全基线"
+      - "目标系统: {{ ansible_distribution }}"
+      - "加固级别: {{ security_hardening_level }}"
+      - "配置模式: {{ '检查模式' if ansible_check_mode else '实际配置' }}"
+  tags: [security, info]
+
+- name: 内核参数安全加固
+  block:
+    - name: 配置网络内核参数
+      ansible.builtin.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        sysctl_file: /etc/sysctl.d/99-network-security.conf
+        reload: yes
+      loop: "{{ network_security_params }}"
+      when: network_hardening_enabled and not ansible_check_mode
+
+    - name: 配置系统内核参数
+      ansible.builtin.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        sysctl_file: /etc/sysctl.d/99-system-security.conf
+        reload: yes
+      loop: "{{ system_security_params }}"
+      when: system_hardening_enabled and not ansible_check_mode
+
+    - name: 配置文件系统内核参数
+      ansible.builtin.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        sysctl_file: /etc/sysctl.d/99-fs-security.conf
+        reload: yes
+      loop: "{{ filesystem_security_params }}"
+      when: filesystem_hardening_enabled and not ansible_check_mode
+  rescue:
+    - name: 内核参数配置失败处理
+      ansible.builtin.debug:
+        msg: "内核参数配置失败，请检查参数名称和值"
+  tags: [security, kernel]
+
+- name: 文件系统安全加固
+  block:
+    - name: 设置关键文件权限
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        mode: "{{ item.mode }}"
+        owner: "{{ item.owner | default('root') }}"
+        group: "{{ item.group | default('root') }}"
+        state: file
+      loop: "{{ critical_file_permissions }}"
+      when: not ansible_check_mode
+
+    - name: 创建安全目录
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        mode: "{{ item.mode }}"
+        owner: "{{ item.owner | default('root') }}"
+        group: "{{ item.group | default('root') }}"
+      loop: "{{ secure_directories }}"
+      when: not ansible_check_mode
+
+    - name: 配置文件系统挂载选项
+      ansible.builtin.mount:
+        path: "{{ item.path }}"
+        src: "{{ item.src }}"
+        fstype: "{{ item.fstype }}"
+        opts: "{{ item.opts }}"
+        state: mounted
+      loop: "{{ secure_mount_options }}"
+      when: mount_security_enabled and not ansible_check_mode
+
+    - name: 配置 sticky 位保护目录
+      ansible.builtin.file:
+        path: "{{ item }}"
+        mode: "1777"
+        state: directory
+      loop: "{{ sticky_bit_directories }}"
+      when: sticky_bit_protection and not ansible_check_mode
+  rescue:
+    - name: 文件系统加固失败处理
+      ansible.builtin.debug:
+        msg: "文件系统安全加固失败，请检查文件路径和权限设置"
+  tags: [security, filesystem]
+
+- name: 服务安全加固
+  block:
+    - name: 禁用不必要的服务
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: stopped
+        enabled: no
+      loop: "{{ disabled_services }}"
+      when: service_hardening_enabled and not ansible_check_mode
+      ignore_errors: yes
+
+    - name: 启用必要的安全服务
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+      loop: "{{ enabled_security_services }}"
+      when: service_hardening_enabled and not ansible_check_mode
+
+    - name: 配置服务运行级别
+      ansible.builtin.systemd:
+        name: "{{ item.name }}"
+        enabled: "{{ item.enabled }}"
+        masked: "{{ item.masked | default(false) }}"
+      loop: "{{ service_security_config }}"
+      when: service_security_enabled and not ansible_check_mode
+  rescue:
+    - name: 服务加固失败处理
+      ansible.builtin.debug:
+        msg: "服务加固失败，请检查服务名称和状态"
+  tags: [security, services]
+
+- name: 日志和监控加固
+  block:
+    - name: 配置系统日志规则
+      ansible.builtin.lineinfile:
+        path: /etc/rsyslog.d/security.conf
+        line: "{{ item }}"
+        create: yes
+        mode: '0644'
+      loop: "{{ security_log_rules }}"
+      when: logging_enabled and not ansible_check_mode
+
+    - name: 配置日志轮转
+      ansible.builtin.template:
+        src: logrotate-security.j2
+        dest: /etc/logrotate.d/security
+        owner: root
+        group: root
+        mode: '0644'
+      when: log_rotation_enabled and not ansible_check_mode
+
+    - name: 创建日志目录
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        mode: "{{ item.mode }}"
+        owner: "{{ item.owner | default('root') }}"
+        group: "{{ item.group | default('root') }}"
+      loop: "{{ log_directories }}"
+      when: logging_enabled and not ansible_check_mode
+
+    - name: 配置审计日志
+      ansible.builtin.lineinfile:
+        path: /etc/audit/rules.d/security.rules
+        line: "{{ item }}"
+        create: yes
+        mode: '0600'
+      loop: "{{ audit_log_rules }}"
+      when: audit_logging_enabled and not ansible_check_mode
+      notify: 重启 auditd 审计服务
+  rescue:
+    - name: 日志配置失败处理
+      ansible.builtin.debug:
+        msg: "日志配置失败，请检查日志规则语法"
+  tags: [security, logging]
+
+- name: 定时任务安全加固
+  block:
+    - name: 配置安全定时任务
+      ansible.builtin.cron:
+        name: "{{ item.name }}"
+        job: "{{ item.job }}"
+        minute: "{{ item.minute | default('0') }}"
+        hour: "{{ item.hour | default('2') }}"
+        day: "{{ item.day | default('*') }}"
+        month: "{{ item.month | default('*') }}"
+        weekday: "{{ item.weekday | default('*') }}"
+        user: "{{ item.user | default('root') }}"
+        cron_file: security
+      loop: "{{ security_cron_jobs }}"
+      when: security_cron_enabled and not ansible_check_mode
+
+    - name: 限制 cron 访问权限
+      ansible.builtin.copy:
+        content: "{{ item.content }}"
+        dest: "/etc/{{ item.file }}"
+        mode: '0644'
+        owner: root
+        group: root
+      loop: "{{ cron_access_control }}"
+      when: cron_access_control_enabled and not ansible_check_mode
+  rescue:
+    - name: 定时任务配置失败处理
+      ansible.builtin.debug:
+        msg: "定时任务配置失败，请检查任务配置参数"
+  tags: [security, cron]
+
+- name: 应用程序安全加固
+  block:
+    - name: 配置应用安全配置文件
+      ansible.builtin.template:
+        src: "templates/{{ item.template }}"
+        dest: "{{ item.dest }}"
+        owner: "{{ item.owner | default('root') }}"
+        group: "{{ item.group | default('root') }}"
+        mode: "{{ item.mode | default('0644') }}"
+        backup: yes
+      loop: "{{ application_security_configs }}"
+      when: application_hardening_enabled and not ansible_check_mode
+
+    - name: 配置应用启动参数
+      ansible.builtin.lineinfile:
+        path: "{{ item.path }}"
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        backup: yes
+      loop: "{{ application_startup_params }}"
+      when: application_startup_security and not ansible_check_mode
+  rescue:
+    - name: 应用程序加固失败处理
+      ansible.builtin.debug:
+        msg: "应用程序安全加固失败，请检查配置模板"
+  tags: [security, applications]
+
+- name: 网络安全加固
+  block:
+    - name: 配置 hosts 文件
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: "{{ item }}"
+        create: yes
+      loop: "{{ hosts_entries }}"
+      when: hosts_file_hardening and not ansible_check_mode
+
+    - name: 配置网络接口安全
+      ansible.builtin.template:
+        src: templates/network-security.j2
+        dest: "/etc/sysconfig/network-scripts/ifcfg-{{ item.name }}"
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      loop: "{{ secure_network_interfaces }}"
+      when: network_interface_security and ansible_os_family == "RedHat" and not ansible_check_mode
+
+    - name: 配置 ARP 安全
+      ansible.builtin.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        sysctl_file: /etc/sysctl.d/99-arp-security.conf
+        reload: yes
+      loop: "{{ arp_security_params }}"
+      when: arp_security_enabled and not ansible_check_mode
+  rescue:
+    - name: 网络安全加固失败处理
+      ansible.builtin.debug:
+        msg: "网络安全加固失败，请检查网络参数配置"
+  tags: [security, network]
+
+- name: 安全基线验证
+  block:
+    - name: 验证内核参数设置
+      ansible.builtin.command: sysctl {{ item.name }}
+      loop: "{{ network_security_params + system_security_params }}"
+      register: kernel_params_check
+      failed_when: false
+      changed_when: false
+
+    - name: 验证关键文件权限
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+      loop: "{{ critical_file_permissions }}"
+      register: file_permissions_check
+
+    - name: 验证服务状态
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+      loop: "{{ enabled_security_services }}"
+      register: service_status_check
+      failed_when: false
+
+    - name: 显示验证结果
+      ansible.builtin.debug:
+        msg:
+          - "安全基线验证结果:"
+          - "内核参数: {{ '正常' if kernel_params_check.results | selectattr('rc', 'equalto', 0) | list | length > 0 else '需检查' }}"
+          - "文件权限: {{ '正常' if file_permissions_check.results | selectattr('stat.mode', 'equalto', item.mode) | list | length > 0 else '需检查' }}"
+          - "服务状态: {{ '正常' if service_status_check.results | selectattr('status.ActiveState', 'equalto', 'active') | list | length > 0 else '需检查' }}"
+  tags: [security, verify]
+
+- name: 安全基线配置完成信息
+  ansible.builtin.debug:
+    msg:
+      - "安全基线配置完成！"
+      - "加固级别: {{ security_hardening_level }}"
+      - "内核加固: {{ '已启用' if kernel_hardening_enabled else '已禁用' }}"
+      - "文件系统加固: {{ '已启用' if filesystem_hardening_enabled else '已禁用' }}"
+      - "服务加固: {{ '已启用' if service_hardening_enabled else '已禁用' }}"
+      - "网络加固: {{ '已启用' if network_hardening_enabled else '已禁用' }}"
+      - "日志监控: {{ '已启用' if logging_enabled else '已禁用' }}"
+  tags: [security, info]
