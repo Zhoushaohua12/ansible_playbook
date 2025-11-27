@@ -24,6 +24,8 @@
 | [cron](#cron-定时任务管理) | ansible.builtin | 管理 cron 定时任务，支持创建、修改、删除用户的定时任务 | cron 服务 |
 | [authorized_key](#authorized-key-ssh密钥管理) | ansible.builtin | 管理用户的 SSH 授权密钥，支持添加、删除和更新 SSH 公钥 | OpenSSH |
 | [reboot](#reboot-系统重启管理) | ansible.builtin | 重启远程主机，支持等待系统重启完成、验证重启状态 | reboot 命令 |
+| [seboolean](#seboolean-selinux布尔值管理) | ansible.posix | 管理 SELinux 布尔值，控制 SELinux 策略的特定行为 | selinux-policy 包 |
+| [sefcontext](#sefcontext-selinux文件上下文管理) | ansible.posix | 管理 SELinux 文件安全上下文映射，定义文件和目录的默认安全标签 | policycoreutils 包 |
 
 ## 学习路线
 
@@ -34,10 +36,11 @@
 5. **定时任务管理** → `cron`：配置自动化任务与定期维护
 6. **系统维护** → `reboot`：安全重启系统与验证重启状态
 7. **安全增强** → `selinux`：启用强制访问控制与安全策略
-8. **审计监控** → `auditd`：配置系统审计与日志收集
-9. **认证加固** → `pam_hardening`：配置 PAM 认证安全策略
-10. **内核优化** → `kernel_tuning`：调优内核参数提升性能
-11. **网络防护** → `firewalld` 与 `iptables`：配置防火墙规则与安全策略
+8. **SELinux 细粒度控制** → `seboolean` & `sefcontext`：管理 SELinux 布尔值和文件上下文
+9. **审计监控** → `auditd`：配置系统审计与日志收集
+10. **认证加固** → `pam_hardening`：配置 PAM 认证安全策略
+11. **内核优化** → `kernel_tuning`：调优内核参数提升性能
+12. **网络防护** → `firewalld` 与 `iptables`：配置防火墙规则与安全策略
 
 ## 与其他章节的关系
 
@@ -120,3 +123,5 @@
 - [kernel_tuning 内核调优](kernel_tuning/README.md)
 - [authorized_key SSH密钥管理](authorized_key/README.md)
 - [reboot 系统重启管理](reboot/README.md)
+- [seboolean SELinux布尔值管理](seboolean/README.md)
+- [sefcontext SELinux文件上下文管理](sefcontext/README.md)

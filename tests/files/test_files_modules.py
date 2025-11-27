@@ -21,6 +21,9 @@ MODULES: List[str] = [
     "archive",
     "replace",
     "blockinfile",
+    "get_url",
+    "assemble",
+    "slurp",
 ]
 
 EXPECTED_FQCN = {
@@ -36,6 +39,9 @@ EXPECTED_FQCN = {
     "archive": "ansible.builtin.archive",
     "replace": "ansible.builtin.replace",
     "blockinfile": "ansible.builtin.blockinfile",
+    "get_url": "ansible.builtin.get_url",
+    "assemble": "ansible.builtin.assemble",
+    "slurp": "ansible.builtin.slurp",
 }
 
 EXTRA_FILES = {
@@ -159,3 +165,90 @@ class TestFilesModules:
         content = readme.read_text(encoding="utf-8")
         for module in MODULES:
             assert f"({module}/README.md)" in content, f"files README 缺少 {module} 模块链接"
+
+    def test_get_url_module_specific_content(self, module_dirs: Dict[str, Path]) -> None:
+        """验证 get_url 模块包含特定内容"""
+        get_url_path = module_dirs["get_url"]
+        readme = (get_url_path / "README.md").read_text(encoding="utf-8")
+        playbook = (get_url_path / "playbook.yml").read_text(encoding="utf-8")
+        vars_file = (get_url_path / "vars" / "example_vars.yml").read_text(encoding="utf-8")
+        
+        # 检查 README 中的关键词
+        assert "下载" in readme, "get_url 模块 README 应提及下载"
+        assert "URL" in readme, "get_url 模块 README 应提及 URL"
+        assert "checksum" in readme, "get_url 模块 README 应提及校验和"
+        
+        # 检查 playbook 中的 FQCN
+        assert "ansible.builtin.get_url" in playbook, "get_url playbook 应使用 get_url 模块"
+        
+        # 检查 playbook 中的 vars_files
+        assert "vars_files" in playbook, "get_url playbook 应引用 vars_files"
+        
+        # 检查 playbook 中的 check_mode
+        assert "check_mode" in playbook, "get_url playbook 应包含 check_mode"
+        
+        # 检查变量文件中的关键变量和警告
+        assert "sample_config_url" in vars_file, "get_url vars 应包含 sample_config_url 变量"
+        assert "download_timeout" in vars_file, "get_url vars 应包含 download_timeout 变量"
+        assert "⚠️" in vars_file or "警告" in vars_file or "注意" in vars_file, (
+            "get_url vars 应包含安全提示"
+        )
+
+    def test_assemble_module_specific_content(self, module_dirs: Dict[str, Path]) -> None:
+        """验证 assemble 模块包含特定内容"""
+        assemble_path = module_dirs["assemble"]
+        readme = (assemble_path / "README.md").read_text(encoding="utf-8")
+        playbook = (assemble_path / "playbook.yml").read_text(encoding="utf-8")
+        vars_file = (assemble_path / "vars" / "example_vars.yml").read_text(encoding="utf-8")
+        
+        # 检查 README 中的关键词
+        assert "组装" in readme, "assemble 模块 README 应提及组装"
+        assert "片段" in readme, "assemble 模块 README 应提及片段"
+        assert "配置文件" in readme, "assemble 模块 README 应提及配置文件"
+        
+        # 检查 playbook 中的 FQCN
+        assert "ansible.builtin.assemble" in playbook, "assemble playbook 应使用 assemble 模块"
+        
+        # 检查 playbook 中的 vars_files
+        assert "vars_files" in playbook, "assemble playbook 应引用 vars_files"
+        
+        # 检查 playbook 中的 check_mode
+        assert "check_mode" in playbook, "assemble playbook 应包含 check_mode"
+        
+        # 检查变量文件中的关键变量和警告
+        assert "config_fragments_dir" in vars_file, "assemble vars 应包含 config_fragments_dir 变量"
+        assert "assembled_config_path" in vars_file, "assemble vars 应包含 assembled_config_path 变量"
+        assert "⚠️" in vars_file or "警告" in vars_file or "注意" in vars_file, (
+            "assemble vars 应包含安全提示"
+        )
+
+    def test_slurp_module_specific_content(self, module_dirs: Dict[str, Path]) -> None:
+        """验证 slurp 模块包含特定内容"""
+        slurp_path = module_dirs["slurp"]
+        readme = (slurp_path / "README.md").read_text(encoding="utf-8")
+        playbook = (slurp_path / "playbook.yml").read_text(encoding="utf-8")
+        vars_file = (slurp_path / "vars" / "example_vars.yml").read_text(encoding="utf-8")
+        
+        # 检查 README 中的关键词
+        assert "读取" in readme, "slurp 模块 README 应提及读取"
+        assert "base64" in readme, "slurp 模块 README 应提及 base64"
+        assert "敏感" in readme, "slurp 模块 README 应提及敏感信息"
+        
+        # 检查 playbook 中的 FQCN
+        assert "ansible.builtin.slurp" in playbook, "slurp playbook 应使用 slurp 模块"
+        
+        # 检查 playbook 中的 vars_files
+        assert "vars_files" in playbook, "slurp playbook 应引用 vars_files"
+        
+        # 检查 playbook 中的 check_mode
+        assert "check_mode" in playbook, "slurp playbook 应包含 check_mode"
+        
+        # 检查 playbook 中的 no_log
+        assert "no_log" in playbook, "slurp playbook 应包含 no_log 保护敏感信息"
+        
+        # 检查变量文件中的关键变量和警告
+        assert "sample_config_path" in vars_file, "slurp vars 应包含 sample_config_path 变量"
+        assert "sensitive_config_path" in vars_file, "slurp vars 应包含 sensitive_config_path 变量"
+        assert "⚠️" in vars_file or "警告" in vars_file or "注意" in vars_file, (
+            "slurp vars 应包含安全提示"
+        )

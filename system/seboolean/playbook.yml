@@ -1,0 +1,248 @@
+---
+- name: seboolean 模块使用示例演示
+  hosts: localhost
+  gather_facts: true
+  check_mode: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 基础 SELinux 布尔值配置 ==========
+    - name: 设置 HTTP 服务网络访问权限
+      ansible.posix.seboolean:
+        name: "{{ httpd_network_bool }}"
+        state: "{{ httpd_network_state }}"
+        persistent: true
+      become: yes
+      register: httpd_bool_result
+    
+    - name: 显示 HTTP 布尔值配置结果
+      ansible.builtin.debug:
+        msg: |
+          HTTP 服务网络访问权限配置：
+          布尔值: {{ httpd_network_bool }}
+          状态: {{ httpd_network_state }}
+          结果: {{ httpd_bool_result }}
+    
+    # ========== FTP 服务配置 ==========
+    - name: 设置 FTP 用户家目录访问权限
+      ansible.posix.seboolean:
+        name: "{{ ftp_home_dir_bool }}"
+        state: "{{ ftp_home_dir_state }}"
+        persistent: true
+      become: yes
+      register: ftp_bool_result
+    
+    - name: 显示 FTP 布尔值配置结果
+      ansible.builtin.debug:
+        msg: |
+          FTP 用户家目录访问权限配置：
+          布尔值: {{ ftp_home_dir_bool }}
+          状态: {{ ftp_home_dir_state }}
+          结果: {{ ftp_bool_result }}
+    
+    # ========== SSH 服务增强配置 ==========
+    - name: 设置 SSH 密钥签名权限
+      ansible.posix.seboolean:
+        name: "{{ ssh_keysign_bool }}"
+        state: "{{ ssh_keysign_state }}"
+        persistent: true
+      become: yes
+      register: ssh_bool_result
+      when: enable_ssh_enhancements | default(false)
+    
+    - name: 显示 SSH 布尔值配置结果
+      ansible.builtin.debug:
+        msg: |
+          SSH 密钥签名权限配置：
+          布尔值: {{ ssh_keysign_bool }}
+          状态: {{ ssh_keysign_state }}
+          结果: {{ ssh_bool_result }}
+      when: enable_ssh_enhancements | default(false)
+    
+    # ========== 邮件服务配置 ==========
+    - name: 设置 HTTP 服务邮件发送权限
+      ansible.posix.seboolean:
+        name: "{{ httpd_sendmail_bool }}"
+        state: "{{ httpd_sendmail_state }}"
+        persistent: true
+      become: yes
+      register: mail_bool_result
+      when: enable_mail_functionality | default(false)
+    
+    - name: 显示邮件权限配置结果
+      ansible.builtin.debug:
+        msg: |
+          HTTP 服务邮件发送权限配置：
+          布尔值: {{ httpd_sendmail_bool }}
+          状态: {{ httpd_sendmail_state }}
+          结果: {{ mail_bool_result }}
+      when: enable_mail_functionality | default(false)
+    
+    # ========== 批量布尔值配置 ==========
+    - name: 批量配置 Web 服务相关布尔值
+      ansible.posix.seboolean:
+        name: "{{ item.name }}"
+        state: "{{ item.state }}"
+        persistent: true
+      become: yes
+      loop: "{{ web_service_booleans }}"
+      register: batch_results
+      when: enable_batch_configuration | default(false)
+    
+    - name: 显示批量配置结果
+      ansible.builtin.debug:
+        msg: |
+          批量配置 Web 服务布尔值：
+          {% for result in batch_results.results %}
+          - {{ result.item.name }}: {{ result.item.state }} (变更: {{ result.changed }})
+          {% endfor %}
+      when: enable_batch_configuration | default(false)
+    
+    # ========== 检查当前布尔值状态 ==========
+    - name: 检查当前 SELinux 布尔值状态
+      ansible.builtin.shell: |
+        echo "=== 当前 SELinux 布尔值状态检查 ==="
+        
+        # 检查 HTTP 相关布尔值
+        if command -v getsebool &> /dev/null; then
+          echo "HTTP 服务相关布尔值："
+          getsebool httpd_can_network_connect 2>/dev/null || echo "httpd_can_network_connect: 不可用"
+          getsebool httpd_can_sendmail 2>/dev/null || echo "httpd_can_sendmail: 不可用"
+          
+          echo ""
+          echo "FTP 服务相关布尔值："
+          getsebool ftp_home_dir 2>/dev/null || echo "ftp_home_dir: 不可用"
+          
+          echo ""
+          echo "SSH 服务相关布尔值："
+          getsebool ssh_keysign 2>/dev/null || echo "ssh_keysign: 不可用"
+        else
+          echo "SELinux 工具未安装或系统不支持 SELinux"
+        fi
+      register: current_booleans
+      changed_when: false
+    
+    - name: 显示当前布尔值状态
+      ansible.builtin.debug:
+        msg: "{{ current_booleans.stdout_lines }}"
+    
+    # ========== 布尔值可用性检查 ==========
+    - name: 检查布尔值可用性
+      ansible.builtin.shell: |
+        echo "=== SELinux 布尔值可用性检查 ==="
+        
+        if command -v semanage &> /dev/null; then
+          echo "查询布尔值详细说明："
+          semanage boolean -l | grep -E "(httpd|ftp|ssh)" | head -10
+        else
+          echo "semanage 命令不可用，安装 policycoreutils-python-utils"
+        fi
+      register: boolean_availability
+      changed_when: false
+      become: yes
+      ignore_errors: yes
+    
+    - name: 显示布尔值可用性信息
+      ansible.builtin.debug:
+        msg: "{{ boolean_availability.stdout_lines }}"
+    
+    # ========== SELinux 状态检查 ==========
+    - name: 检查 SELinux 整体状态
+      ansible.builtin.shell: |
+        echo "=== SELinux 系统状态 ==="
+        
+        if command -v sestatus &> /dev/null; then
+          sestatus
+        else
+          echo "sestatus 命令不可用"
+        fi
+      register: selinux_status
+      changed_when: false
+    
+    - name: 显示 SELinux 状态
+      ansible.builtin.debug:
+        msg: "{{ selinux_status.stdout_lines }}"
+    
+    # ========== 安全建议说明 ==========
+    - name: 显示 SELinux 布尔值配置建议
+      ansible.builtin.debug:
+        msg: |
+          SELinux 布尔值配置安全建议：
+          
+          1. 最小权限原则：
+             - 只启用应用必需的布尔值
+             - 定期审查已启用的布尔值
+             - 禁用不再需要的权限
+          
+          2. 生产环境操作：
+             - 在测试环境验证变更
+             - 分阶段启用关键权限
+             - 监控应用行为变化
+             - 准备回滚方案
+          
+          3. 监控和审计：
+             - 监控 SELinux 违规日志
+             - 定期检查布尔值状态
+             - 记录变更原因和效果
+          
+          4. 常用布尔值说明：
+             - httpd_can_network_connect: 允许 HTTP 服务访问网络
+             - ftp_home_dir: 允许 FTP 用户访问家目录
+             - ssh_keysign: 允许 SSH 密钥签名
+             - httpd_can_sendmail: 允许 HTTP 服务发送邮件
+          
+          5. 故障排查：
+             - 查看 /var/log/audit/audit.log 中的违规记录
+             - 使用 setroubleshoot 工具分析问题
+             - 使用 audit2allow 生成自定义规则（如需要）
+    
+    # ========== 配置验证 ==========
+    - name: 验证布尔值配置效果
+      ansible.builtin.shell: |
+        echo "=== 布尔值配置验证 ==="
+        
+        if command -v getsebool &> /dev/null; then
+          echo "验证关键布尔值状态："
+          
+          # 检查配置的布尔值状态
+          for bool in httpd_can_network_connect ftp_home_dir; do
+            current=$(getsebool "$bool" 2>/dev/null | cut -d' ' -f3)
+            echo "$bool: $current"
+          done
+        else
+          echo "无法验证：getsebool 命令不可用"
+        fi
+      register: verification_result
+      changed_when: false
+    
+    - name: 显示验证结果
+      ansible.builtin.debug:
+        msg: "{{ verification_result.stdout_lines }}"
+    
+    # ========== 配置完成总结 ==========
+    - name: SELinux 布尔值配置完成总结
+      ansible.builtin.debug:
+        msg: |
+          SELinux 布尔值配置已完成：
+          
+          已配置的布尔值：
+          1. {{ httpd_network_bool }}: {{ httpd_network_state }}
+          2. {{ ftp_home_dir_bool }}: {{ ftp_home_dir_state }}
+          {% if enable_ssh_enhancements | default(false) %}
+          3. {{ ssh_keysign_bool }}: {{ ssh_keysign_state }}
+          {% endif %}
+          {% if enable_mail_functionality | default(false) %}
+          4. {{ httpd_sendmail_bool }}: {{ httpd_sendmail_state }}
+          {% endif %}
+          
+          注意事项：
+          - 所有布尔值设置为 persistent: true，重启后保持
+          - 在生产环境使用前请充分测试
+          - 监控应用行为确保功能正常
+          - 定期审查和清理不需要的布尔值
+          
+          相关命令：
+          - getsebool -a: 查看所有布尔值
+          - semanage boolean -l: 查看布尔值说明
+          - sestatus: 查看 SELinux 状态

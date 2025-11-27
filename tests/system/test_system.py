@@ -7,7 +7,7 @@ import pytest
 import yaml
 
 # 系统管理模块列表
-MODULES = ["user", "group", "service", "systemd", "hostname", "timezone", "locale", "firewalld", "iptables", "selinux", "auditd", "pam_hardening", "kernel_tuning", "cron", "authorized_key", "reboot"]
+MODULES = ["user", "group", "service", "systemd", "hostname", "timezone", "locale", "firewalld", "iptables", "selinux", "auditd", "pam_hardening", "kernel_tuning", "cron", "authorized_key", "reboot", "seboolean", "sefcontext"]
 
 # 各模块对应的 FQCN（Fully Qualified Collection Name）期望值
 FQCN_EXPECTATIONS = {
@@ -27,6 +27,8 @@ FQCN_EXPECTATIONS = {
     "cron": "ansible.builtin.cron",
     "authorized_key": "ansible.builtin.authorized_key",
     "reboot": "ansible.builtin.reboot",
+    "seboolean": "ansible.posix.seboolean",
+    "sefcontext": "ansible.posix.sefcontext",
 }
 
 
@@ -464,4 +466,60 @@ class TestNewSystemModules(TestSystemFixtures):
         assert "security_settings" in vars_file, "kernel_tuning vars 应包含 security_settings 变量"
         assert "⚠️" in vars_file or "警告" in vars_file or "注意" in vars_file, (
             "kernel_tuning vars 应包含安全提示"
+        )
+
+    def test_seboolean_module_specific_content(self, module_dirs: Dict[str, Path]) -> None:
+        """验证 seboolean 模块包含特定内容"""
+        seboolean_path = module_dirs["seboolean"]
+        readme = (seboolean_path / "README.md").read_text(encoding="utf-8")
+        playbook = (seboolean_path / "playbook.yml").read_text(encoding="utf-8")
+        vars_file = (seboolean_path / "vars" / "example_vars.yml").read_text(encoding="utf-8")
+        
+        # 检查 README 中的关键词
+        assert "SELinux" in readme, "seboolean 模块 README 应提及 SELinux"
+        assert "布尔值" in readme, "seboolean 模块 README 应提及布尔值"
+        assert "httpd_can_network_connect" in readme, "seboolean 模块 README 应提及常用布尔值示例"
+        
+        # 检查 playbook 中的 FQCN
+        assert "ansible.posix.seboolean" in playbook, "seboolean playbook 应使用 seboolean 模块"
+        
+        # 检查 playbook 中的 vars_files
+        assert "vars_files" in playbook, "seboolean playbook 应引用 vars_files"
+        
+        # 检查 playbook 中的 check_mode
+        assert "check_mode" in playbook, "seboolean playbook 应包含 check_mode"
+        
+        # 检查变量文件中的关键变量和警告
+        assert "httpd_network_bool" in vars_file, "seboolean vars 应包含 httpd_network_bool 变量"
+        assert "ftp_home_dir_bool" in vars_file, "seboolean vars 应包含 ftp_home_dir_bool 变量"
+        assert "⚠️" in vars_file or "警告" in vars_file or "注意" in vars_file, (
+            "seboolean vars 应包含安全提示"
+        )
+
+    def test_sefcontext_module_specific_content(self, module_dirs: Dict[str, Path]) -> None:
+        """验证 sefcontext 模块包含特定内容"""
+        sefcontext_path = module_dirs["sefcontext"]
+        readme = (sefcontext_path / "README.md").read_text(encoding="utf-8")
+        playbook = (sefcontext_path / "playbook.yml").read_text(encoding="utf-8")
+        vars_file = (sefcontext_path / "vars" / "example_vars.yml").read_text(encoding="utf-8")
+        
+        # 检查 README 中的关键词
+        assert "SELinux" in readme, "sefcontext 模块 README 应提及 SELinux"
+        assert "文件上下文" in readme, "sefcontext 模块 README 应提及文件上下文"
+        assert "httpd_sys_content_t" in readme, "sefcontext 模块 README 应提及上下文类型示例"
+        
+        # 检查 playbook 中的 FQCN
+        assert "ansible.posix.sefcontext" in playbook, "sefcontext playbook 应使用 sefcontext 模块"
+        
+        # 检查 playbook 中的 vars_files
+        assert "vars_files" in playbook, "sefcontext playbook 应引用 vars_files"
+        
+        # 检查 playbook 中的 check_mode
+        assert "check_mode" in playbook, "sefcontext playbook 应包含 check_mode"
+        
+        # 检查变量文件中的关键变量和警告
+        assert "webapp_root_path" in vars_file, "sefcontext vars 应包含 webapp_root_path 变量"
+        assert "log_directory_path" in vars_file, "sefcontext vars 应包含 log_directory_path 变量"
+        assert "⚠️" in vars_file or "警告" in vars_file or "注意" in vars_file, (
+            "sefcontext vars 应包含安全提示"
         )

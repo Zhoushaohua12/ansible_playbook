@@ -1,0 +1,290 @@
+# slurp 模块配置变量示例
+
+# ========== 基础文件配置 ==========
+# 示例配置文件路径
+sample_config_path: /tmp/slurp_demo/sample_config.yml
+
+# 示例证书文件路径
+sample_cert_path: /tmp/slurp_demo/sample_cert.crt
+
+# 示例日志文件路径
+sample_log_path: /tmp/slurp_demo/sample_app.log
+
+# 敏感配置文件路径
+sensitive_config_path: /tmp/slurp_demo/sensitive_config.yml
+
+# 条件读取文件路径
+conditional_file_path: /tmp/slurp_demo/conditional_config.yml
+
+# 不存在的文件路径（错误处理演示）
+nonexistent_file_path: /tmp/slurp_demo/nonexistent_file.yml
+
+# ========== 示例文件内容 ==========
+# 示例配置文件内容
+sample_config_content: |
+  # 应用配置文件
+  app_name: demo_application
+  version: 1.0.0
+  port: 8080
+  debug: true
+  log_level: info
+  
+  database:
+    host: localhost
+    port: 5432
+    name: demo_db
+  
+  features:
+    - authentication
+    - logging
+    - monitoring
+
+# 示例证书文件内容
+sample_cert_content: |
+  -----BEGIN CERTIFICATE-----
+  MIIDXTCCAkWgAwIBAgIJAMOJAAAAAAAAAAAwDQYJKoZIhvcNAQELBQAwXjELMAkGA1UE
+  BhMCVVMxCzAJBgNVBAgMAkNBMRYwFAYDVQQHDA1TYW4gRnJhbmNpc2NvMRAwDgYDVQQK
+  DAdFeGFtcGxlMRgwFgYDVQQDDA9FeGFtcGxlIFJvb3QgQ0EwHhcNMjQwMTAxMDAwMDAw
+  WhcNMjUwMTAxMDAwMDAwWjBeMQswCQYDVQQGEwJVUzELMAkGA1UECAwCQ0ExFjAUBgNV
+  BAcMDVNhbiBGcmFuY2lzY28xEDAOBgNVBAoMB0V4YW1wbGUxGDAWBgNVBAMMD0V4YW1w
+  bGUgUm9vdCBDQTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAL7/Uexample
+  demo_certificate_content_here_for_slurp_module_testing_purposes_only
+  -----END CERTIFICATE-----
+
+# 示例日志文件内容
+sample_log_content: |
+  2024-01-01 10:00:00 INFO Application started successfully
+  2024-01-01 10:01:00 DEBUG Loading configuration from /etc/app/config.yml
+  2024-01-01 10:01:30 INFO Database connection established
+  2024-01-01 10:02:00 INFO Web server listening on port 8080
+  2024-01-01 10:05:00 WARN High memory usage detected: 85%
+  2024-01-01 10:10:00 ERROR Failed to connect to external API: timeout
+  2024-01-01 10:10:30 INFO Retrying API connection attempt 1/3
+  2024-01-01 10:11:00 INFO API connection restored
+  2024-01-01 10:15:00 DEBUG Processing user request: GET /api/users
+  2024-01-01 10:20:00 INFO Application shutdown initiated
+
+# ========== 文件权限配置 ==========
+# 文件权限
+file_permissions: "0644"
+
+# 证书文件权限
+cert_permissions: "0644"
+
+# 日志文件权限
+log_permissions: "0644"
+
+# 文件所有者
+file_owner: "{{ ansible_user_id }}"
+
+# 文件所属组
+file_group: "{{ ansible_user_id }}"
+
+# 证书所有者
+cert_owner: root
+
+# 证书所属组
+cert_group: ssl-cert
+
+# 日志所有者
+log_owner: "{{ ansible_user_id }}"
+
+# 日志所属组
+log_group: "{{ ansible_user_id }}"
+
+# ========== 功能开关配置 ==========
+# 是否创建示例文件
+create_sample_files: true
+
+# 是否读取证书文件
+read_cert_file: true
+
+# 是否读取日志文件
+read_log_file: true
+
+# 是否读取敏感文件
+read_sensitive_file: false
+
+# 是否启用条件读取
+enable_conditional_read: false
+
+# 是否启用批量读取
+enable_batch_read: false
+
+# 是否启用编码测试
+enable_encoding_test: false
+
+# 是否启用错误处理演示
+enable_error_handling_demo: false
+
+# ========== 批量读取配置 ==========
+# 批量读取文件列表
+batch_read_files:
+  - name: "app_config"
+    path: /tmp/slurp_demo/app_config.yml
+  - name: "database_config"
+    path: /tmp/slurp_demo/database_config.yml
+  - name: "logging_config"
+    path: /tmp/slurp_demo/logging_config.yml
+
+# ========== 编码测试配置 ==========
+# 编码测试文件列表
+encoding_test_files:
+  - path: /tmp/slurp_demo/utf8_file.txt
+    encoding: "base64"
+  - path: /tmp/slurp_demo/binary_file.bin
+    encoding: "base64"
+
+# ========== 清理配置 ==========
+# 是否在演示后清理文件
+cleanup_after_demo: false
+
+# 需要清理的文件列表
+cleanup_files:
+  - /tmp/slurp_demo/sample_config.yml
+  - /tmp/slurp_demo/sample_cert.crt
+  - /tmp/slurp_demo/sample_app.log
+  - /tmp/slurp_demo/sensitive_config.yml
+  - /tmp/slurp_demo/conditional_config.yml
+  - /tmp/slurp_demo/app_config.yml
+  - /tmp/slurp_demo/database_config.yml
+  - /tmp/slurp_demo/logging_config.yml
+  - /tmp/slurp_demo/utf8_file.txt
+  - /tmp/slurp_demo/binary_file.bin
+
+# ========== 高级配置选项 ==========
+# 默认编码格式
+default_encoding: "base64"
+
+# 大文件阈值（字节）
+large_file_threshold: 10485760  # 10MB
+
+# 是否启用内容验证
+enable_content_validation: true
+
+# 最大读取重试次数
+max_read_retries: 3
+
+# 读取超时时间（秒）
+read_timeout: 30
+
+# ========== 环境特定配置 ==========
+# 开发环境配置
+development_config:
+  file_dir: "/tmp/dev/slurp_demo"
+  read_sensitive: true
+  cleanup: false
+
+# 测试环境配置
+testing_config:
+  file_dir: "/tmp/test/slurp_demo"
+  read_sensitive: true
+  cleanup: true
+
+# 生产环境配置（更严格）
+production_config:
+  file_dir: "/etc/production"
+  read_sensitive: false
+  cleanup: false
+  permissions: "0600"
+
+# ========== 常用文件路径参考 ==========
+# 系统配置文件
+system_config_files:
+  hosts: "/etc/hosts"
+  hostname: "/etc/hostname"
+  resolv_conf: "/etc/resolv.conf"
+  fstab: "/etc/fstab"
+
+# 应用配置文件
+application_config_files:
+  nginx_conf: "/etc/nginx/nginx.conf"
+  apache_conf: "/etc/httpd/conf/httpd.conf"
+  mysql_conf: "/etc/mysql/my.cnf"
+  postgresql_conf: "/etc/postgresql/*/main/postgresql.conf"
+
+# 证书和密钥文件
+certificate_files:
+  ssl_cert: "/etc/ssl/certs/server.crt"
+  ssl_key: "/etc/ssl/private/server.key"
+  ca_cert: "/etc/ssl/certs/ca.crt"
+  ssh_host_key: "/etc/ssh/ssh_host_rsa_key"
+
+# 日志文件
+log_files:
+  syslog: "/var/log/syslog"
+  auth_log: "/var/log/auth.log"
+  nginx_access: "/var/log/nginx/access.log"
+  nginx_error: "/var/log/nginx/error.log"
+  mysql_log: "/var/log/mysql/error.log"
+
+# ========== 敏感文件处理配置 ==========
+# 敏感文件模式
+sensitive_file_patterns:
+  - "*password*"
+  - "*secret*"
+  - "*key*"
+  - "*credential*"
+  - "*token*"
+
+# 敏感文件读取策略
+sensitive_file_policy:
+  require_approval: true
+  audit_log: true
+  auto_mask: true
+  vault_encrypt: true
+
+# ⚠️  严重警告 - slurp 模块安全注意事项：
+# 1. 敏感信息泄露风险：
+#    - slurp 读取的文件内容会显示在 Ansible 输出中
+#    - 使用 no_log: true 隐藏敏感文件内容
+#    - 避免读取包含密码、密钥的文件
+
+# 2. 文件访问权限：
+#    - 确保只读取授权的文件
+#    - 遵循最小权限原则
+#    - 避免读取系统关键文件如 /etc/shadow
+
+# 3. 内存和性能影响：
+#    - 大文件读取会消耗大量内存
+#    - 考虑文件大小对系统性能的影响
+#    - 使用其他方法处理超大文件
+
+# 4. 内容验证和安全：
+#    - 验证文件内容的合法性和完整性
+#    - 处理 base64 解码可能出现的异常
+#    - 避免执行来自文件的可信内容
+
+# ⚠️  文件系统注意：
+# 1. 文件存在性检查：
+#    - 使用 stat 模块检查文件是否存在
+#    - 处理文件不存在的情况
+#    - 考虑文件权限和访问控制
+
+# 2. 文件类型和编码：
+#    - 理解不同文件类型的处理方式
+#    - 考虑字符编码的影响
+#    - 正确处理二进制文件内容
+
+# 3. 网络传输安全：
+#    - 文件内容通过网络传输到控制节点
+#    - 考虑网络传输的安全性
+#    - 使用加密连接传输敏感数据
+
+# ⚠️  在生产环境使用前的建议：
+# - 使用 --check 模式预览读取操作：ansible-playbook playbook.yml --check
+# - 在测试环境验证所有文件读取操作的结果
+# - 准备详细的文件访问计划和权限控制
+# - 配置监控系统跟踪文件访问和内容处理
+# - 建立敏感文件访问的审批和记录流程
+# - 实施文件内容的验证和清理机制
+# - 准备文件读取失败的应急预案
+
+# ⚠️  故障排查提示：
+# - 如果文件读取失败，检查文件路径和权限
+# - 验证文件是否存在且可读
+# - 检查 Ansible 用户的文件访问权限
+# - 使用 cat 或 head 命令手动验证文件内容
+# - 检查磁盘空间是否充足
+# - 验证网络连接（如果文件在网络存储上）
+# - 使用 file 命令检查文件类型和编码

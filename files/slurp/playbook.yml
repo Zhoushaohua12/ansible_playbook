@@ -1,0 +1,324 @@
+---
+- name: slurp 模块使用示例演示
+  hosts: localhost
+  gather_facts: true
+  check_mode: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 准备示例文件 ==========
+    - name: 创建示例配置文件
+      ansible.builtin.copy:
+        content: "{{ sample_config_content }}"
+        dest: "{{ sample_config_path }}"
+        mode: "{{ file_permissions }}"
+        owner: "{{ file_owner }}"
+        group: "{{ file_group }}"
+      when: create_sample_files | default(true)
+    
+    - name: 创建示例证书文件
+      ansible.builtin.copy:
+        content: "{{ sample_cert_content }}"
+        dest: "{{ sample_cert_path }}"
+        mode: "{{ cert_permissions }}"
+        owner: "{{ cert_owner }}"
+        group: "{{ cert_group }}"
+      when: create_sample_files | default(true)
+    
+    - name: 创建示例日志文件
+      ansible.builtin.copy:
+        content: "{{ sample_log_content }}"
+        dest: "{{ sample_log_path }}"
+        mode: "{{ log_permissions }}"
+        owner: "{{ log_owner }}"
+        group: "{{ log_group }}"
+      when: create_sample_files | default(true)
+    
+    # ========== 基础文件内容读取 ==========
+    - name: 读取配置文件内容
+      ansible.builtin.slurp:
+        src: "{{ sample_config_path }}"
+      register: config_content
+    
+    - name: 解码并显示配置文件内容
+      ansible.builtin.debug:
+        msg: |
+          配置文件内容：
+          文件路径: {{ sample_config_path }}
+          原始编码: {{ config_content.encoding }}
+          解码内容:
+          {{ config_content.content | b64decode }}
+    
+    - name: 解析配置文件参数
+      ansible.builtin.set_fact:
+        parsed_config: "{{ config_content.content | b64decode | from_yaml }}"
+      when: config_content.content is defined
+    
+    - name: 显示解析后的配置参数
+      ansible.builtin.debug:
+        msg: |
+          解析后的配置参数：
+          应用名称: {{ parsed_config.app_name | default('未定义') }}
+          监听端口: {{ parsed_config.port | default('未定义') }}
+          调试模式: {{ parsed_config.debug | default('未定义') }}
+          日志级别: {{ parsed_config.log_level | default('未定义') }}
+      when: parsed_config is defined
+    
+    # ========== 证书文件读取 ==========
+    - name: 读取证书文件内容
+      ansible.builtin.slurp:
+        src: "{{ sample_cert_path }}"
+      register: cert_content
+      when: read_cert_file | default(true)
+    
+    - name: 显示证书文件内容（部分）
+      ansible.builtin.debug:
+        msg: |
+          证书文件信息：
+          文件路径: {{ sample_cert_path }}
+          文件大小: {{ cert_content.content | b64decode | length }} 字符
+          证书开头: {{ (cert_content.content | b64decode)[0:50] }}...
+          编码格式: {{ cert_content.encoding }}
+      when: read_cert_file | default(true)
+    
+    # ========== 日志文件读取 ==========
+    - name: 读取日志文件内容
+      ansible.builtin.slurp:
+        src: "{{ sample_log_path }}"
+      register: log_content
+      when: read_log_file | default(true)
+    
+    - name: 分析日志文件内容
+      ansible.builtin.set_fact:
+        log_lines: "{{ log_content.content | b64decode | split('\n') }}"
+        error_count: "{{ (log_content.content | b64decode | split('\n')) | select('search', 'ERROR') | list | length }}"
+        warn_count: "{{ (log_content.content | b64decode | split('\n')) | select('search', 'WARN') | list | length }}"
+      when: read_log_file | default(true)
+    
+    - name: 显示日志分析结果
+      ansible.builtin.debug:
+        msg: |
+          日志文件分析：
+          文件路径: {{ sample_log_path }}
+          总行数: {{ log_lines | length }}
+          错误数量: {{ error_count }}
+          警告数量: {{ warn_count }}
+          最新日志条目: {{ log_lines[-1] if log_lines | length > 0 else '无' }}
+      when: read_log_file | default(true)
+    
+    # ========== 敏感文件读取（带 no_log） ==========
+    - name: 读取敏感配置文件
+      ansible.builtin.slurp:
+        src: "{{ sensitive_config_path }}"
+      register: sensitive_config
+      no_log: true  # 隐藏敏感内容
+      when: read_sensitive_file | default(false)
+    
+    - name: 安全处理敏感配置
+      ansible.builtin.set_fact:
+        db_host: "{{ (sensitive_config.content | b64decode | from_yaml).database.host }}"
+        db_port: "{{ (sensitive_config.content | b64decode | from_yaml).database.port }}"
+      no_log: true  # 隐藏敏感操作
+      when: read_sensitive_file | default(false) and sensitive_config.content is defined
+    
+    - name: 显示安全的配置信息
+      ansible.builtin.debug:
+        msg: |
+          敏感配置处理完成：
+          数据库主机: {{ db_host | default('未配置') }}
+          数据库端口: {{ db_port | default('未配置') }}
+          注意：密码等敏感信息已隐藏
+      when: read_sensitive_file | default(false)
+    
+    # ========== 条件文件读取 ==========
+    - name: 检查文件是否存在
+      ansible.builtin.stat:
+        path: "{{ conditional_file_path }}"
+      register: conditional_file_stat
+      when: enable_conditional_read | default(false)
+    
+    - name: 条件读取文件
+      ansible.builtin.slurp:
+        src: "{{ conditional_file_path }}"
+      register: conditional_content
+      when: enable_conditional_read | default(false) and conditional_file_stat.stat.exists
+    
+    - name: 显示条件读取结果
+      ansible.builtin.debug:
+        msg: |
+          条件读取结果：
+          文件路径: {{ conditional_file_path }}
+          文件存在: {{ conditional_file_stat.stat.exists | default(false) }}
+          读取成功: {{ conditional_content.content is defined }}
+          文件内容: {{ conditional_content.content | b64decode if conditional_content.content is defined else '未读取' }}
+      when: enable_conditional_read | default(false)
+    
+    # ========== 多文件批量读取 ==========
+    - name: 批量读取配置文件
+      ansible.builtin.slurp:
+        src: "{{ item.path }}"
+      register: batch_read_results
+      loop: "{{ batch_read_files }}"
+      when: enable_batch_read | default(false)
+    
+    - name: 显示批量读取结果
+      ansible.builtin.debug:
+        msg: |
+          批量读取结果：
+          {% for result in batch_read_results.results %}
+          - {{ result.item.path }}: {{ '成功' if result.content is defined else '失败' }}
+          {% endfor %}
+      when: enable_batch_read | default(false)
+    
+    - name: 处理批量读取的内容
+      ansible.builtin.set_fact:
+        batch_contents: "{{ batch_contents | default({}) | combine({result.item.name: result.content | b64decode}) }}"
+      loop: "{{ batch_read_results.results }}"
+      when: enable_batch_read | default(false) and result.content is defined
+      register: batch_content_processing
+      loop_control:
+        label: "{{ result.item.name }}"
+    
+    # ========== 文件内容验证 ==========
+    - name: 验证读取的配置文件格式
+      ansible.builtin.set_fact:
+        config_is_valid_yaml: "{{ config_content.content | b64decode | from_yaml is mapping }}"
+      when: config_content.content is defined
+    
+    - name: 显示配置文件验证结果
+      ansible.builtin.debug:
+        msg: |
+          配置文件验证：
+          文件路径: {{ sample_config_path }}
+          YAML格式有效: {{ config_is_valid_yaml | default(false) }}
+          内容长度: {{ config_content.content | b64decode | length }} 字符
+      when: config_content.content is defined
+    
+    # ========== 文件编码和格式处理 ==========
+    - name: 演示不同编码的文件读取
+      ansible.builtin.slurp:
+        src: "{{ item.path }}"
+        encoding: "{{ item.encoding | default('base64') }}"
+      register: encoding_test_results
+      loop: "{{ encoding_test_files }}"
+      when: enable_encoding_test | default(false)
+    
+    - name: 显示编码测试结果
+      ansible.builtin.debug:
+        msg: |
+          编码测试结果：
+          {% for result in encoding_test_results.results %}
+          - {{ result.item.path }} ({{ result.item.encoding | default('base64') }}): 
+            编码: {{ result.encoding }}
+            长度: {{ result.content | length if result.encoding == 'base64' else result.content | length }}
+          {% endfor %}
+      when: enable_encoding_test | default(false)
+    
+    # ========== 错误处理演示 ==========
+    - name: 尝试读取不存在的文件
+      ansible.builtin.slurp:
+        src: "{{ nonexistent_file_path }}"
+      register: nonexistent_file_result
+      failed_when: false
+      when: enable_error_handling_demo | default(false)
+    
+    - name: 显示错误处理结果
+      ansible.builtin.debug:
+        msg: |
+          错误处理演示：
+          尝试读取: {{ nonexistent_file_path }}
+          读取成功: {{ nonexistent_file_result.content is defined }}
+          错误信息: {{ nonexistent_file_result.msg | default('无错误') }}
+      when: enable_error_handling_demo | default(false)
+    
+    # ========== 清理演示文件 ==========
+    - name: 清理示例文件
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ cleanup_files }}"
+      when: cleanup_after_demo | default(false)
+    
+    - name: 显示清理结果
+      ansible.builtin.debug:
+        msg: |
+          清理完成：
+          已删除文件: {{ cleanup_files | join(', ') }}
+      when: cleanup_after_demo | default(false)
+    
+    # ========== 安全建议和最佳实践 ==========
+    - name: 显示 slurp 模块安全建议
+      ansible.builtin.debug:
+        msg: |
+          slurp 模块安全建议和最佳实践：
+          
+          1. 敏感信息保护：
+             - 使用 no_log: true 隐藏敏感文件内容
+             - 避免在日志中记录密码、密钥等敏感信息
+             - 使用 Ansible Vault 保护变量中的敏感数据
+          
+          2. 文件访问权限：
+             - 确保只读取授权的文件
+             - 遵循最小权限原则
+             - 避免读取系统关键文件
+          
+          3. 内容处理安全：
+             - 验证文件内容的合法性
+             - 处理 base64 解码可能出现的异常
+             - 避免执行来自文件的可信内容
+          
+          4. 性能考虑：
+             - 大文件可能消耗大量内存
+             - 考虑使用其他方法处理超大文件
+             - 监控网络传输和内存使用
+          
+          5. 错误处理：
+             - 使用 stat 模块检查文件存在性
+             - 实施适当的错误恢复机制
+             - 处理文件权限不足的情况
+          
+          6. 编码处理：
+             - 理解 base64 编码的工作原理
+             - 正确处理二进制文件内容
+             - 考虑字符编码的影响
+          
+          常用应用场景：
+          - 读取配置文件获取参数
+          - 获取证书和密钥文件内容
+          - 分析日志文件内容
+          - 提取应用状态信息
+          - 批量处理多个配置文件
+    
+    # ========== 配置完成总结 ==========
+    - name: slurp 模块配置完成总结
+      ansible.builtin.debug:
+        msg: |
+          slurp 模块演示已完成：
+          
+          已演示的功能：
+          1. 基础文件读取: {{ sample_config_path }}
+          2. 证书文件读取: {{ sample_cert_path if read_cert_file | default(true) else '跳过' }}
+          3. 日志文件读取: {{ sample_log_path if read_log_file | default(true) else '跳过' }}
+          4. 敏感文件读取: {{ sensitive_config_path if read_sensitive_file | default(false) else '跳过' }}
+          5. 条件文件读取: {{ conditional_file_path if enable_conditional_read | default(false) else '跳过' }}
+          6. 批量文件读取: {{ '启用' if enable_batch_read | default(false) else '跳过' }}
+          
+          重要特性：
+          - 文件内容以 base64 编码返回，安全传输二进制数据
+          - 支持读取任意类型文件（文本、二进制）
+          - 可以使用 no_log 隐藏敏感内容
+          - 支持条件读取和批量处理
+          - 与其他模块配合实现复杂的文件处理逻辑
+          
+          注意事项：
+          - 大文件读取可能消耗大量内存
+          - 使用 no_log 保护敏感文件内容
+          - 在生产环境谨慎读取系统关键文件
+          - 考虑使用 fetch 模块获取文件到控制节点
+          
+          相关命令：
+          - base64 -d: 解码 base64 内容
+          - file: 检测文件类型
+          - wc -l: 统计文件行数
+          - head/tail: 查看文件开头或结尾

@@ -1,0 +1,256 @@
+---
+- name: get_url 模块使用示例演示
+  hosts: localhost
+  gather_facts: true
+  check_mode: true
+  vars_files:
+    - vars/example_vars.yml
+  
+  tasks:
+    # ========== 基础文件下载 ==========
+    - name: 下载示例配置文件
+      ansible.builtin.get_url:
+        url: "{{ sample_config_url }}"
+        dest: "{{ sample_config_dest }}"
+        mode: "{{ file_permissions }}"
+        owner: "{{ file_owner }}"
+        group: "{{ file_group }}"
+        timeout: "{{ download_timeout }}"
+      register: config_download_result
+    
+    - name: 显示配置文件下载结果
+      ansible.builtin.debug:
+        msg: |
+          配置文件下载完成：
+          源URL: {{ sample_config_url }}
+          目标路径: {{ sample_config_dest }}
+          下载状态: {{ config_download_result.changed }}
+          文件大小: {{ config_download_result.size | default('未知') }} 字节
+    
+    # ========== 带校验和验证的下载 ==========
+    - name: 下载软件包并验证完整性
+      ansible.builtin.get_url:
+        url: "{{ package_download_url }}"
+        dest: "{{ package_dest_path }}"
+        checksum: "{{ package_checksum }}"
+        mode: "{{ file_permissions }}"
+        timeout: "{{ download_timeout }}"
+      register: package_download_result
+      when: enable_package_download | default(false)
+    
+    - name: 显示软件包下载结果
+      ansible.builtin.debug:
+        msg: |
+          软件包下载完成：
+          源URL: {{ package_download_url }}
+          目标路径: {{ package_dest_path }}
+          校验和验证: {{ package_download_result.changed }}
+          文件完整性: 验证通过
+      when: enable_package_download | default(false)
+    
+    # ========== 使用认证的下载 ==========
+    - name: 使用认证头下载私有资源
+      ansible.builtin.get_url:
+        url: "{{ private_resource_url }}"
+        dest: "{{ private_resource_dest }}"
+        headers: "{{ download_headers }}"
+        mode: "{{ file_permissions }}"
+        timeout: "{{ download_timeout }}"
+      register: private_download_result
+      when: enable_private_download | default(false)
+      no_log: true  # 隐藏认证信息
+    
+    - name: 显示私有资源下载结果
+      ansible.builtin.debug:
+        msg: |
+          私有资源下载完成：
+          源URL: {{ private_resource_url }}
+          目标路径: {{ private_resource_dest }}
+          下载状态: {{ private_download_result.changed }}
+          认证方式: Bearer Token
+      when: enable_private_download | default(false)
+    
+    # ========== 批量文件下载 ==========
+    - name: 批量下载应用资源文件
+      ansible.builtin.get_url:
+        url: "{{ item.url }}"
+        dest: "{{ item.dest }}"
+        checksum: "{{ item.checksum | default(omit) }}"
+        mode: "{{ item.mode | default(file_permissions) }}"
+        timeout: "{{ item.timeout | default(download_timeout) }}"
+      loop: "{{ batch_download_files }}"
+      register: batch_download_results
+      when: enable_batch_download | default(false)
+    
+    - name: 显示批量下载结果
+      ansible.builtin.debug:
+        msg: |
+          批量下载完成：
+          {% for result in batch_download_results.results %}
+          - {{ result.item.url }}: {{ '成功' if result.changed else '未变更' }}
+          {% endfor %}
+      when: enable_batch_download | default(false)
+    
+    # ========== 重试机制下载 ==========
+    - name: 带重试机制的可靠下载
+      ansible.builtin.get_url:
+        url: "{{ reliable_download_url }}"
+        dest: "{{ reliable_download_dest }}"
+        timeout: "{{ reliable_download_timeout }}"
+        mode: "{{ file_permissions }}"
+      register: reliable_download_result
+      retries: "{{ download_retries }}"
+      delay: "{{ retry_delay }}"
+      until: reliable_download_result is succeeded
+      when: enable_reliable_download | default(false)
+    
+    - name: 显示可靠下载结果
+      ansible.builtin.debug:
+        msg: |
+          可靠下载完成：
+          源URL: {{ reliable_download_url }}
+          目标路径: {{ reliable_download_dest }}
+          重试次数: {{ reliable_download_result.attempts | default(1) }}
+          最终状态: {{ '成功' if reliable_download_result.changed else '未变更' }}
+      when: enable_reliable_download | default(false)
+    
+    # ========== 下载文件验证 ==========
+    - name: 验证下载文件的存在和权限
+      ansible.builtin.stat:
+        path: "{{ sample_config_dest }}"
+      register: downloaded_file_stat
+    
+    - name: 显示文件验证结果
+      ansible.builtin.debug:
+        msg: |
+          下载文件验证：
+          文件路径: {{ sample_config_dest }}
+          文件存在: {{ downloaded_file_stat.stat.exists }}
+          文件大小: {{ downloaded_file_stat.stat.size | default('未知') }} 字节
+          文件权限: {{ downloaded_file_stat.stat.mode }}
+          文件所有者: {{ downloaded_file_stat.stat.pw_name }}
+          文件所属组: {{ downloaded_file_stat.stat.gr_name }}
+    
+    # ========== 网络连接测试 ==========
+    - name: 测试网络连接和URL可达性
+      ansible.builtin.uri:
+        url: "{{ sample_config_url }}"
+        method: HEAD
+        timeout: 10
+        validate_certs: "{{ validate_ssl_certs }}"
+      register: url_connectivity_test
+      when: test_connectivity | default(false)
+      ignore_errors: yes
+    
+    - name: 显示网络连接测试结果
+      ansible.builtin.debug:
+        msg: |
+          网络连接测试：
+          URL: {{ sample_config_url }}
+          状态码: {{ url_connectivity_test.status | default('连接失败') }}
+          响应时间: {{ url_connectivity_test.elapsed | default('未知') }} 秒
+          SSL验证: {{ '通过' if validate_ssl_certs else '跳过' }}
+      when: test_connectivity | default(false)
+    
+    # ========== 下载性能测试 ==========
+    - name: 测试下载性能
+      ansible.builtin.get_url:
+        url: "{{ performance_test_url }}"
+        dest: "{{ performance_test_dest }}"
+        timeout: "{{ performance_test_timeout }}"
+      register: performance_download_result
+      when: enable_performance_test | default(false)
+    
+    - name: 计算下载性能
+      ansible.builtin.set_fact:
+        download_speed: >-
+          {{ (performance_download_result.size | int / 1024 / 1024) /
+             (performance_download_result.elapsed | default(1)) }}
+      when: enable_performance_test | default(false) and 
+             performance_download_result.size is defined
+    
+    - name: 显示性能测试结果
+      ansible.builtin.debug:
+        msg: |
+          下载性能测试：
+          文件大小: {{ (performance_download_result.size | int / 1024 / 1024) | round(2) }} MB
+          下载时间: {{ performance_download_result.elapsed | round(2) }} 秒
+          下载速度: {{ download_speed | round(2) }} MB/s
+      when: enable_performance_test | default(false) and 
+             download_speed is defined
+    
+    # ========== 清理下载文件演示 ==========
+    - name: 清理测试下载文件
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ cleanup_files }}"
+      when: cleanup_after_test | default(false)
+    
+    - name: 显示清理结果
+      ansible.builtin.debug:
+        msg: |
+          清理完成：
+          已删除文件: {{ cleanup_files | join(', ') }}
+      when: cleanup_after_test | default(false)
+    
+    # ========== 安全建议和最佳实践 ==========
+    - name: 显示 get_url 安全建议
+      ansible.builtin.debug:
+        msg: |
+          get_url 模块安全建议和最佳实践：
+          
+          1. 传输安全：
+             - 优先使用 HTTPS 协议
+             - 验证 SSL 证书有效性
+             - 避免在不安全网络传输敏感文件
+          
+          2. 文件完整性：
+             - 始终使用校验和验证文件完整性
+             - 使用 SHA-256 或更强的哈希算法
+             - 定期更新校验和值
+          
+          3. 认证安全：
+             - 使用 Ansible Vault 存储敏感凭据
+             - 遵循最小权限原则
+             - 定期轮换访问令牌
+          
+          4. 错误处理：
+             - 实施重试机制处理网络不稳定
+             - 设置合理的超时时间
+             - 记录下载失败原因
+          
+          5. 目标安全：
+             - 确保目标目录权限适当
+             - 避免覆盖重要系统文件
+             - 使用临时目录进行验证
+          
+          6. 性能优化：
+             - 大文件下载增加超时时间
+             - 考虑使用 CDN 加速下载
+             - 监控下载性能和带宽使用
+    
+    # ========== 配置完成总结 ==========
+    - name: get_url 模块配置完成总结
+      ansible.builtin.debug:
+        msg: |
+          get_url 模块演示已完成：
+          
+          已演示的功能：
+          1. 基础文件下载: {{ sample_config_url }}
+          2. 校验和验证: {{ package_download_url if enable_package_download | default(false) else '跳过' }}
+          3. 认证下载: {{ private_resource_url if enable_private_download | default(false) else '跳过' }}
+          4. 批量下载: {{ '启用' if enable_batch_download | default(false) else '跳过' }}
+          5. 重试机制: {{ '启用' if enable_reliable_download | default(false) else '跳过' }}
+          
+          重要提醒：
+          - 在生产环境中使用 HTTPS 确保传输安全
+          - 始终验证文件校验和确保完整性
+          - 使用 Ansible Vault 保护敏感认证信息
+          - 设置合理的超时和重试参数
+          - 定期清理临时下载文件
+          
+          相关命令：
+          - curl -I URL: 测试 URL 可达性
+          - sha256sum file: 计算文件校验和
+          - wget URL: 备用下载工具

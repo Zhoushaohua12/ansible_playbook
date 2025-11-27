@@ -690,18 +690,44 @@ files:
     coverage:
       status: covered
       priority: n/a
-  learning_path:
+  - id: get_url
+    name: get_url 模块使用指南
+    doc: files/get_url/README.md
+    example: files/get_url/playbook.yml
+    summary: ansible.builtin.get_url 模块用于从 HTTP、HTTPS 或 FTP 服务器下载文件到远程主机。它支持多种下载方式，包括基本认证、自定义头部、校验和验证等功能。在软件包下载、配置文件获取、资源文件部署等场景中，这是实现文件远程获取的核心工具。
+    dependencies:
+    - ansible.builtin.debug
+    - ansible.builtin.get_url
+    - ansible.builtin.uri
+    coverage:
+      status: covered
+      priority: n/a
   - id: assemble
-    name: Assemble 文件拼接
-    priority: high
-    status: missing
-    doc_url: https://docs.ansible.com/ansible/latest/collections/ansible/builtin/assemble_module.html
-    notes: 将碎片化配置组装成完整文件，可接在 copy/template 之后演示差异化发布。
-    prerequisites:
-    - copy
-    - template
-    suggested_next:
-    - archive
+    name: assemble 模块使用指南
+    doc: files/assemble/README.md
+    example: files/assemble/playbook.yml
+    summary: ansible.builtin.assemble 模块用于将多个文件片段组装成一个完整的文件。它按照指定顺序读取目录中的文件，将内容合并成单个目标文件。这个模块特别适用于配置文件管理、日志文件合并、证书链组装等场景，能够将分散的配置片段统一管理，提高配置文件的可维护性。
+    dependencies:
+    - ansible.builtin.assemble
+    - ansible.builtin.copy
+    - ansible.builtin.debug
+    - ansible.builtin.file
+    coverage:
+      status: covered
+      priority: n/a
+  - id: slurp
+    name: slurp 模块使用指南
+    doc: files/slurp/README.md
+    example: files/slurp/playbook.yml
+    summary: ansible.builtin.slurp 模块用于从远程主机读取文件内容并以 base64 编码形式返回。它能够读取任意类型的文件（包括二进制文件），并将其内容安全地传输到控制节点。在需要读取远程文件内容、提取配置信息、获取证书文件内容等场景中，这是实现远程文件读取的核心工具。
+    dependencies:
+    - ansible.builtin.debug
+    - ansible.builtin.set_fact
+    - ansible.builtin.slurp
+    coverage:
+      status: covered
+      priority: n/a
+  learning_path:
   - id: xattr
     name: Xattr 扩展属性管理
     priority: medium
@@ -713,7 +739,7 @@ files:
     suggested_next:
     - selinux
   stats:
-    total_topics: 12
+    total_topics: 15
 message_queue:
   key: message_queue
   title: 消息队列管理
@@ -1441,6 +1467,30 @@ system:
     coverage:
       status: covered
       priority: n/a
+  - id: seboolean
+    name: seboolean 模块使用指南
+    doc: system/seboolean/README.md
+    example: system/seboolean/playbook.yml
+    summary: ansible.posix.seboolean 模块用于管理 SELinux 布尔值，这些布尔值控制 SELinux 策略的特定行为。通过修改布尔值，可以在不重新编译 SELinux 策略的情况下调整安全策略的行为，如允许 HTTP 服务访问网络、允许用户登录等。在 RHEL/CentOS 等支持 SELinux 的系统中，这是灵活调整安全策略的重要工具。
+    dependencies:
+    - ansible.builtin.debug
+    - ansible.builtin.shell
+    - ansible.posix.seboolean
+    coverage:
+      status: covered
+      priority: n/a
+  - id: sefcontext
+    name: sefcontext 模块使用指南
+    doc: system/sefcontext/README.md
+    example: system/sefcontext/playbook.yml
+    summary: ansible.posix.sefcontext 模块用于管理 SELinux 文件安全上下文映射，定义文件和目录的默认 SELinux 安全标签。通过配置文件上下文映射，可以确保新创建的文件自动获得正确的 SELinux 上下文，或修改现有文件的上下文映射规则。在需要自定义应用文件安全策略、配置非标准目录结构、或修复文件上下文问题时，这个模块是必不可少的工具。
+    dependencies:
+    - ansible.builtin.command
+    - ansible.builtin.debug
+    - ansible.posix.sefcontext
+    coverage:
+      status: covered
+      priority: n/a
   learning_path:
   - id: mount
     name: Mount 文件系统挂载
@@ -1453,7 +1503,7 @@ system:
     suggested_next:
     - storage_lvol
   stats:
-    total_topics: 16
+    total_topics: 18
 version_control:
   key: version_control
   title: 版本控制模块指南
