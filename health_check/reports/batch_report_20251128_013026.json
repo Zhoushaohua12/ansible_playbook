@@ -1,0 +1,74 @@
+{
+  "timestamp": "2025-11-28T01:30:26.927565",
+  "total_hosts": 2,
+  "reports": [
+    {
+      "host": "host1",
+      "os_type": "linux",
+      "summary": {
+        "total": 2,
+        "passed": 2,
+        "failed": 0,
+        "warning": 0,
+        "skipped": 0,
+        "overall_status": "PASS"
+      },
+      "results": [
+        {
+          "name": "disk_usage",
+          "status": "PASS",
+          "message": "Disk usage is normal",
+          "details": {
+            "usage": "25%"
+          },
+          "raw_output": "Filesystem usage output",
+          "timestamp": "2023-01-01T12:00:00"
+        },
+        {
+          "name": "memory",
+          "status": "FAIL",
+          "message": "Memory usage is high",
+          "details": {
+            "usage": "95%"
+          },
+          "raw_output": "Memory usage output",
+          "timestamp": "2023-01-01T12:00:00"
+        }
+      ]
+    },
+    {
+      "host": "host2",
+      "os_type": "aix",
+      "summary": {
+        "total": 2,
+        "passed": 1,
+        "failed": 1,
+        "warning": 0,
+        "skipped": 0,
+        "overall_status": "FAIL"
+      },
+      "results": [
+        {
+          "name": "disk_usage",
+          "status": "PASS",
+          "message": "Disk usage is normal",
+          "details": {
+            "usage": "25%"
+          },
+          "raw_output": "Filesystem usage output",
+          "timestamp": "2023-01-01T12:00:00"
+        },
+        {
+          "name": "memory",
+          "status": "FAIL",
+          "message": "Memory usage is high",
+          "details": {
+            "usage": "95%"
+          },
+          "raw_output": "Memory usage output",
+          "timestamp": "2023-01-01T12:00:00"
+        }
+      ]
+    }
+  ]
+}

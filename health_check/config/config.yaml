@@ -1,0 +1,50 @@
+# SSH Connection Configuration
+ssh:
+  timeout: 30
+  max_retries: 3
+  retry_delay: 5
+  key_file: null  # Path to private key file, null for password auth
+  port: 22
+
+# Logging Configuration
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: health_check.log
+  console: true
+
+# Health Check Commands Configuration
+checks:
+  linux:
+    enabled: true
+    commands:
+      disk_usage: "df -h"
+      memory: "free -m"
+      cpu_load: "uptime"
+      services: "systemctl list-units --type=service --state=failed"
+      network: "ip addr show"
+      processes: "ps aux | head -20"
+  
+  aix:
+    enabled: true
+    commands:
+      disk_usage: "df -g"
+      memory: "svmon -G"
+      cpu_load: "uptime"
+      services: "lssrc -a"
+      network: "ifconfig -a"
+      processes: "ps -ef | head -20"
+
+# Report Configuration
+report:
+  output_dir: "./reports"
+  formats: ["json", "html"]
+  include_raw_output: false
+
+# Default Host Configuration (can be overridden)
+hosts:
+  - host: "192.168.1.100"
+    username: "admin"
+    password: "password"  # In production, use environment variables or key files
+    os_type: "linux"
+    port: 22

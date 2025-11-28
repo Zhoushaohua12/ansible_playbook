@@ -1,0 +1,113 @@
+2025-11-28 01:30:26,451 - AIXChecker - INFO - Executing check 'disk_usage' on test-host
+2025-11-28 01:30:26,452 - AIXChecker - INFO - Check 'disk_usage' completed with status: FAIL
+2025-11-28 01:30:26,457 - AIXChecker - INFO - Executing check 'disk_usage' on test-host
+2025-11-28 01:30:26,457 - AIXChecker - INFO - Check 'disk_usage' completed with status: FAIL
+2025-11-28 01:30:26,458 - AIXChecker - INFO - Executing check 'memory' on test-host
+2025-11-28 01:30:26,458 - AIXChecker - INFO - Check 'memory' completed with status: FAIL
+2025-11-28 01:30:26,458 - AIXChecker - INFO - Executing check 'cpu_load' on test-host
+2025-11-28 01:30:26,458 - AIXChecker - INFO - Check 'cpu_load' completed with status: FAIL
+2025-11-28 01:30:26,458 - AIXChecker - INFO - Executing check 'services' on test-host
+2025-11-28 01:30:26,458 - AIXChecker - INFO - Check 'services' completed with status: PASS
+2025-11-28 01:30:26,458 - AIXChecker - INFO - Executing check 'network' on test-host
+2025-11-28 01:30:26,458 - AIXChecker - INFO - Check 'network' completed with status: FAIL
+2025-11-28 01:30:26,458 - AIXChecker - INFO - Executing check 'processes' on test-host
+2025-11-28 01:30:26,458 - AIXChecker - INFO - Check 'processes' completed with status: PASS
+2025-11-28 01:30:26,468 - CommandExecutor - INFO - Loaded 3 commands from /tmp/tmpkmejf9i0.sh
+2025-11-28 01:30:26,618 - CommandExecutor - ERROR - Command execution failed: Connection error
+2025-11-28 01:30:26,626 - CommandExecutor - ERROR - Command execution failed: Connection error
+2025-11-28 01:30:26,630 - CommandExecutor - INFO - Command cache cleared
+2025-11-28 01:30:26,639 - CommandExecutor - WARNING - Dangerous command detected: rm -rf /
+2025-11-28 01:30:26,640 - CommandExecutor - WARNING - Dangerous command detected: mkfs /dev/sda1
+2025-11-28 01:30:26,640 - CommandExecutor - WARNING - Dangerous command detected: dd if=/dev/zero of=/dev/sda
+2025-11-28 01:30:26,640 - CommandExecutor - WARNING - Dangerous command detected: shutdown -h now
+2025-11-28 01:30:26,640 - CommandExecutor - WARNING - Dangerous command detected: reboot
+2025-11-28 01:30:26,640 - CommandExecutor - WARNING - Dangerous command detected: format /dev/sda1
+2025-11-28 01:30:26,853 - LinuxChecker - INFO - Executing check 'disk_usage' on test-host
+2025-11-28 01:30:26,854 - LinuxChecker - INFO - Check 'disk_usage' completed with status: FAIL
+2025-11-28 01:30:26,859 - LinuxChecker - INFO - Executing check 'disk_usage' on test-host
+2025-11-28 01:30:26,859 - LinuxChecker - ERROR - Error executing check 'disk_usage': Connection error
+2025-11-28 01:30:26,865 - LinuxChecker - INFO - Executing check 'disk_usage' on test-host
+2025-11-28 01:30:26,865 - LinuxChecker - INFO - Check 'disk_usage' completed with status: FAIL
+2025-11-28 01:30:26,865 - LinuxChecker - INFO - Executing check 'memory' on test-host
+2025-11-28 01:30:26,865 - LinuxChecker - INFO - Check 'memory' completed with status: FAIL
+2025-11-28 01:30:26,865 - LinuxChecker - INFO - Executing check 'cpu_load' on test-host
+2025-11-28 01:30:26,865 - LinuxChecker - INFO - Check 'cpu_load' completed with status: FAIL
+2025-11-28 01:30:26,865 - LinuxChecker - INFO - Executing check 'services' on test-host
+2025-11-28 01:30:26,865 - LinuxChecker - INFO - Check 'services' completed with status: PASS
+2025-11-28 01:30:26,865 - LinuxChecker - INFO - Executing check 'network' on test-host
+2025-11-28 01:30:26,865 - LinuxChecker - INFO - Check 'network' completed with status: FAIL
+2025-11-28 01:30:26,865 - LinuxChecker - INFO - Executing check 'processes' on test-host
+2025-11-28 01:30:26,865 - LinuxChecker - INFO - Check 'processes' completed with status: PASS
+2025-11-28 01:30:26,870 - LinuxChecker - ERROR - Prerequisites validation failed: SSH connection is not active
+2025-11-28 01:30:26,896 - ReportGenerator - INFO - Generated JSON report: reports/test-host_20230101_120000_health_check.json
+2025-11-28 01:30:26,901 - ReportGenerator - INFO - Generated HTML report: reports/test-host_20251128_013026_health_check.html
+2025-11-28 01:30:26,907 - ReportGenerator - INFO - Generated TEXT report: reports/test-host_20251128_013026_health_check.txt
+2025-11-28 01:30:26,916 - ReportGenerator - INFO - Generated JSON report: reports/test-host_20251128_013026_health_check.json
+2025-11-28 01:30:26,922 - ReportGenerator - WARNING - Unsupported report format: unsupported
+2025-11-28 01:30:26,928 - ReportGenerator - INFO - Generated batch report: reports/batch_report_20251128_013026.json
+2025-11-28 01:30:26,948 - ReportGenerator - ERROR - Failed to generate json report: Failed to write JSON report: Permission denied
+2025-11-28 01:30:26,963 - health_check.connection.ssh_connector - INFO - Connecting to 192.168.1.100:22 (attempt 1)
+2025-11-28 01:30:26,964 - health_check.connection.ssh_connector - INFO - Successfully connected to 192.168.1.100
+2025-11-28 01:30:26,964 - health_check.connection.ssh_connector - INFO - Disconnected from 192.168.1.100
+2025-11-28 01:30:26,968 - health_check.connection.ssh_connector - INFO - Connecting to 192.168.1.100:22 (attempt 1)
+2025-11-28 01:30:26,968 - health_check.connection.ssh_connector - ERROR - Authentication failed for 192.168.1.100: Auth failed
+2025-11-28 01:30:26,972 - health_check.connection.ssh_connector - INFO - Connecting to 192.168.1.100:22 (attempt 1)
+2025-11-28 01:30:26,973 - health_check.connection.ssh_connector - WARNING - SSH connection failed for 192.168.1.100: Connection failed
+2025-11-28 01:30:26,973 - health_check.connection.ssh_connector - INFO - Retrying in 5 seconds...
+2025-11-28 01:30:26,973 - health_check.connection.ssh_connector - INFO - Connecting to 192.168.1.100:22 (attempt 2)
+2025-11-28 01:30:26,973 - health_check.connection.ssh_connector - WARNING - SSH connection failed for 192.168.1.100: Connection failed
+2025-11-28 01:30:26,973 - health_check.connection.ssh_connector - INFO - Retrying in 10 seconds...
+2025-11-28 01:30:26,973 - health_check.connection.ssh_connector - INFO - Connecting to 192.168.1.100:22 (attempt 3)
+2025-11-28 01:30:26,973 - health_check.connection.ssh_connector - INFO - Successfully connected to 192.168.1.100
+2025-11-28 01:30:26,977 - health_check.connection.ssh_connector - INFO - Connecting to 192.168.1.100:22 (attempt 1)
+2025-11-28 01:30:26,977 - health_check.connection.ssh_connector - WARNING - SSH connection failed for 192.168.1.100: Connection failed
+2025-11-28 01:30:26,978 - health_check.connection.ssh_connector - INFO - Retrying in 5 seconds...
+2025-11-28 01:30:26,978 - health_check.connection.ssh_connector - INFO - Connecting to 192.168.1.100:22 (attempt 2)
+2025-11-28 01:30:26,978 - health_check.connection.ssh_connector - WARNING - SSH connection failed for 192.168.1.100: Connection failed
+2025-11-28 01:30:26,978 - health_check.connection.ssh_connector - INFO - Retrying in 10 seconds...
+2025-11-28 01:30:26,978 - health_check.connection.ssh_connector - INFO - Connecting to 192.168.1.100:22 (attempt 3)
+2025-11-28 01:30:26,978 - health_check.connection.ssh_connector - WARNING - SSH connection failed for 192.168.1.100: Connection failed
+2025-11-28 01:30:26,978 - health_check.connection.ssh_connector - INFO - Retrying in 20 seconds...
+2025-11-28 01:30:26,978 - health_check.connection.ssh_connector - INFO - Connecting to 192.168.1.100:22 (attempt 4)
+2025-11-28 01:30:26,978 - health_check.connection.ssh_connector - WARNING - SSH connection failed for 192.168.1.100: Connection failed
+2025-11-28 01:30:26,982 - health_check.connection.ssh_connector - INFO - Connecting to 192.168.1.100:22 (attempt 1)
+2025-11-28 01:30:26,983 - health_check.connection.ssh_connector - INFO - Successfully connected to 192.168.1.100
+2025-11-28 01:30:26,983 - health_check.connection.ssh_connector - INFO - Disconnected from 192.168.1.100
+2025-11-28 01:30:26,988 - health_check.connection.ssh_connector - INFO - Connecting to 192.168.1.100:22 (attempt 1)
+2025-11-28 01:30:26,988 - health_check.connection.ssh_connector - INFO - Successfully connected to 192.168.1.100
+2025-11-28 01:30:26,988 - health_check.connection.ssh_connector - INFO - Disconnected from 192.168.1.100
+2025-11-28 01:30:26,994 - health_check.connection.ssh_connector - INFO - Connecting to 192.168.1.100:22 (attempt 1)
+2025-11-28 01:30:26,994 - health_check.connection.ssh_connector - INFO - Successfully connected to 192.168.1.100
+2025-11-28 01:30:26,994 - health_check.connection.ssh_connector - WARNING - Command failed on 192.168.1.100: test command
+2025-11-28 01:30:26,994 - health_check.connection.ssh_connector - INFO - Disconnected from 192.168.1.100
+2025-11-28 01:30:26,999 - health_check.connection.ssh_connector - INFO - Connecting to 192.168.1.100:22 (attempt 1)
+2025-11-28 01:30:26,999 - health_check.connection.ssh_connector - INFO - Successfully connected to 192.168.1.100
+2025-11-28 01:30:27,010 - health_check.connection.ssh_connector - INFO - Disconnected from 192.168.1.100
+2025-11-28 01:30:27,010 - health_check.connection.ssh_connector - INFO - Disconnected from 192.168.1.100
+2025-11-28 01:30:27,010 - health_check.connection.ssh_connector - INFO - Connecting to 192.168.1.100:22 (attempt 1)
+2025-11-28 01:30:27,011 - health_check.connection.ssh_connector - INFO - Successfully connected to 192.168.1.100
+2025-11-28 01:30:27,011 - health_check.connection.ssh_connector - INFO - Disconnected from 192.168.1.100
+2025-11-28 01:30:27,015 - health_check.connection.ssh_connector - INFO - Connecting to 192.168.1.100:22 (attempt 1)
+2025-11-28 01:30:27,016 - health_check.connection.ssh_connector - INFO - Successfully connected to 192.168.1.100
+2025-11-28 01:30:27,021 - health_check.connection.ssh_connector - INFO - Connecting to 192.168.1.100:22 (attempt 1)
+2025-11-28 01:30:27,021 - health_check.connection.ssh_connector - INFO - Successfully connected to 192.168.1.100
+2025-11-28 01:30:27,021 - health_check.connection.ssh_connector - INFO - Connection to 192.168.1.100 lost, attempting to reconnect...
+2025-11-28 01:30:27,021 - health_check.connection.ssh_connector - INFO - Disconnected from 192.168.1.100
+2025-11-28 01:30:27,021 - health_check.connection.ssh_connector - INFO - Connecting to 192.168.1.100:22 (attempt 1)
+2025-11-28 01:30:27,021 - health_check.connection.ssh_connector - INFO - Disconnected from 192.168.1.100
+2025-11-28 01:30:27,021 - health_check.connection.ssh_connector - INFO - Successfully connected to 192.168.1.100
+2025-11-28 01:30:27,026 - health_check.connection.ssh_connector - INFO - Connecting to 192.168.1.100:22 (attempt 1)
+2025-11-28 01:30:27,027 - health_check.connection.ssh_connector - INFO - Successfully connected to 192.168.1.100
+2025-11-28 01:30:27,027 - health_check.connection.ssh_connector - INFO - Disconnected from 192.168.1.100
+2025-11-28 01:30:27,031 - health_check.connection.ssh_connector - INFO - Connecting to 192.168.1.100:22 (attempt 1)
+2025-11-28 01:30:27,032 - health_check.connection.ssh_connector - WARNING - Unexpected error connecting to 192.168.1.100: No authentication method provided (password or key file)
+2025-11-28 01:30:27,032 - health_check.connection.ssh_connector - INFO - Retrying in 5 seconds...
+2025-11-28 01:30:32,032 - health_check.connection.ssh_connector - INFO - Connecting to 192.168.1.100:22 (attempt 2)
+2025-11-28 01:30:32,034 - health_check.connection.ssh_connector - WARNING - Unexpected error connecting to 192.168.1.100: No authentication method provided (password or key file)
+2025-11-28 01:30:32,034 - health_check.connection.ssh_connector - INFO - Retrying in 10 seconds...
+2025-11-28 01:30:42,034 - health_check.connection.ssh_connector - INFO - Connecting to 192.168.1.100:22 (attempt 3)
+2025-11-28 01:30:42,036 - health_check.connection.ssh_connector - WARNING - Unexpected error connecting to 192.168.1.100: No authentication method provided (password or key file)
+2025-11-28 01:30:42,036 - health_check.connection.ssh_connector - INFO - Retrying in 20 seconds...
+2025-11-28 01:31:02,036 - health_check.connection.ssh_connector - INFO - Connecting to 192.168.1.100:22 (attempt 4)
+2025-11-28 01:31:02,037 - health_check.connection.ssh_connector - WARNING - Unexpected error connecting to 192.168.1.100: No authentication method provided (password or key file)
+2025-11-28 01:31:02,128 - health_check.connection.ssh_connector - INFO - Disconnected from 192.168.1.100

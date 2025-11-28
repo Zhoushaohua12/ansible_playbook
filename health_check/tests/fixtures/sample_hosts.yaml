@@ -1,0 +1,25 @@
+# Sample hosts configuration for testing
+hosts:
+  - host: "192.168.1.100"
+    username: "admin"
+    password: "secret123"
+    os_type: "linux"
+    port: 22
+    
+  - host: "192.168.1.101"
+    username: "admin"
+    password: "secret123"
+    os_type: "aix"
+    port: 22
+    
+  - host: "aix-server.example.com"
+    username: "root"
+    key_file: "/path/to/private/key"
+    os_type: "aix"
+    port: 22
+    
+  - host: "linux-server.example.com"
+    username: "monitoring"
+    password: "monitor123"
+    os_type: "linux"
+    port: 2222

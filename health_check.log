@@ -1,0 +1,24 @@
+2025-11-28 01:41:42,652 - AIXChecker - INFO - Executing check 'disk_usage' on test-host
+2025-11-28 01:41:42,653 - AIXChecker - INFO - Check 'disk_usage' completed with status: FAIL
+2025-11-28 01:41:42,658 - AIXChecker - INFO - Executing check 'disk_usage' on test-host
+2025-11-28 01:41:42,659 - AIXChecker - INFO - Check 'disk_usage' completed with status: FAIL
+2025-11-28 01:41:42,659 - AIXChecker - INFO - Executing check 'memory' on test-host
+2025-11-28 01:41:42,659 - AIXChecker - INFO - Check 'memory' completed with status: FAIL
+2025-11-28 01:41:42,659 - AIXChecker - INFO - Executing check 'cpu_load' on test-host
+2025-11-28 01:41:42,659 - AIXChecker - INFO - Check 'cpu_load' completed with status: FAIL
+2025-11-28 01:41:42,659 - AIXChecker - INFO - Executing check 'services' on test-host
+2025-11-28 01:41:42,659 - AIXChecker - INFO - Check 'services' completed with status: PASS
+2025-11-28 01:41:42,659 - AIXChecker - INFO - Executing check 'network' on test-host
+2025-11-28 01:41:42,659 - AIXChecker - INFO - Check 'network' completed with status: FAIL
+2025-11-28 01:41:42,659 - AIXChecker - INFO - Executing check 'processes' on test-host
+2025-11-28 01:41:42,659 - AIXChecker - INFO - Check 'processes' completed with status: PASS
+2025-11-28 01:41:42,673 - CommandExecutor - INFO - Loaded 3 commands from /tmp/tmpqjshf5t5.sh
+2025-11-28 01:41:42,719 - CommandExecutor - ERROR - Command execution failed: Connection error
+2025-11-28 01:41:42,729 - CommandExecutor - ERROR - Command execution failed: Connection error
+2025-11-28 01:41:42,733 - CommandExecutor - INFO - Command cache cleared
+2025-11-28 01:41:42,746 - CommandExecutor - WARNING - Dangerous command detected: rm -rf /
+2025-11-28 01:41:42,746 - CommandExecutor - WARNING - Dangerous command detected: mkfs /dev/sda1
+2025-11-28 01:41:42,747 - CommandExecutor - WARNING - Dangerous command detected: dd if=/dev/zero of=/dev/sda
+2025-11-28 01:41:42,747 - CommandExecutor - WARNING - Dangerous command detected: shutdown -h now
+2025-11-28 01:41:42,747 - CommandExecutor - WARNING - Dangerous command detected: reboot
+2025-11-28 01:41:42,747 - CommandExecutor - WARNING - Dangerous command detected: format /dev/sda1
