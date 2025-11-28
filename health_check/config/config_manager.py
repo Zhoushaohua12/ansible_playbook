@@ -199,8 +199,8 @@ class ConfigManager:
         """Validate IP address or hostname."""
         # IPv4 pattern
         ipv4_pattern = r'^(\d{1,3}\.){3}\d{1,3}$'
-        # IPv6 pattern (simplified)
-        ipv6_pattern = r'^([0-9a-fA-F]{1,4}:){1,7}[0-9a-fA-F]{1,4}$|^::1$|^::$|^([0-9a-fA-F]{1,4}:){1,7}:
+        # IPv6 pattern (simplified) - basic pattern for common cases
+        ipv6_pattern = r'^([0-9a-fA-F]{1,4}:){1,7}[0-9a-fA-F]{1,4}$|^::1$|^::
         # Hostname pattern
         hostname_pattern = r'^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$'
         
