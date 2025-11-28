@@ -1,0 +1,162 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Check Report - test-host</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            background-color: #dc3545;
+        }
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .summary-item {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .summary-item h3 {
+            margin: 0 0 10px 0;
+            color: #495057;
+        }
+        .summary-item .value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .results {
+            margin-top: 30px;
+        }
+        .result-item {
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .result-header {
+            padding: 15px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .status-pass { background-color: #d4edda; color: #155724; }
+        .status-fail { background-color: #f8d7da; color: #721c24; }
+        .status-warn { background-color: #fff3cd; color: #856404; }
+        .status-skip { background-color: #e2e3e5; color: #383d41; }
+        .result-details {
+            padding: 15px;
+            background-color: #f8f9fa;
+        }
+        .raw-output {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f1f3f4;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            text-align: center;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Health Check Report</h1>
+            <p><strong>Host:</strong> test-host | <strong>OS:</strong> linux | <strong>Time:</strong> 2025-11-28T01:30:26.901008</p>
+            <div class="status-badge">Overall Status: FAIL</div>
+        </div>
+        
+        <div class="summary">
+            <div class="summary-item">
+                <h3>Total Checks</h3>
+                <div class="value">2</div>
+            </div>
+            <div class="summary-item">
+                <h3>Passed</h3>
+                <div class="value">1</div>
+            </div>
+            <div class="summary-item">
+                <h3>Failed</h3>
+                <div class="value">1</div>
+            </div>
+            <div class="summary-item">
+                <h3>Warnings</h3>
+                <div class="value">0</div>
+            </div>
+            <div class="summary-item">
+                <h3>Skipped</h3>
+                <div class="value">0</div>
+            </div>
+        </div>
+        
+        <div class="results">
+            <h2>Check Results</h2>
+        
+            <div class="result-item">
+                <div class="result-header status-pass">
+                    <span>disk_usage</span>
+                    <span>PASS</span>
+                </div>
+                <div class="result-details">
+                    <p><strong>Message:</strong> Disk usage is normal</p>
+                    <p><strong>Timestamp:</strong> 2023-01-01T12:00:00</p>
+            <h4>Details:</h4><ul><li><strong>usage:</strong> 25%</li></ul></div></div>
+            <div class="result-item">
+                <div class="result-header status-fail">
+                    <span>memory</span>
+                    <span>FAIL</span>
+                </div>
+                <div class="result-details">
+                    <p><strong>Message:</strong> Memory usage is high</p>
+                    <p><strong>Timestamp:</strong> 2023-01-01T12:00:00</p>
+            <h4>Details:</h4><ul><li><strong>usage:</strong> 95%</li></ul></div></div>
+        </div>
+        
+        <div class="footer">
+            <p>Generated by Health Check System</p>
+        </div>
+    </div>
+</body>
+</html>
+        

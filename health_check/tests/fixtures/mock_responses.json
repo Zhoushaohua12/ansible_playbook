@@ -1,0 +1,39 @@
+{
+  "ssh_responses": {
+    "disk_usage_linux": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/sda1        20G   5G   15G  25% /\n/dev/sda2       100G  95G    5G  95% /data\ntmpfs           2.0G     0  2.0G   0% /dev/shm",
+    "disk_usage_aix": "Filesystem    GB blocks      Free %Used    Iused %Iused Mounted on\n/dev/hd4           2.00      1.20   40%     1234    15% /\n/dev/hd2          10.00      2.00   80%     5678    30% /usr",
+    "memory_linux": "              total        used        free      shared  buff/cache   available\nMem:           3952        1024        2048          0         880        2928\nSwap:          2047           0        2047",
+    "memory_aix": "memory size 4096 MB\n                size       inuse        free        pin    virtual\nmemory        4096MB      2048MB      2048MB       512MB      1024MB\npg space      2048MB       512MB      1536MB",
+    "cpu_load": " 10:30:15 up 10 days,  2:45,  2 users,  load average: 0.15, 0.20, 0.25",
+    "services_linux": "UNIT LOAD ACTIVE SUB DESCRIPTION\n0 failed units listed.",
+    "services_linux_failed": "UNIT LOAD ACTIVE SUB DESCRIPTION\nnginx.service loaded failed failed The nginx HTTP and reverse proxy server\nmysql.service loaded failed failed MySQL Community Server",
+    "services_aix": "Subsystem         Group            PID          Status\nsendmail          mail             1234         active\nsshd              tcpip           5678         active",
+    "services_aix_inactive": "Subsystem         Group            PID          Status\nsendmail          mail             1234         active\nsshd              tcpip           5678         active\nfailed_service    system             -         inoperative",
+    "network_linux": "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n    inet 127.0.0.1/8 scope host lo\n2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000\n    link/ether 00:11:22:33:44:55 brd ff:ff:ff:ff:ff:ff\n    inet 192.168.1.100/24 brd 192.168.1.255 scope global eth0",
+    "network_aix": "lo0: flags=e08084b<UP,BROADCAST,LOOPBACK,RUNNING,SIMPLEX,MULTICAST,GROUPRT,64BIT>\n        inet 127.0.0.1 netmask 0xff000000\nen0: flags=1e080863<UP,BROADCAST,NOTRAILERS,RUNNING,SIMPLEX,MULTICAST,GROUPRT,64BIT>\n        inet 192.168.1.100 netmask 0xffffff00 broadcast 192.168.1.255",
+    "processes_linux": "USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND\nroot         1  0.0  0.1  19356  1544 ?        Ss   10:20   0:01 /sbin/init\nroot       123  0.0  0.2  25432  2048 ?        S    10:21   0:00 /usr/sbin/sshd\nuser       456  0.1  0.5  45678  2048 pts/0    Ss   10:25   0:00 -bash",
+    "processes_aix": "  UID   PID  PPID   C    STIME TTY  TIME CMD\n    0     1     0   0   Oct 20 ?    0:10 /etc/init\n    0  1234     1   0   Oct 20 ?    0:05 /usr/sbin/sshd\n  100  4567  1234   0   10:25 pts/0 0:00 -ksh"
+  },
+  "error_responses": {
+    "connection_failed": "Connection timed out",
+    "authentication_failed": "Authentication failed",
+    "command_not_found": "bash: command not found",
+    "permission_denied": "Permission denied"
+  },
+  "mock_hosts": [
+    {
+      "host": "192.168.1.100",
+      "username": "testuser",
+      "password": "testpass",
+      "os_type": "linux",
+      "port": 22
+    },
+    {
+      "host": "192.168.1.101",
+      "username": "testuser",
+      "password": "testpass",
+      "os_type": "aix",
+      "port": 22
+    }
+  ]
+}

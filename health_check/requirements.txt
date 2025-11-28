@@ -1,0 +1,4 @@
+paramiko>=2.7.0
+pyyaml>=5.4.0
+pytest>=6.0.0
+pytest-cov>=2.10.0
